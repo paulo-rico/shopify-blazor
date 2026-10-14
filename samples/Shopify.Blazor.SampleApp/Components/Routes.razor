@@ -1,0 +1,26 @@
+@* Routes every page through the embedded shell. *@
+@*
+    Interactive Server. The render mode has to be stated: a Blazor Web App is static by default,
+    and a static page renders the markup perfectly while no handler is ever attached — which looks
+    like a styling problem and is not one.
+*@
+@rendermode InteractiveServer
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        </LayoutView>
+        <FocusOnNavigate RouteData="@routeData" Selector="s-page" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <PolarisPage Heading="Not found">
+                <PolarisSection>
+                    <PolarisBanner Heading="That page does not exist" Tone="PolarisTone.Warning">
+                        Check the address, or use the navigation to pick another page.
+                    </PolarisBanner>
+                </PolarisSection>
+            </PolarisPage>
+        </LayoutView>
+    </NotFound>
+</Router>

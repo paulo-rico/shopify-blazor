@@ -1,0 +1,33 @@
+# Build output
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+
+# Tooling scratch (see AGENTS.md: DOTNET_CLI_HOME must live inside the workspace)
+.dotnet/
+.nuget/
+tools-local/
+
+# Local configuration and secrets
+appsettings.Local.json
+appsettings.*.Local.json
+.env
+.env.local
+*.pfx
+
+# Test output
+TestResults/
+*.trx
+playwright-report/
+test-results/
+
+# Python bytecode from the tooling scripts
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+*.swp

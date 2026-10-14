@@ -1,0 +1,124 @@
+@page "/"
+@using Shopify.Blazor.AppBridge
+@inject IAppBridgeInterop Bridge
+
+<PolarisStack Gap="PolarisGap.Base">
+    <PolarisSection Heading="What this sample proves">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisText Paragraph="true">
+                This is the reference application for the Shopify Blazor Toolkit. It runs as an
+                embedded app inside the Shopify Admin, builds its whole interface from Shopify's own
+                Polaris web components, and reaches the Admin API through a server that never lets a
+                credential near the browser.
+            </PolarisText>
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisBadge Tone="PolarisTone.Success">Polaris components</PolarisBadge>
+                <PolarisBadge Tone="PolarisTone.Info">App Bridge 4</PolarisBadge>
+                <PolarisBadge Tone="PolarisTone.Neutral">Token exchange</PolarisBadge>
+            </PolarisStack>
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Where it is running">
+        <PolarisStack Gap="PolarisGap.Base">
+            @if (_checking)
+            {
+                <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                    <PolarisSpinner AccessibilityLabel="Checking the environment" />
+                    <PolarisText>Checking the environment…</PolarisText>
+                </PolarisStack>
+            }
+            else if (_embedded == true)
+            {
+                <PolarisBanner Heading="Embedded in the Shopify Admin"
+                               Tone="PolarisTone.Success">
+                    App Bridge is available, so session tokens, toasts and Admin navigation all work.
+                    Open the Products page to make a real authenticated Admin API call.
+                </PolarisBanner>
+            }
+            else
+            {
+                <PolarisBanner Heading="Standalone browser session"
+                               Tone="PolarisTone.Warning">
+                    <PolarisText Paragraph="true">
+                        App Bridge is loaded from the CDN but only becomes active inside the Admin.
+                        Everything you see here is still genuine Polaris: the same custom elements the
+                        Admin uses, upgraded by the same script.
+                    </PolarisText>
+                </PolarisBanner>
+            }
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Try it">
+        <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+            <PolarisButton Variant="PolarisButtonVariant.Primary" Href="/products" Target="PolarisLinkTarget.Self">
+                Load products from the Admin API
+            </PolarisButton>
+            <PolarisButton Href="/components" Target="PolarisLinkTarget.Self" OnClick="ShowToastAsync">
+                Show a toast
+            </PolarisButton>
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Request a fresh session token">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisText>
+                Session tokens are short lived and minted on demand. This calls App Bridge directly.
+            </PolarisText>
+            <PolarisButton OnClick="MintTokenAsync" Loading="_minting">Mint a session token</PolarisButton>
+            @if (_tokenSummary is not null)
+            {
+                <PolarisBanner Heading="Token minted" Tone="PolarisTone.Info">
+                    <PolarisText>@_tokenSummary</PolarisText>
+                </PolarisBanner>
+            }
+        </PolarisStack>
+    </PolarisSection>
+</PolarisStack>
+
+@code {
+    private bool _checking = true;
+    private bool _minting;
+    private bool? _embedded;
+    private string? _tokenSummary;
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _embedded = await Bridge.IsAvailableAsync();
+        _checking = false;
+        StateHasChanged();
+    }
+
+    private async Task ShowToastAsync(PolarisEventArgs args)
+    {
+        await Bridge.ShowToastAsync("Hello from the Shopify Blazor Toolkit.");
+    }
+
+    private async Task MintTokenAsync(PolarisEventArgs args)
+    {
+        _minting = true;
+
+        try
+        {
+            var token = await Bridge.WithLoadingAsync(() => Bridge.GetIdTokenAsync().AsTask());
+
+            _tokenSummary = token is null
+                ? "App Bridge could not mint a token here; open the app from inside the Admin."
+                : $"A JWT was issued and handed straight to the server on the next request. " +
+                  $"This page only ever sees the token, never an Admin API access token. " +
+                  $"Length: {token.Length} characters.";
+        }
+        finally
+        {
+            _minting = false;
+        }
+    }
+}

@@ -1,0 +1,34 @@
+<!--
+  Microsoft.NET.Sdk.Razor, not Microsoft.NET.Sdk: the library ships a JavaScript module as a
+  static web asset, and only the Razor SDK produces the static web assets manifest that publishes
+  it at /_content/Polaris.Blazor/. With a plain SDK project the build succeeds, the file looks
+  present in wwwroot, and the browser gets a 404 — which surfaces as buttons that render perfectly
+  and do nothing.
+-->
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <RootNamespace>Polaris.Blazor</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <Description>Razor components wrapping Shopify's Polaris web components, for building embedded Shopify admin UIs in C#.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <!--
+      The interop module is a static web asset, so it is served at
+      /_content/Polaris.Blazor/polaris-interop.js without the consuming app copying anything.
+      Blazor loads it as an ES module through IJSRuntime.
+    -->
+    <Content Update="wwwroot/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

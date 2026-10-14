@@ -1,0 +1,27 @@
+@* The single HTML document for the app. *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <base href="/" />
+
+    @*
+        App Bridge and Polaris, in that order, before anything renders. App Bridge injects the
+        `shopify` global from the API key meta tag; Polaris defines the custom elements the whole UI
+        is built from. Loading either one lazily gives a page of unstyled, inert elements.
+    *@
+    <ShopifyAppBridgeHead />
+
+    <title>Shopify Blazor Toolkit — sample app</title>
+
+    <HeadOutlet />
+</head>
+<body>
+    <Routes />
+
+    <script src="_framework/blazor.web.js"></script>
+    <script type="module" src="js/shopify-fetch.js"></script>
+</body>
+</html>

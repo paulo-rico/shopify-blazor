@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/Shopify.Blazor.SampleApp/Shopify.Blazor.SampleApp.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Polaris.Blazor/Polaris.Blazor.csproj" />
+    <Project Path="src/Shopify.Blazor/Shopify.Blazor.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Polaris.Blazor.Tests/Polaris.Blazor.Tests.csproj" />
+    <Project Path="tests/Shopify.Blazor.Tests/Shopify.Blazor.Tests.csproj" />
+  </Folder>
+</Solution>
