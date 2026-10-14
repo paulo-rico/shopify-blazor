@@ -49,7 +49,10 @@ Read these before changing anything in `src/`.
 3. **A library shipping a JavaScript file needs `Microsoft.NET.Sdk.Razor`.** With
    `Microsoft.NET.Sdk` the build succeeds, the file is in `wwwroot`, and the browser gets a 404 for
    `/_content/…`. Symptom: buttons render perfectly and do nothing. The failure is logged as
-   `Polaris interop module … could not be loaded` — look for it.
+   `Polaris interop module … could not be loaded` — look for it. **Both** `Polaris.Blazor` and
+   `Shopify.Blazor` need this, and the trap repeats at pack time: verify with
+   `python3 -c "import zipfile,glob; print([n for n in zipfile.ZipFile(glob.glob('artifacts/*.nupkg')[1]).namelist() if n.endswith('.js')])"`,
+   because a package can build fine and still ship without the file.
 4. **Polaris booleans are presence attributes.** `disabled="false"` is still `true` to a custom
    element. `true` must render bare; `false` must remove the attribute.
 5. **`value`, `checked`, `selected` and `indeterminate` are not reflected.** They must be set as DOM

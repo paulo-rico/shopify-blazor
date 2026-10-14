@@ -1,4 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<!--
+  Microsoft.NET.Sdk.Razor, not Microsoft.NET.Sdk: this package ships app-bridge.js as a static web
+  asset, and only the Razor SDK produces the manifest that publishes it at
+  /_content/Shopify.Blazor/. With a plain SDK project the package builds, the file is absent from
+  the .nupkg, and every App Bridge call fails at runtime — the same silent failure that
+  Polaris.Blazor hit.
+-->
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
     <RootNamespace>Shopify.Blazor</RootNamespace>
