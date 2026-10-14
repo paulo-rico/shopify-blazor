@@ -1,0 +1,348 @@
+#!/usr/bin/env bash
+#
+# shopify-dev — bring up the local Shopify Blazor app stack:
+#   1. the Blazor sample app on PORT
+#   2. a public HTTPS tunnel to that port, so Shopify's Admin can load the app
+#
+# For the .NET toolkit, not the Rails app. The Rails one lives at
+# ~/aiprojects/shopify-jeweller-workspace/shopify-jewellery-costing/bin/shopify-dev and is
+# unchanged; it uses port 3459 now that this app owns 3458.
+#
+# Unlike the Rails script this one is NOT idempotent about the app: it stops whatever is on
+# PORT first, so `bin/shopify-dev` always gives you a freshly started app rather than silently
+# reusing a stale one. The tunnel is left alone if it is already up.
+#
+# TUNNEL PROVIDERS
+#   ngrok       default, because it is what works here. Its free plan shows a one-off
+#               browser-warning page (ERR_NGROK_6024) the first time a browser visits the
+#               endpoint; click Visit Site once and it stops, for the Admin's iframe too. It
+#               answers 200 with an HTML body, so scripted callers should send
+#               ngrok-skip-browser-warning: true — the app's own calls do.
+#   cloudflare  available, and injects nothing, so no interstitial at all. Needs a token for a
+#               named tunnel with a stable hostname; without one it falls back to a quick tunnel
+#               on a random *.trycloudflare.com URL.
+#
+# NOTE: cloudflared has never held a connection to Cloudflare's edge from this machine — it gets a
+# URL, then "Failed to dial a quic connection ... no recent network activity" and requests 502.
+# Diagnose that before switching: try `--protocol http2` or `--edge-ip-version 4`.
+#
+# Choose with TUNNEL=ngrok|cloudflare in .env or the environment.
+#
+# Cloudflare token, in precedence order:
+#   1. CLOUDFLARE_TUNNEL_TOKEN or TUNNEL_TOKEN in the environment
+#   2. $APP_DIR/.cloudflared-token   (git-ignored; one line, just the token)
+#   3. neither -> a quick tunnel with a random URL, and a warning
+set -euo pipefail
+
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$APP_DIR"
+
+export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
+
+log()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m!!\033[0m %s\n' "$*"; }
+die()  { printf '\033[1;31m!!\033[0m %s\n' "$*" >&2; exit 1; }
+
+# ── configuration ────────────────────────────────────────────────────────────
+# .env is optional and read without sourcing it: Shopify secrets are not shell-quoted, and an
+# unquoted `#` or space would corrupt them.
+env_value() {
+  local key="$1" file="$APP_DIR/.env"
+  [[ -f "$file" ]] || return 0
+  sed -nE "s/^${key}=(.*)$/\1/p" "$file" | tail -1 | sed -E 's/^["'\''](.*)["'\'']$/\1/'
+}
+
+PORT="${PORT:-$(env_value PORT)}"; PORT="${PORT:-3458}"
+TUNNEL="${TUNNEL:-$(env_value TUNNEL)}"; TUNNEL="${TUNNEL:-ngrok}"
+APP_URL="${SHOPIFY_APP_URL:-$(env_value SHOPIFY_APP_URL)}"
+PROJECT="${PROJECT:-samples/Shopify.Blazor.SampleApp}"
+ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Development}"
+PROJECT_FILE="$APP_DIR/$PROJECT/$(basename "$PROJECT").csproj"
+TOKEN_FILE="$APP_DIR/.cloudflared-token"
+CLOUDFLARE_LOG="/tmp/cloudflared-shopify-blazor.log"
+NGROK_LOG="/tmp/ngrok-shopify-blazor.log"
+
+[[ "$PORT" =~ ^[0-9]+$ ]] || die "PORT is not a number: '$PORT'"
+[[ -f "$PROJECT_FILE" ]] || die "project not found: $PROJECT_FILE"
+[[ "$TUNNEL" == "ngrok" || "$TUNNEL" == "cloudflare" ]] || die "unknown TUNNEL='$TUNNEL'. Use ngrok or cloudflare."
+
+# The .NET CLI writes to ~/.dotnet and ~/.nuget. Where that is not writable (a sandbox, a
+# read-only home) it fails with a bare "Read-only file system" that reads like a build error and
+# is not one. Keeping both inside the repository makes this work anywhere.
+export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-$APP_DIR/.dotnet}"
+export NUGET_PACKAGES="${NUGET_PACKAGES:-$APP_DIR/.nuget/packages}"
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export DOTNET_NOLOGO=1
+mkdir -p "$DOTNET_CLI_HOME" "$NUGET_PACKAGES"
+
+# ── port ownership ───────────────────────────────────────────────────────────
+# Docker's published-port forwarder keeps LISTENing on a host port even when nothing inside the
+# container serves it, and it owns the port outright: no local process can bind it, and no amount
+# of killing frees it. Detecting that precisely matters, because Kestrel's "address already in
+# use" sends people hunting for a stray dotnet process that is not there.
+port_listeners() { ss -ltnp 2>/dev/null | grep -E ":${1}[[:space:]]" || true; }
+port_in_use()    { [[ -n "$(port_listeners "$1")" ]]; }
+
+docker_owner() {
+  command -v docker >/dev/null 2>&1 || return 0
+  docker ps --filter "publish=$1" --format '{{.Names}} ({{.Image}})' 2>/dev/null | head -1
+}
+
+app_responding() { curl -fsS --max-time 5 -o /dev/null "http://127.0.0.1:$1/" 2>/dev/null; }
+
+stop_app_on_port() {
+  local pids
+  pids="$(pgrep -f "dotnet.*Shopify\.Blazor\.SampleApp" 2>/dev/null || true)"
+  [[ -n "$pids" ]] || return 1
+
+  log "stopping the app already running (pid ${pids//$'\n'/ })"
+  # shellcheck disable=SC2086
+  kill $pids 2>/dev/null || true
+
+  for _ in $(seq 1 20); do
+    # shellcheck disable=SC2086
+    kill -0 $pids 2>/dev/null || return 0
+    sleep 0.25
+  done
+
+  warn "the app did not stop within 5s; sending SIGKILL"
+  # shellcheck disable=SC2086
+  kill -9 $pids 2>/dev/null || true
+  sleep 1
+}
+
+# ── state ────────────────────────────────────────────────────────────────────
+APP_PID=""
+TUNNEL_PID=""
+# ONCE=1 brings everything up and exits instead of supervising, so the whole thing can be
+# verified without a human pressing Ctrl+C.
+ONCE="${ONCE:-0}"
+
+cleanup() {
+  local code=$?
+  trap - INT TERM EXIT
+  echo
+
+  if [[ -n "$APP_PID" ]]; then
+    log "stopping the app (pid $APP_PID)"
+    kill "$APP_PID" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+      kill -0 "$APP_PID" 2>/dev/null || break
+      sleep 0.25
+    done
+    kill -9 "$APP_PID" 2>/dev/null || true
+  fi
+
+  if [[ -n "$TUNNEL_PID" ]]; then
+    log "stopping the $TUNNEL tunnel (pid $TUNNEL_PID)"
+    kill "$TUNNEL_PID" 2>/dev/null || true
+    sleep 1
+    kill -9 "$TUNNEL_PID" 2>/dev/null || true
+  fi
+
+  wait 2>/dev/null || true
+  log "stopped."
+  exit "$code"
+}
+
+# ── 1. free the port ─────────────────────────────────────────────────────────
+DOCKER_HOLDER="$(docker_owner "$PORT")"
+
+if [[ -n "$DOCKER_HOLDER" ]]; then
+  cat >&2 <<EOF
+
+!! Port $PORT is published by a Docker container: $DOCKER_HOLDER
+
+   Docker's forwarder owns the port, so no local process can bind it and stopping
+   processes cannot help. Nothing inside the container serves it either, which is
+   why the port looks busy while the app answers nothing.
+
+   If this is the dev-stack's Rails port, it should publish 3459 instead:
+
+     cd ~/docker/dev-stack
+     \$EDITOR compose.yml      # "3458:3458" -> "3459:3459"
+     docker compose up -d
+
+   Then set PORT=3459 in the Rails app's .env and re-run this.
+
+EOF
+  exit 1
+fi
+
+if app_responding "$PORT"; then
+  stop_app_on_port "$PORT" || true
+elif port_in_use "$PORT"; then
+  warn "port $PORT is LISTENing but does not answer / — stopping whatever holds it"
+  stop_app_on_port "$PORT" || true
+  port_in_use "$PORT" && die "port $PORT is still in use. Find it with: ss -ltnp | grep :$PORT"
+else
+  log "port $PORT is free"
+fi
+
+# ── tunnel helpers ───────────────────────────────────────────────────────────
+ngrok_api() { curl -s --max-time 4 http://127.0.0.1:4040/api/tunnels 2>/dev/null; }
+
+resolve_cloudflare_token() {
+  local token="${CLOUDFLARE_TUNNEL_TOKEN:-${TUNNEL_TOKEN:-}}"
+  [[ -n "$token" ]] && { printf '%s' "$token"; return 0; }
+
+  if [[ -f "$TOKEN_FILE" ]]; then
+    token="$(tr -d '[:space:]' < "$TOKEN_FILE")"
+    [[ -n "$token" ]] && { printf '%s' "$token"; return 0; }
+  fi
+
+  return 1
+}
+
+start_cloudflare() {
+  command -v cloudflared >/dev/null || die "cloudflared not found. Install it, or set TUNNEL=ngrok."
+
+  local token
+  if token="$(resolve_cloudflare_token)"; then
+    log "starting cloudflared (named tunnel)"
+    cloudflared tunnel --no-autoupdate run --token "$token" >"$CLOUDFLARE_LOG" 2>&1 &
+  else
+    warn "No Cloudflare tunnel token found, so using a quick tunnel with a RANDOM URL."
+    warn "For a stable hostname, create a named tunnel in the Cloudflare dashboard, copy its"
+    warn "token, and put it in $TOKEN_FILE (git-ignored) or export CLOUDFLARE_TUNNEL_TOKEN."
+    log "starting cloudflared (quick tunnel) -> http://localhost:$PORT"
+    cloudflared tunnel --no-autoupdate --url "http://localhost:$PORT" >"$CLOUDFLARE_LOG" 2>&1 &
+  fi
+
+  TUNNEL_PID=$!
+
+  # A named tunnel prints no URL — the hostname comes from the dashboard route — so readiness is
+  # "the connector registered", not "a URL appeared". A quick tunnel also prints its assigned
+  # https://<random>.trycloudflare.com, which is read back below.
+  for _ in $(seq 1 40); do
+    if ! kill -0 "$TUNNEL_PID" 2>/dev/null; then
+      warn "cloudflared exited early:"
+      tail -8 "$CLOUDFLARE_LOG" >&2 || true
+      die "see $CLOUDFLARE_LOG"
+    fi
+
+    if grep -qE "Registered tunnel connection|Connection [0-9a-f-]+ registered" "$CLOUDFLARE_LOG" 2>/dev/null; then
+      log "cloudflared connected"
+      return 0
+    fi
+
+    sleep 1
+  done
+
+  warn "cloudflared did not report a registered connection within 40s:"
+  tail -8 "$CLOUDFLARE_LOG" >&2 || true
+  die "cloudflared did not come up — see $CLOUDFLARE_LOG"
+}
+
+start_ngrok() {
+  command -v ngrok >/dev/null || die "ngrok not found. Install it, or set TUNNEL=cloudflare."
+
+  if pgrep -x ngrok >/dev/null 2>&1; then
+    die "an ngrok process is already running. Stop it first (only one tunnel at a time)."
+  fi
+
+  local host
+  host="$(printf '%s' "$APP_URL" | sed -E 's|^https?://||; s|/.*$||')"
+
+  if [[ -n "$host" ]]; then
+    log "starting ngrok: https://$host -> http://localhost:$PORT"
+    ngrok http "$PORT" --url="https://$host" --log=stdout --log-format=logfmt >"$NGROK_LOG" 2>&1 &
+  else
+    log "starting ngrok -> http://localhost:$PORT"
+    ngrok http "$PORT" --log=stdout --log-format=logfmt >"$NGROK_LOG" 2>&1 &
+  fi
+
+  TUNNEL_PID=$!
+
+  for _ in $(seq 1 30); do
+    ngrok_api | grep -q '"public_url"' && { log "ngrok tunnel established"; return 0; }
+    kill -0 "$TUNNEL_PID" 2>/dev/null || die "ngrok exited early — see $NGROK_LOG"
+    sleep 1
+  done
+
+  die "ngrok did not come up in 30s — see $NGROK_LOG"
+}
+
+# ── 2. tunnel ────────────────────────────────────────────────────────────────
+PUBLIC=""
+
+case "$TUNNEL" in
+  cloudflare)
+    if pgrep -x cloudflared >/dev/null 2>&1; then
+      log "cloudflared is already running — leaving it alone"
+    else
+      start_cloudflare
+    fi
+
+    # A quick tunnel announces its own URL; a named tunnel's hostname is the one routed to it in
+    # the dashboard, which is what SHOPIFY_APP_URL holds.
+    PUBLIC="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CLOUDFLARE_LOG" 2>/dev/null | head -1)"
+    [[ -n "$PUBLIC" ]] || PUBLIC="$APP_URL"
+    ;;
+
+  ngrok)
+    if ngrok_api | grep -q '"public_url"'; then
+      FORWARDED="$(ngrok_api | grep -oE '"addr":"[^"]+"' | head -1 | sed -E 's/.*:([0-9]+)"/\1/')"
+      if [[ "$FORWARDED" == "$PORT" ]]; then
+        log "ngrok already tunnelling to port $PORT — reusing it"
+        PUBLIC="$(ngrok_api | grep -oE '"public_url":"[^"]+"' | head -1 | sed -E 's/.*"public_url":"([^"]+)".*/\1/')"
+      else
+        die "ngrok is running but forwards to port ${FORWARDED:-?}, not $PORT."
+      fi
+    else
+      start_ngrok
+      PUBLIC="$(ngrok_api | grep -oE '"public_url":"[^"]+"' | head -1 | sed -E 's/.*"public_url":"([^"]+)".*/\1/')"
+    fi
+    ;;
+
+  *)
+    # Unreachable: the choice is validated before anything is stopped or started, so a typo cannot
+    # leave the app killed and no tunnel.
+    die "unknown TUNNEL='$TUNNEL'. Use ngrok or cloudflare."
+    ;;
+esac
+
+# ── 3. the app ───────────────────────────────────────────────────────────────
+log "starting $PROJECT on http://localhost:$PORT (ASPNETCORE_ENVIRONMENT=$ENVIRONMENT)"
+ASPNETCORE_ENVIRONMENT="$ENVIRONMENT" \
+  dotnet run --project "$PROJECT_FILE" --no-launch-profile --urls "http://127.0.0.1:$PORT" \
+  >/tmp/shopify-blazor-app.log 2>&1 &
+APP_PID=$!
+
+for _ in $(seq 1 90); do
+  app_responding "$PORT" && break
+  kill -0 "$APP_PID" 2>/dev/null || die "the app exited during startup. See /tmp/shopify-blazor-app.log"
+  sleep 1
+done
+
+app_responding "$PORT" || die "the app did not answer on port $PORT within 90s. See /tmp/shopify-blazor-app.log"
+log "app is up"
+
+# ── 4. where to go ───────────────────────────────────────────────────────────
+TUNNEL_LOG="$NGROK_LOG"
+[[ "$TUNNEL" == cloudflare ]] && TUNNEL_LOG="$CLOUDFLARE_LOG"
+
+cat <<EOF
+
+  ─────────────────────────────────────────────────────────────
+   Local app           http://localhost:$PORT
+   Public app          ${PUBLIC:-<see the tunnel log>}
+   Diagnostics         http://localhost:$PORT/api/diagnostics/session-token
+   Tunnel              $TUNNEL
+   Tunnel log          $TUNNEL_LOG
+   App log             /tmp/shopify-blazor-app.log
+  ─────────────────────────────────────────────────────────────
+
+  The Shopify Admin loads this app through the PUBLIC URL above, so that URL must
+  be the App URL in the Partner Dashboard. Keep this window open. Ctrl+C stops
+  what this script started.
+
+EOF
+
+if [[ "$ONCE" == "1" ]]; then
+  log "ONCE=1: leaving the app and tunnel running, and exiting."
+  trap - INT TERM EXIT
+  exit 0
+fi
+
+wait
