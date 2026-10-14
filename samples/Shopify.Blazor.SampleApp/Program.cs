@@ -60,6 +60,9 @@ if (!app.Environment.IsDevelopment())
 //
 // Registered first, on purpose: its OnStarting callback has to run *after* antiforgery has written
 // its own headers, and OnStarting callbacks run last-registered-first.
+// Before authorization, so the "no Authorization header" case is recorded too.
+app.UseMiddleware<RequestObservationMiddleware>();
+
 app.UseShopifyEmbeddedFraming(options =>
 {
     // The tunnel hostname is how a developer opens the embedded app during setup. It is not a
@@ -105,6 +108,17 @@ if (app.Environment.IsDevelopment())
         .AllowAnonymous()
         .WithSummary("Reports what a session token contains and why it was rejected (development only).");
 
+    // Whether a token even arrived at the protected endpoint. "Was the header sent?" is the first
+    // question when a call comes back 401, and the browser can answer it only from its own side.
+    app.MapGet("/api/diagnostics/last-request", () => Results.Ok(new
+    {
+        observations = RequestObservationLog.Recent(5),
+        hint = "authorizationHeaderPresent=false means the browser sent no Authorization header at all; " +
+               "tokenLength=0 means it sent an empty one. Neither is a token-validation failure.",
+    }))
+        .AllowAnonymous()
+        .WithSummary("How the last requests to protected endpoints looked (development only).");
+
     // Why the last requests were refused, as the server saw them. The browser only ever sees a 401,
     // so this is the only way the page can explain itself.
     app.MapGet("/api/diagnostics/rejections", (
@@ -122,14 +136,19 @@ app.MapGet("/api/products", async (
         ProductsService products,
         CancellationToken cancellationToken) =>
     {
-        var authorization = context.Request.Headers.Authorization.ToString();
-
-        if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        // Note the ordering: authorization has already run by the time this executes, so reaching
+        // here with no bearer token means the auth handler *accepted* the request without one,
+        // which is a routing or scheme problem rather than a credential problem. Say so, instead of
+        // returning a bare 401 that is indistinguishable from a rejected token.
+        if (BearerTokens.Read(context) is not { } sessionToken)
         {
-            return Results.Unauthorized();
+            return Results.Problem(
+                title: "No session token",
+                detail: "This endpoint requires an App Bridge session token in the Authorization header. " +
+                        "If you are calling it from the app and seeing this, the browser did not attach one: " +
+                        $"see /api/diagnostics/last-request. Header present: {context.Request.Headers.ContainsKey("Authorization")}.",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
-
-        var sessionToken = authorization["Bearer ".Length..].Trim();
 
         try
         {
