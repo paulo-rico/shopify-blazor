@@ -13,13 +13,20 @@
 # reusing a stale one. The tunnel is left alone if it is already up.
 #
 # TUNNEL PROVIDERS
-#   cloudflare  default. Needs a token for a named tunnel with a stable hostname; without one it
-#               falls back to a quick tunnel on a random *.trycloudflare.com URL.
-#   ngrok       kept as an option, but its FREE plan cannot host an embedded Shopify app: it
-#               serves a browser-warning page to the Admin's iframe, with HTTP 200 and an HTML
-#               body, and nothing an app can do prevents that. See docs/troubleshooting.md.
+#   ngrok       default, because it is what works here. Its free plan shows a one-off
+#               browser-warning page (ERR_NGROK_6024) the first time a browser visits the
+#               endpoint; click Visit Site once and it stops, for the Admin's iframe too. It
+#               answers 200 with an HTML body, so scripted callers should send
+#               ngrok-skip-browser-warning: true — the app's own calls do.
+#   cloudflare  available, and injects nothing, so no interstitial at all. Needs a token for a
+#               named tunnel with a stable hostname; without one it falls back to a quick tunnel
+#               on a random *.trycloudflare.com URL.
 #
-# Choose with TUNNEL=cloudflare|ngrok in .env or the environment.
+# NOTE: cloudflared has never held a connection to Cloudflare's edge from this machine — it gets a
+# URL, then "Failed to dial a quic connection ... no recent network activity" and requests 502.
+# Diagnose that before switching: try `--protocol http2` or `--edge-ip-version 4`.
+#
+# Choose with TUNNEL=ngrok|cloudflare in .env or the environment.
 #
 # Cloudflare token, in precedence order:
 #   1. CLOUDFLARE_TUNNEL_TOKEN or TUNNEL_TOKEN in the environment
@@ -46,7 +53,7 @@ env_value() {
 }
 
 PORT="${PORT:-$(env_value PORT)}"; PORT="${PORT:-3458}"
-TUNNEL="${TUNNEL:-$(env_value TUNNEL)}"; TUNNEL="${TUNNEL:-cloudflare}"
+TUNNEL="${TUNNEL:-$(env_value TUNNEL)}"; TUNNEL="${TUNNEL:-ngrok}"
 APP_URL="${SHOPIFY_APP_URL:-$(env_value SHOPIFY_APP_URL)}"
 PROJECT="${PROJECT:-samples/Shopify.Blazor.SampleApp}"
 ENVIRONMENT="${ASPNETCORE_ENVIRONMENT:-Development}"
@@ -57,6 +64,7 @@ NGROK_LOG="/tmp/ngrok-shopify-blazor.log"
 
 [[ "$PORT" =~ ^[0-9]+$ ]] || die "PORT is not a number: '$PORT'"
 [[ -f "$PROJECT_FILE" ]] || die "project not found: $PROJECT_FILE"
+[[ "$TUNNEL" == "ngrok" || "$TUNNEL" == "cloudflare" ]] || die "unknown TUNNEL='$TUNNEL'. Use ngrok or cloudflare."
 
 # The .NET CLI writes to ~/.dotnet and ~/.nuget. Where that is not writable (a sandbox, a
 # read-only home) it fails with a bare "Read-only file system" that reads like a build error and
@@ -288,7 +296,9 @@ case "$TUNNEL" in
     ;;
 
   *)
-    die "unknown TUNNEL='$TUNNEL'. Use cloudflare or ngrok."
+    # Unreachable: the choice is validated before anything is stopped or started, so a typo cannot
+    # leave the app killed and no tunnel.
+    die "unknown TUNNEL='$TUNNEL'. Use ngrok or cloudflare."
     ;;
 esac
 
