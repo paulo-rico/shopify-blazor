@@ -41,6 +41,12 @@ ngrok http 3458
 Note the `https://….ngrok-free.app` hostname it prints. The port must match the sample app's
 (default `3458`).
 
+> **Using a free ngrok domain?** Read
+> [the interstitial section](troubleshooting.md#the-public-url-shows-ngroks-you-are-about-to-visit-page)
+> first. ngrok's free plan serves a warning page to browsers, which means the Admin cannot embed the
+> app no matter what the app does. This is worth knowing before you spend an evening debugging
+> authentication.
+
 ## 5. Configure the app and the Dashboard
 
 Point the Partner Dashboard at your tunnel:

@@ -1,5 +1,11 @@
 # Build output
-bin/
+#
+# Only the configuration subdirectories, not `bin/` itself: a .NET project's bin/ holds nothing but
+# build output, and a blanket `bin/` silently excluded bin/shopify-dev from the first commit. The
+# Rails app next door keeps its scripts in bin/ for the same reason.
+**/bin/Debug/
+**/bin/Release/
+**/bin/publish/
 obj/
 artifacts/
 *.user

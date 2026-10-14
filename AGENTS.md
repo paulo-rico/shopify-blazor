@@ -88,7 +88,19 @@ Read these before changing anything in `src/`.
     registered **first** — its `OnStarting` callback has to run after antiforgery's, and
     `OnStarting` callbacks run last-registered-first. Verify with a real browser:
     `Framing '…' violates … "frame-ancestors 'self'"` in the console is this bug.
-13. **A retired Admin API version does not error.** Shopify falls forward to an older stable release
+13. **A free ngrok tunnel serves a browser-warning page instead of the app, and no app-side change
+    fixes it.** ngrok's free plan answers browser-like requests with `ERR_NGROK_6024` — HTTP **200**
+    with an HTML body, on every request, not once per browser. The exemption header
+    (`ngrok-skip-browser-warning`) must be on the *request*, and nothing we control runs before the
+    Admin's iframe document is fetched. A response header from app middleware does nothing; that was
+    verified, not assumed. The app's own `fetch` calls do send the header. Removing the interstitial
+    needs a paid plan or a tunnel that injects nothing.
+14. **An environment variable silently overrides user secrets.** If `SHOPIFY_API_KEY` is set in the
+    shell, it wins over `Shopify:ApiKey` in user secrets, and a key belonging to a *different*
+    Shopify app makes every session token fail as "another app". Startup logs which layer won. The
+    app also runs in **Production** with no `ASPNETCORE_ENVIRONMENT` set, which disables the
+    diagnostics endpoints and the rejection hints — `bin/shopify-dev` sets Development for you.
+15. **A retired Admin API version does not error.** Shopify falls forward to an older stable release
     and answers normally; only the `X-Shopify-API-Version` header reveals it. Check the version table
     at <https://shopify.dev/docs/api/usage/versioning> before changing `AdminApiVersion`.
 

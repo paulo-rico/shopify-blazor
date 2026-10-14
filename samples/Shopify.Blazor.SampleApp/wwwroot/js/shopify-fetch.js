@@ -37,6 +37,17 @@ export async function call(url, method = "GET", body = null) {
     const headers = {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
+
+        // Development tunnels in front of the app — ngrok's free plan in particular — serve a
+        // browser-warning interstitial instead of your app to requests that look like browser
+        // navigations, and ngrok decides that from the User-Agent. A fetch from this page is an
+        // XHR rather than a navigation, but ngrok still inspects the User-Agent, so without this
+        // header the response is that HTML page with HTTP 200 and JSON.parse then fails.
+        //
+        // This only helps requests this app makes. It cannot help the Admin's iframe: no script of
+        // ours runs before that frame document is fetched, so the interstitial appears in the
+        // embedded view and only the tunnel operator can remove it.
+        "ngrok-skip-browser-warning": "true",
     };
 
     let payload;
