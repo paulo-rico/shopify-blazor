@@ -159,6 +159,48 @@ curl -i -H 'Authorization: Bearer not-a-jwt' http://localhost:3458/api/products
 | A blank frame where the app should be | The app is refusing to be framed — see [Troubleshooting](troubleshooting.md#the-app-shows-an-empty-frame-in-the-admin). |
 | `ShopifySessionToken was not authenticated` | Session token rejected. Run the diagnostic in [Troubleshooting](troubleshooting.md#authenticationscheme-shopifysessiontoken-was-not-authenticated); the usual cause is that the page and the server are configured for different apps. |
 
+## After a reboot
+
+Nothing here is a service, so a reboot leaves everything stopped and the app simply needs starting
+again. In order:
+
+```sh
+# 1. Docker Desktop is a user service that starts with the graphical session. The dev-stack
+#    containers are NOT needed by this app, but if Docker is running they publish port 3459, which
+#    is fine — this app uses 3458. If Docker is up, the Ruby container comes back automatically.
+
+# 2. Start the app and its tunnel together.
+cd /home/paul/aiprojects/shopify-blazor
+./bin/shopify-dev
+```
+
+`bin/shopify-dev` reads `PORT`, `TUNNEL` and `SHOPIFY_APP_URL` from `.env` (git-ignored), frees the
+port, starts the tunnel, starts the app in Development, and prints the URLs. Ctrl+C stops what it
+started.
+
+**In the browser you use for the Shopify Admin,** visit the public URL once and click **Visit Site**
+on ngrok's warning page — it appears once per browser per endpoint, and the Admin's iframe shares
+the browser. Then open the app from the Admin.
+
+### Things that are easy to trip over
+
+| | |
+|---|---|
+| `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET` exported in your shell | They **override** user secrets. If they hold another app's values, every session token is rejected as belonging to a different app. The app logs which layer won at startup — check that line first. |
+| The public URL must match the Partner Dashboard | The Admin loads whatever App URL the Dashboard holds. If that is a *different* app, App Bridge mints tokens for that app and this server refuses them. |
+| Only one ngrok tunnel per reserved domain | ngrok is a single-tunnel agent. The Rails app next door (`shopify-jewellery-costing`) is configured with the **same** reserved domain and now uses port 3459, so the two cannot both be tunnelled at once. Whichever app you are working on owns the domain. |
+| The app must run in Development for the diagnostics | `dotnet run` with no `ASPNETCORE_ENVIRONMENT` is Production: HSTS on, and `/api/diagnostics/*` not mapped. `bin/shopify-dev` sets Development for you. |
+| A password-protected store is fine | Every dev store is password-locked and it does **not** affect session-token validation, which is local. (An earlier version of this toolkit wrongly depended on a storefront URL, which is what made this look like a problem.) |
+
+### Verify it came up correctly
+
+```sh
+curl -s http://localhost:3458/api/diagnostics/session-token | python3 -m json.tool | head -20
+```
+
+That reports the API key the server is verifying against. It must equal the `content` of the
+`shopify-api-key` meta tag in the page. Then press **Load Products** in the app.
+
 ## Next steps
 
 - [Component reference](components.md) — all 29 components
