@@ -103,40 +103,33 @@ They must be the same key. `check-admin-install.mjs` compares them for you.
 ## The public URL shows ngrok's "You are about to visit…" page
 
 `http://localhost:3458/` works but `https://<your-tunnel>.ngrok-free.dev/` shows an
-`ERR_NGROK_6024` warning page instead of the app.
+`ERR_NGROK_6024` warning page. That page is ngrok's, not your app's, and it is a free-plan
+behaviour.
 
-That page is **not your app**, and it is not a problem with the tunnel or the app. ngrok's free plan
-serves a browser-warning interstitial to requests that look like browser navigations, deciding from
-the `User-Agent`. `curl` is served your app; a browser is served the warning.
+**It is shown once per browser, per endpoint.** Click **Visit Site** once and it stops appearing for
+that browser — including inside the Shopify Admin's iframe, which uses the same browser. Verified:
+first load shows the interstitial, one click loads the app, and the same endpoint then works
+normally.
 
-Two things make this worse than it looks:
+So this is a single click, not a blocker. Two things are still worth knowing:
 
-- **It returns HTTP 200 with HTML**, so it is not detectable by status code.
-- **It recurs on every request**, not once per browser.
+- **It answers HTTP 200 with an HTML body**, so a `fetch` can mistake it for a successful response
+  and fail later with a JSON parse error rather than naming the cause. Anything scripted should send
+  `ngrok-skip-browser-warning: true`; the app's own calls do (see
+  `samples/Shopify.Blazor.SampleApp/wwwroot/js/shopify-fetch.js`).
+- **A browser you have not clicked through in will show it again.** A fresh profile, a private
+  window, or the merchant's browser on first visit each see it once.
 
-**There is no app-side fix for the embedded view.** ngrok exempts requests carrying
-`ngrok-skip-browser-warning`, but that header has to be on the *request*, and no script of ours runs
-before the Admin's iframe document is fetched. A response header from the app cannot influence a
-decision already made at ngrok's edge — that was tried and verified not to work.
+If you want it gone entirely, it is removed by a paid ngrok plan, or by a tunnel that injects
+nothing such as Cloudflare Tunnel.
 
-What the app *can* do, and does: its own `fetch` calls carry the header, so the Admin API calls and
-the diagnostics work through the tunnel. Without it those receive the warning page as a 200 and fail
-to parse. See `samples/Shopify.Blazor.SampleApp/wwwroot/js/shopify-fetch.js`.
-
-To remove the interstitial you have to change the tunnel:
-
-- **ngrok paid plan** — no interstitial. ngrok includes one free *static* domain; a *custom* domain
-  needs a paid plan. Check the dashboard before assuming.
-- **A tunnel that injects nothing** — Cloudflare Tunnel is free and does not. Costs a new hostname
-  and a Partner Dashboard App URL update.
-
-Diagnose it definitively:
+Diagnose which you are getting:
 
 ```sh
-# browser-like request: interstitial
+# browser-like request without the exemption header: interstitial on a fresh client
 curl -s -A "Mozilla/5.0 (X11; Linux x86_64) Chrome/140" https://your-tunnel.ngrok-free.dev/ | head -3
 
-# same request plus the exemption header: your app
+# same request plus the exemption header: your app, always
 curl -s -A "Mozilla/5.0 (X11; Linux x86_64) Chrome/140" \
      -H "ngrok-skip-browser-warning: true" https://your-tunnel.ngrok-free.dev/ | head -3
 ```

@@ -88,13 +88,14 @@ Read these before changing anything in `src/`.
     registered **first** — its `OnStarting` callback has to run after antiforgery's, and
     `OnStarting` callbacks run last-registered-first. Verify with a real browser:
     `Framing '…' violates … "frame-ancestors 'self'"` in the console is this bug.
-13. **A free ngrok tunnel serves a browser-warning page instead of the app, and no app-side change
-    fixes it.** ngrok's free plan answers browser-like requests with `ERR_NGROK_6024` — HTTP **200**
-    with an HTML body, on every request, not once per browser. The exemption header
-    (`ngrok-skip-browser-warning`) must be on the *request*, and nothing we control runs before the
-    Admin's iframe document is fetched. A response header from app middleware does nothing; that was
-    verified, not assumed. The app's own `fetch` calls do send the header. Removing the interstitial
-    needs a paid plan or a tunnel that injects nothing.
+13. **ngrok's free plan shows a browser-warning interstitial, once per browser per endpoint.**
+    `ERR_NGROK_6024`, "You are about to visit…" — it is ngrok's page, not the app's. It is **not** a
+    blocker: click **Visit Site** once and it stops for that browser, including inside the Admin's
+    iframe, which shares the browser. Two consequences: it answers HTTP 200 with an HTML body, so a
+    `fetch` can mistake it for success and fail later with a JSON parse error — anything scripted
+    should send `ngrok-skip-browser-warning: true`, which the app's own calls do; and a fresh
+    profile or private window sees it once again. Removing it entirely needs a paid plan or a tunnel
+    that injects nothing.
 14. **An environment variable silently overrides user secrets.** If `SHOPIFY_API_KEY` is set in the
     shell, it wins over `Shopify:ApiKey` in user secrets, and a key belonging to a *different*
     Shopify app makes every session token fail as "another app". Startup logs which layer won. The

@@ -13,7 +13,7 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
 | `Shopify.Blazor` | Session token validation, token exchange, Admin API client, App Bridge interop. |
 | Reference app | Embedded shell, dashboard, products, component gallery. Authenticated `/api/products`. |
 | Templates and CLI | **Not started.** Plan in `docs/templates-plan.md`. |
-| Real development store | **Not done.** Needs credentials and a tunnel. |
+| Real development store | **Not done.** Needs credentials and a tunnel. The app now embeds in the Admin; a rejected token is diagnosed rather than guessed at. |
 
 ## Verified, with how
 
