@@ -17,6 +17,7 @@ artifacts/
 tools-local/
 
 # Local configuration and secrets
+.cloudflared-token
 appsettings.Local.json
 appsettings.*.Local.json
 .env

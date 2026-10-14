@@ -171,8 +171,9 @@
 
             var rejection = rejections[0];
 
+            // The hint comes first: it names the cause, whereas the reason names the symptom.
             return rejection.Hint is { Length: > 0 }
-                ? $"Server said: {rejection.Reason} {rejection.Hint}"
+                ? rejection.Hint
                 : $"Server said: {rejection.Reason}";
         }
         catch (Exception)
