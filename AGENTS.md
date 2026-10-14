@@ -112,6 +112,23 @@ Read these before changing anything in `src/`.
     and answers normally; only the `X-Shopify-API-Version` header reveals it. Check the version table
     at <https://shopify.dev/docs/api/usage/versioning> before changing `AdminApiVersion`.
 
+## Resetting the build tree
+
+To force a from-scratch build, remove **only** .NET build output. Do not reach for
+`find -name bin`:
+
+```sh
+# WRONG: also deletes bin/, and bin/shopify-dev lives there. It has been lost this way once, and
+# silently kept out of a commit another time by a blanket `bin/` in .gitignore.
+find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+
+# RIGHT: only the configuration subdirectories a .NET build creates.
+rm -rf ./**/bin/Debug ./**/bin/Release ./**/obj
+```
+
+`bin/shopify-dev` is a tracked file in a directory named `bin`, which is exactly the kind of
+collision a broad pattern does not warn about.
+
 ## Conventions
 
 - `Polaris.Blazor` must not depend on `Shopify.Blazor`. The component library is usable alone.
