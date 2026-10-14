@@ -102,7 +102,16 @@ Read these before changing anything in `src/`.
   undocumented parameter is an undocumented component.
 - New components: add the class in `Components/`, an entry in the test file, then run
   `tools/generate-component-reference.py`.
-- Commit and push. This machine has no other safety net and sessions do not share state.
+- Commit and push. This machine has no other safety net and sessions do not share state. Pushing
+  needs the `gh` token, because the credential helper wants a terminal and fails with
+  `could not read Username for 'https://github.com'`:
+
+  ```sh
+  TOKEN=$(gh auth token)
+  git -c credential.helper= \
+      -c "credential.helper=!f() { echo username=x-access-token; echo password=$TOKEN; }; f" \
+      push origin main
+  ```
 
 ## Not verified
 
