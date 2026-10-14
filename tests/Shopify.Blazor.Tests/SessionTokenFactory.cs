@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -6,211 +6,163 @@ using Microsoft.IdentityModel.Tokens;
 namespace Shopify.Blazor.Tests;
 
 /// <summary>
-/// Mints session tokens the way Shopify does, using a throwaway RSA key.
+/// Mints session tokens the way Shopify does: HMAC-SHA256 signed with the app's API secret.
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is the only honest way to test session token validation without a real store: the
-/// validator must reject a token whose signature does not verify against the key set it fetched,
-/// and the only way to prove it accepts a valid one is to sign it properly.
+/// The algorithm is the point of this class. Shopify signs admin session tokens with the app's
+/// client secret — symmetric — so there is no key set and no per-shop public key. An earlier
+/// version of these tests signed RS256 tokens against a throwaway RSA key and a fake JWKS, and it
+/// passed against an equally wrong validator: both were built on the belief that
+/// <c>/.well-known/jwks.json</c> serves admin session token keys. It does not. That endpoint
+/// belongs to the Storefront and Customer Account APIs, and it sits behind the storefront, which
+/// every dev store password-protects.
 /// </para>
 /// <para>
-/// The key set is served from a fake <c>.well-known/jwks.json</c> through the scripted HTTP
-/// handler, so the whole path — parse the unvalidated <c>dest</c>, fetch that shop's keys, verify
-/// signature, audience, issuer and lifetime — runs for real.
+/// So a valid token here is signed with <see cref="ApiSecret"/>, and the validator must accept it
+/// with nothing but that secret. If these tests pass, they pass for the same reason the real app
+/// works.
 /// </para>
 /// </remarks>
-public sealed class SessionTokenFactory : IDisposable
+public static class SessionTokenFactory
 {
-    private readonly RSA _rsa = System.Security.Cryptography.RSA.Create(2048);
-    private readonly RsaSecurityKey _signingKey;
-
-    /// <summary>Creates a factory with a fresh key pair.</summary>
-    public SessionTokenFactory()
-    {
-        _signingKey = new RsaSecurityKey(_rsa) { KeyId = "test-key-1" };
-    }
-
-    /// <summary>The default shop domain these tokens are issued for.</summary>
+    /// <summary>The default shop these tokens are issued for.</summary>
     public const string DefaultShop = "test-shop.myshopify.com";
 
-    /// <summary>The audience, which is the app's API key.</summary>
+    /// <summary>The audience, which is the app's API key. Must match <c>TestServices</c>.</summary>
     public const string DefaultAudience = "test-api-key";
 
     /// <summary>
-    /// The JWKS document for the public key, in the shape Shopify publishes. Register it against
-    /// the host the validator will fetch from.
+    /// The signing secret. Must match the <c>Shopify:ApiSecret</c> that <c>TestServices</c>
+    /// configures, because that is the key the validator checks the signature with.
     /// </summary>
-    public string BuildJwks()
-    {
-        var parameters = _rsa.ExportParameters(includePrivateParameters: false);
+    public const string ApiSecret = "0123456789abcdef0123456789abcdef";
 
-        var jwk = new Dictionary<string, object?>
-        {
-            ["kty"] = "RSA",
-            ["use"] = "sig",
-            ["alg"] = "RS256",
-            ["kid"] = _signingKey.KeyId,
-            ["n"] = Base64UrlEncoder.Encode(parameters.Modulus!),
-            ["e"] = Base64UrlEncoder.Encode(parameters.Exponent!),
-        };
-
-        return JsonSerializer.Serialize(new { keys = new[] { jwk } });
-    }
-
-    /// <summary>Creates a signed session token.</summary>
+    /// <summary>Creates a signed session token that the validator should accept.</summary>
     /// <param name="shop">The shop the token is destined for.</param>
     /// <param name="audience">The app's API key.</param>
     /// <param name="userId">The merchant user id.</param>
     /// <param name="expiresIn">How long the token is valid for; negative makes it expired.</param>
     /// <param name="scopes">Scopes to carry in the <c>scp</c> claim.</param>
-    /// <param name="tokenId">
-    /// The <c>jti</c> claim. Fixed by default so two calls with the same arguments produce the
-    /// same token, which is what lets a test reuse one session across several requests — the
-    /// access-token cache is keyed by the subject, so a different jti per call would look like a
-    /// different merchant.
-    /// </param>
-    /// <param name="sessionId">The <c>sid</c> claim.</param>
-    public string Create(
+    /// <param name="secret">The signing secret; a different value simulates another app's token.</param>
+    /// <param name="algorithm">The algorithm to sign with; used to prove non-HS256 is refused.</param>
+    public static string Create(
         string shop = DefaultShop,
         string audience = DefaultAudience,
         string userId = "1234567890",
         TimeSpan? expiresIn = null,
         string? scopes = null,
-        string tokenId = "fixed-jti",
-        string sessionId = "fixed-sid")
+        string secret = ApiSecret,
+        string algorithm = SecurityAlgorithms.HmacSha256)
     {
         var now = DateTime.UtcNow;
         var lifetime = expiresIn ?? TimeSpan.FromMinutes(1);
 
-        // The not-before instant is derived from the expiry rather than fixed, so an expired token
-        // is coherently expired. A token that is not valid yet AND expired fails validation with a
-        // lifetime error that is indistinguishable from a clock problem, which would hide the very
-        // thing the expiry test is checking.
-        var notBefore = lifetime < TimeSpan.Zero ? now.Add(lifetime) : now.AddMinutes(-1);
+        // For an expired token the whole window has to sit in the past: setting nbf after exp makes
+        // the token malformed, and it would then be rejected for the wrong reason.
+        var notBefore = lifetime < TimeSpan.Zero ? now.Add(lifetime).AddMinutes(-1) : now.AddMinutes(-1);
 
-        var descriptor = new SecurityTokenDescriptor
+        var claims = new Dictionary<string, object>
         {
-            Issuer = $"https://{shop}/admin",
-            Audience = audience,
-            IssuedAt = now.Add(lifetime < TimeSpan.Zero ? lifetime : TimeSpan.Zero),
-            NotBefore = notBefore,
-            Expires = now.Add(lifetime),
-            SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.RsaSha256),
-            Claims = new Dictionary<string, object>
-            {
-                ["sub"] = userId,
-                ["dest"] = $"https://{shop}",
-                ["iss"] = $"https://{shop}/admin",
-                ["aud"] = audience,
-                ["jti"] = tokenId,
-                ["sid"] = sessionId,
-            },
+            ["sub"] = userId,
+            ["dest"] = $"https://{shop}",
+            ["iss"] = $"https://{shop}/admin",
+            ["aud"] = audience,
+            ["jti"] = "fixed-jti",
+            ["sid"] = "fixed-sid",
         };
 
         if (scopes is not null)
         {
-            descriptor.Claims["scp"] = scopes;
+            claims["scp"] = scopes;
         }
 
-        return CreateTokenWithKid(descriptor, _signingKey.KeyId!);
+        var descriptor = new SecurityTokenDescriptor
+        {
+            IssuedAt = now.Add(lifetime < TimeSpan.Zero ? lifetime : TimeSpan.Zero),
+            NotBefore = notBefore,
+            Expires = now.Add(lifetime),
+            Claims = claims,
+            SigningCredentials = CreateCredentials(algorithm, secret),
+        };
+
+        return new JsonWebTokenHandler().CreateToken(descriptor);
     }
 
     /// <summary>
-    /// Creates a correctly signed token whose <c>dest</c> claim points somewhere that is not a
-    /// myshopify domain, signed with this factory's key so only the domain check can reject it.
+    /// Creates a correctly formed token signed with a different, valid-length secret.
     /// </summary>
-    public string CreateHostileDestToken(string destination)
+    /// <remarks>
+    /// The length matters: HMAC-SHA256 needs at least 256 bits, so a short "wrong secret" would be
+    /// rejected for being unusable rather than for being wrong, and the test would pass while
+    /// proving nothing about signature checking.
+    /// </remarks>
+    public static string CreateForgedToken(string shop = DefaultShop, string audience = DefaultAudience)
+        => Create(shop: shop, audience: audience, secret: "ffffffffffffffffffffffffffffffff");
+
+    /// <summary>
+    /// Creates an unsigned token with <c>alg: none</c>, the classic downgrade attempt.
+    /// </summary>
+    public static string CreateUnsignedToken(string shop = DefaultShop, string audience = DefaultAudience)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        // Written by hand: no serializer produces an unsigned JWT for you, which is exactly why the
+        // attack is worth testing for.
+        var header = Base64Url("""{"alg":"none","typ":"JWT"}""");
+
+        var payload = Base64Url(JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["sub"] = "1234567890",
+            ["dest"] = $"https://{shop}",
+            ["iss"] = $"https://{shop}/admin",
+            ["aud"] = audience,
+            ["iat"] = now - 5,
+            ["nbf"] = now - 5,
+            ["exp"] = now + 60,
+        }));
+
+        return $"{header}.{payload}.";
+    }
+
+    /// <summary>Creates a token whose <c>dest</c> claim is not a myshopify domain.</summary>
+    public static string CreateHostileDestToken(string destination)
     {
         var now = DateTime.UtcNow;
 
         var descriptor = new SecurityTokenDescriptor
         {
-            Issuer = $"https://{DefaultShop}/admin",
-            Audience = DefaultAudience,
             IssuedAt = now,
             NotBefore = now.AddMinutes(-1),
-            Expires = now.Add(TimeSpan.FromMinutes(1)),
-            SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.RsaSha256),
+            Expires = now.AddMinutes(1),
             Claims = new Dictionary<string, object>
             {
                 ["sub"] = "1234567890",
                 ["dest"] = destination,
+                ["iss"] = $"https://{DefaultShop}/admin",
+                ["aud"] = DefaultAudience,
             },
+            SigningCredentials = CreateCredentials(SecurityAlgorithms.HmacSha256, ApiSecret),
         };
 
-        return CreateTokenWithKid(descriptor, _signingKey.KeyId!);
+        return new JsonWebTokenHandler().CreateToken(descriptor);
     }
 
-    /// <summary>Creates a token signed with a different key, so its signature cannot verify.</summary>
-    public static string CreateForgedToken(string shop = DefaultShop, string audience = DefaultAudience)
+    private static SigningCredentials CreateCredentials(string algorithm, string secret) => algorithm switch
     {
-        using var otherRsa = System.Security.Cryptography.RSA.Create(2048);
-        var now = DateTime.UtcNow;
+        SecurityAlgorithms.HmacSha256 => new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+            SecurityAlgorithms.HmacSha256),
 
-        var descriptor = new SecurityTokenDescriptor
-        {
-            Issuer = $"https://{shop}/admin",
-            Audience = audience,
-            IssuedAt = now,
-            NotBefore = now.AddMinutes(-1),
-            Expires = now.Add(TimeSpan.FromMinutes(1)),
-            SigningCredentials = new SigningCredentials(new RsaSecurityKey(otherRsa) { KeyId = "test-key-1" }, SecurityAlgorithms.RsaSha256),
-            Claims = new Dictionary<string, object>
-            {
-                ["sub"] = "1234567890",
-                ["dest"] = $"https://{shop}",
-            },
-        };
+        // For the "an asymmetric token must be refused" case. The key is throwaway and its signature
+        // can never verify against a symmetric secret, which is the point.
+        SecurityAlgorithms.RsaSha256 => new SigningCredentials(
+            new RsaSecurityKey(System.Security.Cryptography.RSA.Create(2048)) { KeyId = "throwaway" },
+            SecurityAlgorithms.RsaSha256),
 
-        return CreateTokenWithKid(descriptor, "test-key-1");
-    }
+        _ => throw new ArgumentOutOfRangeException(nameof(algorithm), algorithm, "Unsupported test algorithm."),
+    };
 
-    /// <summary>
-    /// Writes the JWT header by hand so it carries a <c>kid</c>.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="SecurityTokenDescriptor.AdditionalHeaderClaims"/> refuses <c>kid</c> and the
-    /// handler does not emit the signing key's id on its own. Real Shopify tokens carry one, and a
-    /// key set with more than one entry cannot be resolved without it.
-    /// </remarks>
-    private static string CreateTokenWithKid(SecurityTokenDescriptor descriptor, string kid)
-    {
-        var header = new Dictionary<string, object>
-        {
-            ["alg"] = SecurityAlgorithms.RsaSha256,
-            ["kid"] = kid,
-            ["typ"] = "JWT",
-        };
-
-        var payload = new Dictionary<string, object>();
-
-        foreach (var claim in descriptor.Claims ?? new Dictionary<string, object>())
-        {
-            payload[claim.Key] = claim.Value;
-        }
-
-        var now = (descriptor.IssuedAt ?? DateTime.UtcNow).ToUniversalTime();
-        var expires = (descriptor.Expires ?? now.AddMinutes(5)).ToUniversalTime();
-        var notBefore = (descriptor.NotBefore ?? now).ToUniversalTime();
-
-        payload["iat"] = EpochTime.GetIntDate(now);
-        payload["nbf"] = EpochTime.GetIntDate(notBefore);
-        payload["exp"] = EpochTime.GetIntDate(expires);
-        payload["iss"] = descriptor.Issuer!;
-        payload["aud"] = descriptor.Audience!;
-
-        var encodedHeader = Base64UrlEncoder.Encode(JsonSerializer.Serialize(header));
-        var encodedPayload = Base64UrlEncoder.Encode(JsonSerializer.Serialize(payload));
-        var signingInput = $"{encodedHeader}.{encodedPayload}";
-
-        var signature = ((RsaSecurityKey)descriptor.SigningCredentials!.Key)
-            .Rsa
-            .SignData(System.Text.Encoding.ASCII.GetBytes(signingInput), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-
-        return $"{signingInput}.{Base64UrlEncoder.Encode(signature)}";
-    }
-
-    /// <inheritdoc />
-    public void Dispose() => _rsa.Dispose();
+    private static string Base64Url(string json)
+        => Base64UrlEncoder.Encode(Encoding.UTF8.GetBytes(json));
 }

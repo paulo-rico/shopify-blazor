@@ -24,7 +24,7 @@ Both directories are git-ignored. Without them `dotnet` fails before doing anyth
 ## Commands
 
 ```sh
-dotnet test                                    # both suites, 74 tests
+dotnet test                                    # both suites, 77 tests
 dotnet build                                   # whole solution
 dotnet run --project samples/Shopify.Blazor.SampleApp   # http://localhost:3458
 ```
@@ -76,11 +76,18 @@ Read these before changing anything in `src/`.
 9. **A source-generated `JsonSerializerContext` ignores naming policy unless it is declared.** Without
    `[JsonSourceGenerationOptions(PropertyNamingPolicy = …)]`, Shopify's `expires_in` never binds and
    every token looks non-expiring.
-10. **The `dest` claim is a URL** (`https://shop.myshopify.com`), not a bare host, and it is
+10. **Session tokens are HS256, signed with the app's API secret — there is no key set.** Shopify's
+    own libraries do `JWT.decode(token, api_secret_key, true, algorithm: "HS256")`. Do **not**
+    verify them against `https://{shop}/.well-known/jwks.json`: that endpoint belongs to the
+    Storefront and Customer Account APIs, and it sits behind the storefront, which every dev store
+    password-protects — so RS256 verification could never work, on any store. An earlier version of
+    this toolkit made exactly that mistake. The accepted algorithm is pinned, and HMAC-SHA256 needs
+    a secret of at least 16 bytes, so a truncated secret fails every token.
+11. **The `dest` claim is a URL** (`https://shop.myshopify.com`), not a bare host, and it is
     attacker-supplied. It is validated before being interpolated into the token-exchange URL.
-11. **Two caches hold the access token.** A 401 must clear both `IShopifyAccessTokenStore` **and**
+12. **Two caches hold the access token.** A 401 must clear both `IShopifyAccessTokenStore` **and**
     `IShopifyTokenExchanger` (`Invalidate`), or a revoked token is reused for ever.
-12. **The anti-forgery middleware makes the app unframeable, and this is invisible.** Blazor's
+13. **The anti-forgery middleware makes the app unframeable, and this is invisible.** Blazor's
     rendering pipeline requires `app.UseAntiforgery()`, and that middleware sets
     `X-Frame-Options: SAMEORIGIN` and `Content-Security-Policy: frame-ancestors 'self'` on every
     response that asks for a token. Both refuse the Admin's iframe, so the app can never be embedded
@@ -88,7 +95,7 @@ Read these before changing anything in `src/`.
     registered **first** — its `OnStarting` callback has to run after antiforgery's, and
     `OnStarting` callbacks run last-registered-first. Verify with a real browser:
     `Framing '…' violates … "frame-ancestors 'self'"` in the console is this bug.
-13. **ngrok's free plan shows a browser-warning interstitial, once per browser per endpoint.**
+14. **ngrok's free plan shows a browser-warning interstitial, once per browser per endpoint.**
     `ERR_NGROK_6024`, "You are about to visit…" — it is ngrok's page, not the app's. It is **not** a
     blocker: click **Visit Site** once and it stops for that browser, including inside the Admin's
     iframe, which shares the browser. Two consequences: it answers HTTP 200 with an HTML body, so a
@@ -96,12 +103,12 @@ Read these before changing anything in `src/`.
     should send `ngrok-skip-browser-warning: true`, which the app's own calls do; and a fresh
     profile or private window sees it once again. Removing it entirely needs a paid plan or a tunnel
     that injects nothing.
-14. **An environment variable silently overrides user secrets.** If `SHOPIFY_API_KEY` is set in the
+15. **An environment variable silently overrides user secrets.** If `SHOPIFY_API_KEY` is set in the
     shell, it wins over `Shopify:ApiKey` in user secrets, and a key belonging to a *different*
     Shopify app makes every session token fail as "another app". Startup logs which layer won. The
     app also runs in **Production** with no `ASPNETCORE_ENVIRONMENT` set, which disables the
     diagnostics endpoints and the rejection hints — `bin/shopify-dev` sets Development for you.
-15. **A retired Admin API version does not error.** Shopify falls forward to an older stable release
+16. **A retired Admin API version does not error.** Shopify falls forward to an older stable release
     and answers normally; only the `X-Shopify-API-Version` header reveals it. Check the version table
     at <https://shopify.dev/docs/api/usage/versioning> before changing `AdminApiVersion`.
 

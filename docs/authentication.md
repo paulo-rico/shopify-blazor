@@ -30,8 +30,8 @@ Browser (inside the Shopify Admin iframe)
   │
   ├──────────── Authorization: Bearer <session token> ────────────►  Your server
   │                                                                     │
-  │                                                     2. Verify the signature against
-  │                                                        https://<shop>/.well-known/jwks.json
+  │                                                     2. Verify the HMAC-SHA256 signature with
+  │                                                        your app's API secret (no network call)
   │                                                     3. Check aud == your API key
   │                                                        iss == https://<shop>/admin
   │                                                        dest is a real *.myshopify.com shop

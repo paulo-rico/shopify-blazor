@@ -72,7 +72,6 @@ public sealed class RejectionLogTests
     [Fact]
     public void The_log_is_registered_by_AddShopifyBlazor()
     {
-        using var handler = new SessionTokenFactory();
         var http = new ScriptedHttpMessageHandler();
         using var provider = TestServices.Create(http);
 

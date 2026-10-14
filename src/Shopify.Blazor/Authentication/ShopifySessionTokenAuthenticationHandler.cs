@@ -1,11 +1,9 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shopify.Blazor.Diagnostics;
-using Shopify.Blazor.Internal;
 
 namespace Shopify.Blazor.Authentication;
 
@@ -190,7 +188,6 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
         var claims = TryDecodeClaims(token);
 
         var audience = claims is not null && claims.TryGetValue("aud", out var aud) ? aud?.ToString() : null;
-        var tokenDest = claims is not null && claims.TryGetValue("dest", out var destination) ? destination?.ToString() : null;
 
         if (!string.IsNullOrEmpty(expectedAudience)
             && !string.IsNullOrEmpty(audience)
@@ -200,14 +197,6 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
                    "was minted for a different Shopify app: the App URL open in the Admin belongs to an app " +
                    "whose Client ID is not what this server is configured with. Check for a SHOPIFY_API_KEY " +
                    "environment variable overriding user secrets.";
-        }
-
-        if (validation.Reason?.Contains("signing keys could not be retrieved", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return $"The token is for '{tokenDest ?? "an unknown shop"}'. Its public signing keys could not " +
-                   $"be read from https://{tokenDest}/.well-known/jwks.json. A password-protected store serves " +
-                   "its lock page " +
-                   "there instead of a key set, in which case no token for it can ever be verified.";
         }
 
         return validation.Failure switch

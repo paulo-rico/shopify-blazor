@@ -55,12 +55,9 @@ public static class ShopifyServiceCollectionExtensions
             }, "Shopify configuration is incomplete: ApiKey and ApiSecret are both required on the server.");
         }
 
+        // For the exchanged access-token cache. Session token validation no longer caches anything:
+        // its signature check is local and needs no key set.
         services.AddMemoryCache();
-
-        services.AddHttpClient(ShopifyHttpClients.Public, client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(15);
-        });
 
         services.AddHttpClient(ShopifyHttpClients.TokenExchange, client =>
         {

@@ -4,11 +4,6 @@ namespace Shopify.Blazor;
 public static class ShopifyHttpClients
 {
     /// <summary>
-    /// Client for unauthenticated Shopify endpoints: the per-shop JWKS document.
-    /// </summary>
-    public const string Public = "Shopify.Public";
-
-    /// <summary>
     /// Client for the token exchange call. Kept separate from the Admin API client so the
     /// secret-bearing request cannot be confused with an ordinary API call.
     /// </summary>

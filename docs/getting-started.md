@@ -129,7 +129,7 @@ In the app, open **Products** and press **Refresh**. What happens:
 
 1. The browser calls `shopify.idToken()` — App Bridge mints a short-lived session token.
 2. The browser sends it to `/api/products` as `Authorization: Bearer <token>`.
-3. The server verifies the signature against `https://<shop>.myshopify.com/.well-known/jwks.json`,
+3. The server verifies the HMAC-SHA256 signature using your app's API secret — no network call —
    checks the audience is this app, and confirms the `dest` claim names a real `myshopify.com` shop.
 4. The server exchanges the session token for an Admin API **access token**.
 5. The server runs the GraphQL query, and only the product data comes back to the browser.

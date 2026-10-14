@@ -59,13 +59,6 @@ public sealed class ShopifyOptions
     public ShopifyAccessTokenKind AccessTokenKind { get; set; } = ShopifyAccessTokenKind.Online;
 
     /// <summary>
-    /// Overrides the public key endpoint used to validate session token signatures.
-    /// Leave empty in production so <c>https://{shop}/.well-known/jwks.json</c> is used.
-    /// Set it in tests to point at a local key set.
-    /// </summary>
-    public string? JwksUrlOverride { get; set; }
-
-    /// <summary>
     /// How long an exchanged access token is cached before it is exchanged again. Shopify
     /// rotates access tokens on every exchange, so this is a cache-lifetime setting, not a
     /// token lifetime.

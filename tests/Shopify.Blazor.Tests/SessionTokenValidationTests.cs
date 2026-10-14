@@ -17,19 +17,17 @@ public sealed class SessionTokenValidationTests
     private const string Shop = SessionTokenFactory.DefaultShop;
 
     /// <summary>
-    /// Runs the real validator against a real key set served over the scripted handler, so the
-    /// whole path is exercised: read the unvalidated dest, fetch that shop's JWKS, verify the
-    /// signature, audience, issuer and lifetime.
+    /// Runs the real validator. No HTTP handler is registered, on purpose: session tokens are
+    /// HMAC-signed with the app's API secret, so verification is entirely local. If the validator
+    /// ever tried to fetch a key set again, these tests would fail on the unstubbed request rather
+    /// than silently passing against a fake one.
     /// </summary>
     private static async Task<(ShopifySessionTokenValidationResult Result, ScriptedHttpMessageHandler Handler)> ValidateAsync(
         string token,
         string? expectedShop = null,
-        Action<ShopifyOptions>? configure = null,
-        SessionTokenFactory? factory = null)
+        Action<ShopifyOptions>? configure = null)
     {
-        factory ??= new SessionTokenFactory();
-        var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()));
+        var handler = new ScriptedHttpMessageHandler();
 
         await using var provider = TestServices.Create(handler, configure);
         var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
@@ -41,10 +39,9 @@ public sealed class SessionTokenValidationTests
     [Fact]
     public async Task A_correctly_signed_token_is_accepted()
     {
-        using var factory = new SessionTokenFactory();
-        var token = factory.Create(scopes: "read_products,write_products");
+        var token = SessionTokenFactory.Create(scopes: "read_products,write_products");
 
-        var (result, _) = await ValidateAsync(token, factory: factory);
+        var (result, _) = await ValidateAsync(token);
 
         Assert.True(result.Succeeded, result.Reason);
         Assert.Equal(Shop, result.SessionToken!.ShopDomain);
@@ -58,14 +55,7 @@ public sealed class SessionTokenValidationTests
         // Not from a query string, a header, or anything else the caller controls.
         const string otherShop = "some-other-shop.myshopify.com";
 
-        using var factory = new SessionTokenFactory();
-        var handler = new ScriptedHttpMessageHandler()
-            .OnHost(otherShop, ScriptedResponse.Json(factory.BuildJwks()));
-
-        await using var provider = TestServices.Create(handler);
-        var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
-
-        var result = await validator.ValidateAsync(factory.Create(shop: otherShop));
+        var (result, _) = await ValidateAsync(SessionTokenFactory.Create(shop: otherShop));
 
         Assert.True(result.Succeeded, result.Reason);
         Assert.Equal(otherShop, result.SessionToken!.ShopDomain);
@@ -74,26 +64,53 @@ public sealed class SessionTokenValidationTests
     [Fact]
     public async Task A_token_signed_by_a_different_key_is_rejected()
     {
-        using var keyOwner = new SessionTokenFactory();
-        var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(keyOwner.BuildJwks()));
-
-        await using var provider = TestServices.Create(handler);
-        var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
-
-        // Same claims, wrong signature: the forged-token attempt this whole path exists to stop.
-        var result = await validator.ValidateAsync(SessionTokenFactory.CreateForgedToken());
+        // Same claims, wrong secret: the forged-token attempt this whole path exists to stop.
+        var (result, _) = await ValidateAsync(SessionTokenFactory.CreateForgedToken());
 
         Assert.False(result.Succeeded);
         Assert.Equal(ShopifySessionTokenValidationFailure.Invalid, result.Failure);
     }
 
     [Fact]
+    public async Task An_unsigned_token_with_alg_none_is_rejected()
+    {
+        // The classic downgrade: strip the signature and claim no algorithm. Verification must not
+        // be talked into skipping the signature check, so the accepted algorithm is pinned.
+        var (result, _) = await ValidateAsync(SessionTokenFactory.CreateUnsignedToken());
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ShopifySessionTokenValidationFailure.Invalid, result.Failure);
+    }
+
+    [Fact]
+    public async Task A_token_signed_with_a_different_algorithm_is_rejected()
+    {
+        // Correctly formed and correctly addressed, but RS256. Session tokens are HS256, so this
+        // cannot be verified with the API secret and must be refused rather than waved through.
+        var (result, _) = await ValidateAsync(SessionTokenFactory.Create(
+            algorithm: Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ShopifySessionTokenValidationFailure.Invalid, result.Failure);
+    }
+
+    [Fact]
+    public async Task A_short_api_secret_is_reported_as_a_configuration_problem()
+    {
+        // HMAC-SHA256 needs 128 bits. A secret that is too short would otherwise fail every token
+        // with a message about key size, which reads like a token problem and is not one.
+        var (result, _) = await ValidateAsync(
+            SessionTokenFactory.Create(),
+            configure: options => options.ApiSecret = "too-short");
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("shorter than", result.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task A_token_for_a_different_app_is_rejected()
     {
-        using var factory = new SessionTokenFactory();
-
-        var (result, _) = await ValidateAsync(factory.Create(audience: "someone-elses-api-key"), factory: factory);
+        var (result, _) = await ValidateAsync(SessionTokenFactory.Create(audience: "someone-elses-api-key"));
 
         // The audience is this app's API key. A token minted for another app must not be usable
         // here, or any app could act on this one's shop.
@@ -104,9 +121,7 @@ public sealed class SessionTokenValidationTests
     [Fact]
     public async Task An_expired_token_is_rejected()
     {
-        using var factory = new SessionTokenFactory();
-
-        var (result, _) = await ValidateAsync(factory.Create(expiresIn: TimeSpan.FromMinutes(-5)), factory: factory);
+        var (result, _) = await ValidateAsync(SessionTokenFactory.Create(expiresIn: TimeSpan.FromMinutes(-5)));
 
         Assert.False(result.Succeeded);
         Assert.Equal(ShopifySessionTokenValidationFailure.Expired, result.Failure);
@@ -115,16 +130,9 @@ public sealed class SessionTokenValidationTests
     [Fact]
     public async Task A_token_for_a_different_shop_than_the_one_addressed_is_rejected()
     {
-        using var factory = new SessionTokenFactory();
-        var handler = new ScriptedHttpMessageHandler()
-            .OnHost("actual-shop.myshopify.com", ScriptedResponse.Json(factory.BuildJwks()));
-
-        await using var provider = TestServices.Create(handler);
-        var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
-
-        var result = await validator.ValidateAsync(
-            factory.Create(shop: "actual-shop.myshopify.com"),
-            expectedShopDomain: "expected-shop.myshopify.com");
+        var (result, _) = await ValidateAsync(
+            SessionTokenFactory.Create(shop: "actual-shop.myshopify.com"),
+            expectedShop: "expected-shop.myshopify.com");
 
         Assert.False(result.Succeeded);
         Assert.Equal(ShopifySessionTokenValidationFailure.WrongShop, result.Failure);
@@ -142,11 +150,7 @@ public sealed class SessionTokenValidationTests
     [Fact]
     public async Task Nonsense_is_rejected_without_fetching_any_keys()
     {
-        var handler = new ScriptedHttpMessageHandler();
-        await using var provider = TestServices.Create(handler);
-        var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
-
-        var result = await validator.ValidateAsync("not-a-jwt");
+        var (result, handler) = await ValidateAsync("not-a-jwt");
 
         Assert.False(result.Succeeded);
         Assert.Empty(handler.Requests);
@@ -163,13 +167,8 @@ public sealed class SessionTokenValidationTests
         // The shop domain is interpolated into https://{shop}/admin/oauth/access_token, a request
         // that carries the app secret. A dest that is not a myshopify host must never get that far,
         // so the check has to happen before the outbound call rather than as a result of it.
-        using var factory = new SessionTokenFactory();
-        var handler = new ScriptedHttpMessageHandler();
-        await using var provider = TestServices.Create(handler);
-        var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
-
-        // Signed with this factory's own key, so only the domain check can be what rejects it.
-        var result = await validator.ValidateAsync(factory.CreateHostileDestToken(destination));
+        // Correctly signed, so only the domain check can be what rejects it.
+        var (result, handler) = await ValidateAsync(SessionTokenFactory.CreateHostileDestToken(destination));
 
         Assert.False(result.Succeeded);
         Assert.Empty(handler.Requests);
@@ -178,32 +177,26 @@ public sealed class SessionTokenValidationTests
     [Fact]
     public async Task Keys_are_fetched_once_and_reused()
     {
-        using var factory = new SessionTokenFactory();
-        var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()));
-
+        var handler = new ScriptedHttpMessageHandler();
         await using var provider = TestServices.Create(handler);
         var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
 
-        await validator.ValidateAsync(factory.Create());
-        await validator.ValidateAsync(factory.Create());
-        await validator.ValidateAsync(factory.Create());
+        await validator.ValidateAsync(SessionTokenFactory.Create());
+        await validator.ValidateAsync(SessionTokenFactory.Create());
+        await validator.ValidateAsync(SessionTokenFactory.Create());
 
-        // Shopify's key set changes rarely, and fetching it per request would add a round trip to
-        // every single API call the app makes.
-        Assert.Single(handler.Requests);
+        // Verification is local and symmetric, so it makes no network call at all. That matters:
+        // a password-protected storefront cannot obstruct something that never asks the store.
+        Assert.Empty(handler.Requests);
     }
 
     [Fact]
     public async Task An_api_key_that_is_not_configured_rejects_every_token()
     {
-        using var factory = new SessionTokenFactory();
-
         // With no API key there is no audience to check, so nothing can be trusted.
         var (result, handler) = await ValidateAsync(
-            factory.Create(),
-            configure: options => options.ApiKey = string.Empty,
-            factory: factory);
+            SessionTokenFactory.Create(),
+            configure: options => options.ApiKey = string.Empty);
 
         Assert.False(result.Succeeded);
         Assert.Empty(handler.Requests);

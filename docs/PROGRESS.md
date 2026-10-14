@@ -8,7 +8,7 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
 
 | Area | State |
 |---|---|
-| Solution, CI, docs | Done. `dotnet test` = 74 passed, 0 failed. |
+| Solution, CI, docs | Done. `dotnet test` = 77 passed, 0 failed. |
 | `Polaris.Blazor` | 29 components + interop module. Verified in a real browser. |
 | `Shopify.Blazor` | Session token validation, token exchange, Admin API client, App Bridge interop. |
 | Reference app | Embedded shell, dashboard, products, component gallery. Authenticated `/api/products`. |

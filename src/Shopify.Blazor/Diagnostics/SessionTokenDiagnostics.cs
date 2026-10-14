@@ -119,80 +119,19 @@ public static class SessionTokenDiagnostics
             report.TokenKeyId = TryGetString(report.Header, "kid");
         }
 
-        // Fetch the key set for the shop the token names, so a failure to publish keys is visible
-        // rather than looking like a signature problem.
-        var shop = Internal.ShopDomain.TryNormalize(report.ClaimShopDomain);
+        // Session tokens are HMAC-signed with the app's API secret, so there is no key set to
+        // fetch: whether the signature can be checked depends only on the secret being configured,
+        // and on the token actually being HS256.
+        report.ExpectedAlgorithm = "HS256";
+        report.SignatureCheckPossible = !string.IsNullOrWhiteSpace(configuration.ApiSecret);
 
-        if (shop is null)
-        {
-            report.KeySetUrl = null;
-            report.KeySetStatus = "not attempted: the dest claim is not a myshopify.com domain";
-        }
-        else
-        {
-            report.KeySetUrl = $"https://{shop}/.well-known/jwks.json";
-
-            try
-            {
-                var client = handler.CreateClient(ShopifyHttpClients.Public);
-
-                // Sent by hand rather than with GetStringAsync: that throws on a non-success
-                // status before the body or the Location header can be looked at, which is exactly
-                // the information needed to tell a password-protected store from a broken one.
-                // Shopify also answers a locked store inconsistently — 302 to /password for some
-                // clients, 403 for others — so both are treated as the same condition.
-                using var request = new HttpRequestMessage(HttpMethod.Get, report.KeySetUrl);
-                request.Headers.TryAddWithoutValidation("Accept", "application/json");
-
-                using var response = await client.SendAsync(request).ConfigureAwait(false);
-                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                var location = response.Headers.Location?.ToString();
-                var redirectedToPassword = location?.Contains("/password", StringComparison.OrdinalIgnoreCase) == true;
-
-                if (redirectedToPassword || LooksLikeAHtmlPage(body))
-                {
-                    report.ShopAppearsPasswordProtected = true;
-                    report.KeySetStatus = redirectedToPassword
-                        ? $"the shop redirected to {location} instead of serving a key set"
-                        : $"the shop answered HTTP {(int)response.StatusCode} with an HTML page instead of a key set";
-                }
-                else if (!response.IsSuccessStatusCode)
-                {
-                    report.KeySetStatus = $"the shop answered HTTP {(int)response.StatusCode}";
-                }
-                else
-                {
-                    using var document = JsonDocument.Parse(body);
-
-                    report.KeySetStatus = document.RootElement.TryGetProperty("keys", out var keys) && keys.ValueKind == JsonValueKind.Array
-                        ? $"ok: {keys.GetArrayLength()} key(s)"
-                        : "reachable, but the document has no keys array";
-
-                    report.KeySetKeyIds = report.KeySetStatus.StartsWith("ok", StringComparison.Ordinal)
-                        ? document.RootElement.GetProperty("keys").EnumerateArray()
-                            .Select(k => TryGetString(k, "kid"))
-                            .Where(k => k is not null)
-                            .ToList()
-                        : null;
-                }
-            }
-            catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Forbidden
-                or System.Net.HttpStatusCode.NotFound
-                or System.Net.HttpStatusCode.Redirect
-                or System.Net.HttpStatusCode.Found)
-            {
-                // Reaching here means the client threw on the status rather than handing it back.
-                // Shopify answers a locked store with 403 or a 302 to /password, so this is the
-                // same condition as the branch above.
-                report.ShopAppearsPasswordProtected = true;
-                report.KeySetStatus = $"the shop answered HTTP {(int)ex.StatusCode!} for the key set";
-            }
-            catch (Exception ex)
-            {
-                report.KeySetStatus = $"could not be read: {ex.GetType().Name}: {ex.Message}";
-            }
-        }
+        report.SignatureStatus = !report.SignatureCheckPossible
+            ? "Shopify:ApiSecret is not configured, so no signature can be verified"
+            : report.TokenAlgorithm is null
+                ? "the token has no alg header"
+                : string.Equals(report.TokenAlgorithm, "HS256", StringComparison.Ordinal)
+                    ? "ok: HS256 with the API secret"
+                    : $"the token's alg is '{report.TokenAlgorithm}', but session tokens are HS256";
 
         // The real verdict, from the real validator.
         var validation = await validator.ValidateAsync(token).ConfigureAwait(false);
@@ -242,42 +181,22 @@ public static class SessionTokenDiagnostics
             return "No token was supplied to the validator.";
         }
 
-        if (report.ShopAppearsPasswordProtected)
+        if (!report.SignatureCheckPossible)
         {
-            return $"The store '{report.ClaimShopDomain}' is password-protected, so Shopify serves its " +
-                   "password page instead of its public signing keys and no session token for that store " +
-                   "can ever be verified. Session-token authentication cannot work against a locked store: " +
-                   "disable the storefront password (Online Store > Preferences > Password protection), or " +
-                   "install this app on a store that is not locked.";
+            return "Shopify:ApiSecret is not configured, so no session token signature can be verified. " +
+                   "Set it with 'dotnet user-secrets set \"Shopify:ApiSecret\" \"<client secret>\"'.";
         }
 
-        if (report.KeySetStatus?.StartsWith("could not be read", StringComparison.Ordinal) == true)
+        if (report.TokenAlgorithm is not null
+            && !string.Equals(report.TokenAlgorithm, "HS256", StringComparison.Ordinal))
         {
-            return "The shop's signing keys could not be fetched, so no signature can be verified. Check " +
-                   "that this server has outbound HTTPS access and that the dest claim names a real shop.";
+            return $"The token's alg is '{report.TokenAlgorithm}'. Shopify signs session tokens with " +
+                   "HS256 using the app's API secret, so this token cannot be verified and is refused.";
         }
 
-        if (report.TokenAlgorithm is not ("RS256" or "ES256"))
-        {
-            return $"The token's alg is '{report.TokenAlgorithm}', which is not a signature algorithm this " +
-                   "app accepts. A token with alg 'none' is unsigned and is refused by design.";
-        }
-
-        if (report.TokenKeyId is null && report.KeySetKeyIds is { Count: > 1 })
-        {
-            return "The token has no kid and the shop publishes more than one key, so no key can be selected.";
-        }
-
-        if (report.TokenKeyId is not null
-            && report.KeySetKeyIds is { Count: > 0 }
-            && !report.KeySetKeyIds.Contains(report.TokenKeyId))
-        {
-            return $"The token's kid '{report.TokenKeyId}' is not among the shop's published keys " +
-                   $"({string.Join(", ", report.KeySetKeyIds)}), so no signature can match.";
-        }
-
-        return "The signature, issuer, audience, or lifetime check failed. Compare the decoded claims and " +
-               "the key set above with this app's configuration.";
+        return "The signature, audience or lifetime check failed. Compare the decoded claims with this " +
+               "app's configuration: the aud claim must equal the API key, and dest must be a real " +
+               "myshopify.com shop.";
     }
 
     /// <summary>Shows enough of a secret to recognise it, and not enough to use it.</summary>
@@ -291,15 +210,6 @@ public static class SessionTokenDiagnostics
         return value.Length <= 8
             ? new string('*', value.Length)
             : $"{value[..4]}…{value[^4..]} ({value.Length} characters)";
-    }
-
-    /// <summary>True when a response body is an HTML page rather than the expected JSON.</summary>
-    private static bool LooksLikeAHtmlPage(string body)
-    {
-        var trimmed = body.TrimStart();
-
-        return trimmed.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase)
-            || trimmed.StartsWith("<html", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Dictionary<string, object?>? ReadJson(string segment)
@@ -401,20 +311,14 @@ public sealed class TokenDiagnosticReport
     /// <summary>Seconds until expiry; negative means already expired.</summary>
     public long? ExpiresInSeconds { get; set; }
 
-    /// <summary>The key set URL that was probed.</summary>
-    public string? KeySetUrl { get; set; }
+    /// <summary>The algorithm a session token must use.</summary>
+    public string? ExpectedAlgorithm { get; set; }
 
-    /// <summary>What happened when the key set was fetched.</summary>
-    public string? KeySetStatus { get; set; }
+    /// <summary>The result of checking whether the signature can be verified at all.</summary>
+    public string? SignatureStatus { get; set; }
 
-    /// <summary>
-    /// True when the shop answered the key-set request with its password page or a refusal, which
-    /// means no session token for that shop can ever be verified.
-    /// </summary>
-    public bool ShopAppearsPasswordProtected { get; set; }
-
-    /// <summary>Key ids published by the shop.</summary>
-    public List<string?>? KeySetKeyIds { get; set; }
+    /// <summary>True when the API secret is configured, so a signature can be checked.</summary>
+    public bool SignatureCheckPossible { get; set; }
 
     /// <summary>True when the real validator accepted the token.</summary>
     public bool Validated { get; set; }

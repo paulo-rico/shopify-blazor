@@ -47,14 +47,12 @@ public sealed class AdminApiTests
     [Fact]
     public async Task A_successful_query_returns_the_data_element()
     {
-        using var factory = new SessionTokenFactory();
         var handler = HappyHandler(ProductsBody());
-        handler.OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()));
 
         await using var provider = TestServices.Create(handler);
         var api = provider.GetRequiredService<IShopifyAdminApi>();
 
-        var response = await api.QueryAsync(factory.Create(), "{ products(first: 1) { nodes { id title } } }");
+        var response = await api.QueryAsync(SessionTokenFactory.Create(), "{ products(first: 1) { nodes { id title } } }");
 
         Assert.True(response.IsSuccess, response.DescribeFailure());
         Assert.Equal("T-shirt", response.Data!.Value.GetProperty("products").GetProperty("nodes")[0].GetProperty("title").GetString());
@@ -63,14 +61,12 @@ public sealed class AdminApiTests
     [Fact]
     public async Task The_request_carries_the_access_token_and_the_configured_api_version()
     {
-        using var factory = new SessionTokenFactory();
         var handler = HappyHandler(ProductsBody());
-        handler.OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()));
 
         await using var provider = TestServices.Create(handler);
         var api = provider.GetRequiredService<IShopifyAdminApi>();
 
-        await api.QueryAsync(factory.Create(), "{ shop { name } }");
+        await api.QueryAsync(SessionTokenFactory.Create(), "{ shop { name } }");
 
         var request = Assert.Single(handler.Requests, r => r.Uri.AbsolutePath.Contains("/graphql.json", StringComparison.Ordinal));
 
@@ -83,14 +79,12 @@ public sealed class AdminApiTests
     [Fact]
     public async Task Graphql_errors_on_a_200_response_are_treated_as_a_failure()
     {
-        using var factory = new SessionTokenFactory();
         var handler = HappyHandler("""{"errors":[{"message":"Field 'nope' doesn't exist on type 'QueryRoot'","extensions":{"code":"undefinedField"}}]}""");
-        handler.OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()));
 
         await using var provider = TestServices.Create(handler);
         var api = provider.GetRequiredService<IShopifyAdminApi>();
 
-        var error = await Assert.ThrowsAsync<ShopifyAdminApiException>(() => api.QueryAsync(factory.Create(), "{ nope }"));
+        var error = await Assert.ThrowsAsync<ShopifyAdminApiException>(() => api.QueryAsync(SessionTokenFactory.Create(), "{ nope }"));
 
         // HTTP 200 with an errors array: exactly the case a status-code check misses.
         Assert.Equal(HttpStatusCode.OK, error.Response!.StatusCode);
@@ -101,14 +95,12 @@ public sealed class AdminApiTests
     [Fact]
     public async Task Throttling_is_reported_with_shopifys_error_code()
     {
-        using var factory = new SessionTokenFactory();
         var handler = HappyHandler("""{"errors":[{"message":"Throttled","extensions":{"code":"THROTTLED"}}]}""");
-        handler.OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()));
 
         await using var provider = TestServices.Create(handler);
         var api = provider.GetRequiredService<IShopifyAdminApi>();
 
-        var error = await Assert.ThrowsAsync<ShopifyAdminApiException>(() => api.QueryAsync(factory.Create(), "{ shop { name } }"));
+        var error = await Assert.ThrowsAsync<ShopifyAdminApiException>(() => api.QueryAsync(SessionTokenFactory.Create(), "{ shop { name } }"));
 
         Assert.Equal("THROTTLED", error.Response!.Errors[0].Code);
     }
@@ -116,9 +108,7 @@ public sealed class AdminApiTests
     [Fact]
     public async Task A_rejected_access_token_is_discarded_so_the_next_call_re_exchanges()
     {
-        using var factory = new SessionTokenFactory();
         var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()))
             .OnPath(
                 "/admin/oauth/access_token",
                 ScriptedResponse.Json(TokenBody()),
@@ -133,7 +123,7 @@ public sealed class AdminApiTests
 
         // One session token, used twice. It has to be genuinely the same session and subject, or
         // a fresh cache entry would make the test pass without the invalidation working at all.
-        var session = factory.Create();
+        var session = SessionTokenFactory.Create();
 
         var error = await Assert.ThrowsAsync<ShopifyAdminApiException>(() => api.QueryAsync(session, "{ shop { name } }"));
         Assert.True(error.IsTokenRejected);
@@ -164,9 +154,7 @@ public sealed class AdminApiTests
     [Fact]
     public async Task A_retired_api_version_is_noticed_even_though_shopify_answers_normally()
     {
-        using var factory = new SessionTokenFactory();
         var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()))
             .OnPath("/admin/oauth/access_token", ScriptedResponse.Json(TokenBody()))
             .OnPath(
                 "/admin/api/2026-10/graphql.json",
@@ -185,7 +173,7 @@ public sealed class AdminApiTests
         await using var provider = TestServices.Create(handler);
         var api = provider.GetRequiredService<IShopifyAdminApi>();
 
-        var response = await api.QueryAsync(factory.Create(), "{ shop { name } }");
+        var response = await api.QueryAsync(SessionTokenFactory.Create(), "{ shop { name } }");
 
         Assert.True(response.IsSuccess);
         Assert.Equal("2026-01", response.ApiVersionServed);
@@ -206,14 +194,12 @@ public sealed class AdminApiTests
     [Fact]
     public async Task Typed_queries_deserialize_the_data_element()
     {
-        using var factory = new SessionTokenFactory();
         var handler = HappyHandler(ProductsBody("Snowboard"));
-        handler.OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()));
 
         await using var provider = TestServices.Create(handler);
         var api = provider.GetRequiredService<IShopifyAdminApi>();
 
-        var result = await api.QueryAsync<ProductPage>(factory.Create(), "{ products(first: 1) { nodes { id title } } }");
+        var result = await api.QueryAsync<ProductPage>(SessionTokenFactory.Create(), "{ products(first: 1) { nodes { id title } } }");
 
         var product = Assert.Single(result.Products.Nodes);
         Assert.Equal("Snowboard", product.Title);

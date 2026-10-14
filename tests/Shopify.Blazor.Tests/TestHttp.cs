@@ -149,13 +149,12 @@ public static class TestServices
         services.AddShopifyBlazor(configuration: null, configure: options =>
         {
             options.ApiKey = "test-api-key";
-            options.ApiSecret = "test-api-secret";
+            options.ApiSecret = "0123456789abcdef0123456789abcdef";
             options.AppUrl = "https://test.ngrok-free.app";
 
             configure?.Invoke(options);
         }, validateOnStart: false);
 
-        services.AddHttpClient(ShopifyHttpClients.Public).ConfigurePrimaryHttpMessageHandler(() => handler);
         services.AddHttpClient(ShopifyHttpClients.TokenExchange).ConfigurePrimaryHttpMessageHandler(() => handler);
         services.AddHttpClient(ShopifyHttpClients.AdminApi).ConfigurePrimaryHttpMessageHandler(() => handler);
 

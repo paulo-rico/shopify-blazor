@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Caching.Memory;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -9,7 +9,7 @@ namespace Shopify.Blazor.Authentication;
 
 /// <summary>
 /// A verified App Bridge session token (an ID token). Every property here has been checked
-/// against Shopify's published signing keys before it was populated.
+/// against the app's signing secret before it was populated.
 /// </summary>
 /// <param name="ShopDomain">The canonical <c>name.myshopify.com</c> domain from the <c>dest</c> claim.</param>
 /// <param name="UserId">The numeric merchant user id from the <c>sub</c> claim.</param>
@@ -73,7 +73,7 @@ public sealed class ShopifySessionTokenValidationResult
 public interface IShopifySessionTokenValidator
 {
     /// <summary>
-    /// Verifies signature, audience, issuer and expiry, and confirms the token was issued for
+    /// Verifies the signature, audience and lifetime, and confirms the token was issued for
     /// <paramref name="expectedShopDomain"/> when one is supplied.
     /// </summary>
     /// <returns>A result; this method does not throw for an unusable token.</returns>
@@ -84,65 +84,87 @@ public interface IShopifySessionTokenValidator
 }
 
 /// <summary>
-/// Validates App Bridge session tokens against the shop's published JWKS endpoint.
+/// Validates App Bridge session tokens as HMAC-SHA256 JWTs signed with the app's own API secret.
 /// </summary>
 /// <remarks>
-/// This is the server-side half of the embedded-app handshake, and the check that makes the rest
-/// of the app trustworthy. Three things it deliberately does <em>not</em> accept:
+/// <para>
+/// <strong>Session tokens are symmetric.</strong> Shopify signs them HS256 using the app's client
+/// secret, so verifying one needs the secret and nothing else — no per-shop key set, no network
+/// call. This mirrors what Shopify's own libraries do: the <c>shopify_api</c> gem decodes with
+/// <c>JWT.decode(token, api_secret_key, true, algorithm: "HS256")</c> and compares the
+/// <c>aud</c> claim with the app's API key.
+/// </para>
+/// <para>
+/// An earlier version of this class fetched <c>https://{shop}/.well-known/jwks.json</c> and
+/// verified an RS256 signature. That endpoint belongs to the <em>Storefront</em> and
+/// <em>Customer Account</em> APIs, not to admin session tokens, and it sits behind the storefront:
+/// a password-protected store — which every Shopify dev store is — answers it with the storefront
+/// password page, so validation could never have worked there. Verified: that URL returns
+/// <c>302 → /password</c> for a locked store, and Shopify documents that a dev store's password
+/// cannot be removed.
+/// </para>
+/// <para>
+/// Three things this deliberately does <em>not</em> accept:
 /// <list type="bullet">
 /// <item>a query-string or form parameter as proof of identity (only a signed token counts);</item>
-/// <item>an unsigned or <c>alg: none</c> token;</item>
-/// <item>a token whose <c>dest</c> claim points somewhere other than the shop being addressed.</item>
+/// <item>an unsigned token, or one signed with a different algorithm — the algorithm is pinned to
+/// HS256, so an <c>alg: none</c> token cannot be downgraded into acceptance;</item>
+/// <item>a token whose <c>aud</c> claim is a different app, or whose <c>dest</c> claim points
+/// somewhere other than the shop being addressed.</item>
 /// </list>
+/// </para>
 /// </remarks>
 public sealed class ShopifySessionTokenValidator : IShopifySessionTokenValidator
 {
-    // Shopify publishes its key set per shop. Twelve hours is comfortably inside the rotation
-    // window and every miss falls back to a refresh, so a shorter value buys nothing.
-    private static readonly TimeSpan JwksCacheDuration = TimeSpan.FromHours(12);
+    /// <summary>
+    /// Tolerance for clock differences, matching the leeway Shopify's own libraries apply.
+    /// </summary>
+    private static readonly TimeSpan DefaultClockSkew = TimeSpan.FromSeconds(10);
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IMemoryCache _cache;
     private readonly IOptionsMonitor<ShopifyOptions> _options;
     private readonly ILogger<ShopifySessionTokenValidator> _logger;
     private readonly JsonWebTokenHandler _handler = new() { MapInboundClaims = false };
 
     /// <summary>Creates a validator.</summary>
     public ShopifySessionTokenValidator(
-        IHttpClientFactory httpClientFactory,
-        IMemoryCache cache,
         IOptionsMonitor<ShopifyOptions> options,
         ILogger<ShopifySessionTokenValidator> logger)
     {
-        _httpClientFactory = httpClientFactory;
-        _cache = cache;
         _options = options;
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public async Task<ShopifySessionTokenValidationResult> ValidateAsync(
+    public Task<ShopifySessionTokenValidationResult> ValidateAsync(
         string? sessionToken,
         string? expectedShopDomain = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sessionToken))
         {
-            return ShopifySessionTokenValidationResult.Fail(
-                ShopifySessionTokenValidationFailure.Missing, "No session token was supplied.");
+            return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                ShopifySessionTokenValidationFailure.Missing, "No session token was supplied."));
         }
 
         var options = _options.CurrentValue;
 
         if (string.IsNullOrWhiteSpace(options.ApiKey))
         {
-            return ShopifySessionTokenValidationResult.Fail(
-                ShopifySessionTokenValidationFailure.Invalid, "Shopify:ApiKey is not configured, so no token can be trusted.");
+            return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                ShopifySessionTokenValidationFailure.Invalid,
+                "Shopify:ApiKey is not configured, so no token can be trusted."));
         }
 
-        // Read the destination without trusting it. Shopify's own guidance is to parse the token,
-        // extract the shop, then validate the signature *against that shop's* keys — which is why
-        // the domain check happens here, before anything is fetched, rather than afterwards.
+        if (string.IsNullOrWhiteSpace(options.ApiSecret))
+        {
+            // Without the secret no signature can be checked, so every token must be refused rather
+            // than accepted unverified.
+            return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                ShopifySessionTokenValidationFailure.Invalid,
+                "Shopify:ApiSecret is not configured, so a session token's signature cannot be verified."));
+        }
+
+        // Read the destination without trusting it, then validate the domain before anything else.
         string? destination;
         try
         {
@@ -152,78 +174,107 @@ public sealed class ShopifySessionTokenValidator : IShopifySessionTokenValidator
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Session token could not be parsed.");
-            return ShopifySessionTokenValidationResult.Fail(
-                ShopifySessionTokenValidationFailure.Invalid, "The session token is not a readable JWT.");
+            return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                ShopifySessionTokenValidationFailure.Invalid, "The session token is not a readable JWT."));
         }
 
         var shopFromToken = ShopDomain.TryNormalize(destination);
 
         if (shopFromToken is null)
         {
-            // Report what was rejected, but never echo the whole token.
             _logger.LogWarning("Session token rejected: 'dest' claim '{Destination}' is not a myshopify shop domain.", destination);
-            return ShopifySessionTokenValidationResult.Fail(
-                ShopifySessionTokenValidationFailure.Invalid, "The session token has no usable 'dest' claim.");
+            return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                ShopifySessionTokenValidationFailure.Invalid, "The session token has no usable 'dest' claim."));
         }
 
-        string? expected = null;
         if (!string.IsNullOrWhiteSpace(expectedShopDomain))
         {
-            expected = ShopDomain.TryNormalize(expectedShopDomain);
+            var expected = ShopDomain.TryNormalize(expectedShopDomain);
+
             if (expected is null)
             {
-                return ShopifySessionTokenValidationResult.Fail(
-                    ShopifySessionTokenValidationFailure.Invalid, "The expected shop domain is not a myshopify.com domain.");
+                return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                    ShopifySessionTokenValidationFailure.Invalid, "The expected shop domain is not a myshopify.com domain."));
+            }
+
+            if (!string.Equals(expected, shopFromToken, StringComparison.Ordinal))
+            {
+                return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                    ShopifySessionTokenValidationFailure.WrongShop,
+                    $"The session token is for '{shopFromToken}' but the request addressed '{expected}'."));
             }
         }
 
-        if (expected is not null && !string.Equals(expected, shopFromToken, StringComparison.Ordinal))
-        {
-            return ShopifySessionTokenValidationResult.Fail(
-                ShopifySessionTokenValidationFailure.WrongShop,
-                $"The session token is for '{shopFromToken}' but the request addressed '{expected}'.");
-        }
+        // Microsoft's JWT handler refuses an HS256 key shorter than 128 bits, while Shopify's own
+        // libraries (and Ruby's JWT gem) use the secret as-is with no minimum. A short secret
+        // would therefore fail *every* token with a message about key size, which reads like a
+        // configuration error rather than what it is. Say so plainly instead, and treat it as a
+        // configuration problem rather than a token problem.
+        var secretBytes = Encoding.UTF8.GetBytes(options.ApiSecret);
 
-        JsonWebKeySet keySet;
-        try
+        if (secretBytes.Length < 16)
         {
-            keySet = await GetKeySetAsync(shopFromToken, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Could not fetch the signing keys for {Shop}.", shopFromToken);
-            return ShopifySessionTokenValidationResult.Fail(
-                ShopifySessionTokenValidationFailure.Invalid, "The shop's signing keys could not be retrieved.");
+            _logger.LogError(
+                "Shopify:ApiSecret is {Length} characters, which is shorter than the 16 bytes (128 bits) " +
+                "that HMAC-SHA256 requires. Session tokens cannot be verified with it. A Shopify client " +
+                "secret is 32 hexadecimal characters; check the value was copied in full.",
+                options.ApiSecret.Length);
+
+            return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                ShopifySessionTokenValidationFailure.Invalid,
+                $"Shopify:ApiSecret is only {options.ApiSecret.Length} characters, which is shorter than the " +
+                "16 bytes HMAC-SHA256 requires, so no session token can be verified."));
         }
 
         var parameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidIssuer = $"https://{shopFromToken}/admin",
+            // HS256 with the API secret. This is the whole trust anchor: no key set, no network
+            // call, and nothing a password-protected storefront can obstruct.
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(secretBytes),
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
+
+            // The audience is the app's API key, so a token minted for any other app is refused.
             ValidateAudience = true,
             ValidAudience = options.ApiKey,
+
             ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKeys = keySet.Keys,
-            ClockSkew = options.ClockSkew,
+            ClockSkew = options.ClockSkew == TimeSpan.Zero ? DefaultClockSkew : options.ClockSkew,
+
+            // The issuer is https://{shop}/admin, which the dest check above already covers; pinning
+            // it to a fixed string would add nothing.
+            ValidateIssuer = false,
             NameClaimType = "sub",
         };
 
-        var result = await _handler.ValidateTokenAsync(sessionToken, parameters).ConfigureAwait(false);
+        var result = _handler.ValidateTokenAsync(sessionToken, parameters).GetAwaiter().GetResult();
 
         if (!result.IsValid)
         {
             var exception = result.Exception;
-            var failure = exception is SecurityTokenExpiredException
-                ? ShopifySessionTokenValidationFailure.Expired
-                : ShopifySessionTokenValidationFailure.Invalid;
+
+            // Two exception types can mean "expired". SecurityTokenExpiredException is the obvious
+            // one, but a lifetime failure is often reported as SecurityTokenInvalidLifetimeException
+            // with a message that covers both "already expired" and "not valid yet". Treating only
+            // the first as expired told the caller a token was Invalid, which sends them looking for
+            // a signature or audience problem instead of fetching a fresh token a second later.
+            var failure = exception switch
+            {
+                SecurityTokenExpiredException => ShopifySessionTokenValidationFailure.Expired,
+                SecurityTokenInvalidLifetimeException lifetime
+                    when lifetime.Message.Contains("is after Expires", StringComparison.Ordinal)
+                        || lifetime.Message.Contains("Expired", StringComparison.OrdinalIgnoreCase)
+                    => ShopifySessionTokenValidationFailure.Expired,
+                _ => ShopifySessionTokenValidationFailure.Invalid,
+            };
 
             _logger.LogWarning(
                 "Session token rejected for {Shop}: {Reason}",
                 shopFromToken,
                 exception?.Message ?? "unknown validation failure");
 
-            return ShopifySessionTokenValidationResult.Fail(failure, exception?.Message ?? "Session token validation failed.");
+            return Task.FromResult(ShopifySessionTokenValidationResult.Fail(
+                failure, exception?.Message ?? "Session token validation failed."));
         }
 
         var jwt = result.SecurityToken as JsonWebToken;
@@ -234,36 +285,12 @@ public sealed class ShopifySessionTokenValidator : IShopifySessionTokenValidator
             .Split([' ', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             ?? [];
 
-        return ShopifySessionTokenValidationResult.Success(new ShopifySessionToken(
+        return Task.FromResult(ShopifySessionTokenValidationResult.Success(new ShopifySessionToken(
             shopFromToken,
             userId,
             new DateTimeOffset(DateTime.SpecifyKind(expires, DateTimeKind.Utc)),
             new DateTimeOffset(DateTime.SpecifyKind(issued, DateTimeKind.Utc)),
             scopes,
-            sessionToken));
-    }
-
-    private async Task<JsonWebKeySet> GetKeySetAsync(string shopDomain, CancellationToken cancellationToken)
-    {
-        var jwksUrl = _options.CurrentValue.JwksUrlOverride;
-        if (string.IsNullOrWhiteSpace(jwksUrl))
-        {
-            jwksUrl = $"https://{shopDomain}/.well-known/jwks.json";
-        }
-
-        var cacheKey = "shopify:jwks:" + jwksUrl;
-
-        if (_cache.TryGetValue(cacheKey, out JsonWebKeySet? cached) && cached is not null)
-        {
-            return cached;
-        }
-
-        var client = _httpClientFactory.CreateClient(ShopifyHttpClients.Public);
-        var json = await client.GetStringAsync(jwksUrl, cancellationToken).ConfigureAwait(false);
-        var keySet = new JsonWebKeySet(json);
-
-        _cache.Set(cacheKey, keySet, JwksCacheDuration);
-
-        return keySet;
+            sessionToken)));
     }
 }

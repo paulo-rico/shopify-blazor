@@ -24,16 +24,14 @@ public sealed class TokenExchangeTests
         ScriptedResponse response,
         Action<ShopifyOptions>? configure = null)
     {
-        using var factory = new SessionTokenFactory();
         var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()))
             .OnPath("/admin/oauth/access_token", response);
 
         var provider = TestServices.Create(handler, configure);
         var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
         var exchanger = provider.GetRequiredService<IShopifyTokenExchanger>();
 
-        var validation = await validator.ValidateAsync(factory.Create());
+        var validation = await validator.ValidateAsync(SessionTokenFactory.Create());
         Assert.True(validation.Succeeded, validation.Reason);
 
         try
@@ -80,7 +78,7 @@ public sealed class TokenExchangeTests
 
         // The secret must travel in the body of a request to the shop's own host, never in a URL,
         // a header that could be logged, or anything the browser can see.
-        Assert.Contains("client_secret=test-api-secret", body, StringComparison.Ordinal);
+        Assert.Contains($"client_secret={SessionTokenFactory.ApiSecret}", body, StringComparison.Ordinal);
         Assert.EndsWith(".myshopify.com", request.Uri.Host, StringComparison.Ordinal);
     }
 
@@ -101,16 +99,14 @@ public sealed class TokenExchangeTests
     [Fact]
     public async Task A_cached_token_is_reused_until_it_is_near_expiry()
     {
-        using var factory = new SessionTokenFactory();
         var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()))
             .OnPath("/admin/oauth/access_token", ScriptedResponse.Json(SuccessBody(expiresIn: 3600)));
 
         await using var provider = TestServices.Create(handler);
         var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
         var exchanger = provider.GetRequiredService<IShopifyTokenExchanger>();
 
-        var session = (await validator.ValidateAsync(factory.Create())).SessionToken!;
+        var session = (await validator.ValidateAsync(SessionTokenFactory.Create())).SessionToken!;
 
         await exchanger.ExchangeAsync(session);
         await exchanger.ExchangeAsync(session);
@@ -142,9 +138,7 @@ public sealed class TokenExchangeTests
     {
         // `expires_in: 0` means the token does not expire, not that it has already expired, so it
         // is cached for the configured duration rather than exchanged again.
-        using var factory = new SessionTokenFactory();
         var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()))
             .OnPath(
                 "/admin/oauth/access_token",
                 ScriptedResponse.Json(SuccessBody(expiresIn: 0)),
@@ -154,7 +148,7 @@ public sealed class TokenExchangeTests
         var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
         var exchanger = provider.GetRequiredService<IShopifyTokenExchanger>();
 
-        var session = (await validator.ValidateAsync(factory.Create())).SessionToken!;
+        var session = (await validator.ValidateAsync(SessionTokenFactory.Create())).SessionToken!;
 
         var first = await exchanger.ExchangeAsync(session);
         var second = await exchanger.ExchangeAsync(session);
@@ -168,9 +162,7 @@ public sealed class TokenExchangeTests
     [Fact]
     public async Task Two_merchants_on_one_shop_do_not_share_an_online_token()
     {
-        using var factory = new SessionTokenFactory();
         var handler = new ScriptedHttpMessageHandler()
-            .OnHost(Shop, ScriptedResponse.Json(factory.BuildJwks()))
             .OnPath(
                 "/admin/oauth/access_token",
                 ScriptedResponse.Json(SuccessBody(token: "merchant-one")),
@@ -180,8 +172,8 @@ public sealed class TokenExchangeTests
         var validator = provider.GetRequiredService<IShopifySessionTokenValidator>();
         var exchanger = provider.GetRequiredService<IShopifyTokenExchanger>();
 
-        var first = (await validator.ValidateAsync(factory.Create(userId: "111"))).SessionToken!;
-        var second = (await validator.ValidateAsync(factory.Create(userId: "222"))).SessionToken!;
+        var first = (await validator.ValidateAsync(SessionTokenFactory.Create(userId: "111"))).SessionToken!;
+        var second = (await validator.ValidateAsync(SessionTokenFactory.Create(userId: "222"))).SessionToken!;
 
         Assert.Equal("merchant-one", (await exchanger.ExchangeAsync(first)).AccessToken);
         Assert.Equal("merchant-two", (await exchanger.ExchangeAsync(second)).AccessToken);
