@@ -79,6 +79,10 @@ public static class ShopifyServiceCollectionExtensions
         services.TryAddScoped<IShopifyRequestAuthenticator, ShopifyRequestAuthenticator>();
         services.TryAddScoped<IShopifyAdminApi, ShopifyAdminApi>();
         services.TryAddScoped<AppBridge.IAppBridgeInterop, AppBridge.AppBridgeInterop>();
+
+        // A singleton, so a rejection recorded during one request is still readable from the next —
+        // which is exactly how the page finds out why its own previous call was refused.
+        services.TryAddSingleton<Diagnostics.ISessionTokenRejectionLog, Diagnostics.SessionTokenRejectionLog>();
         services.TryAddSingleton(Microsoft.Extensions.Options.Options.Create(new AppBridge.AppBridgeOptions()));
 
         if (configuration is not null)

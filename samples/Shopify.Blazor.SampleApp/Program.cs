@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Mvc;
 using Polaris.Blazor;
 using Shopify.Blazor;
+using Shopify.Blazor.Diagnostics;
 using Shopify.Blazor.SampleApp.Components;
 using Shopify.Blazor.SampleApp.Services;
 
@@ -25,6 +27,14 @@ var shopifyConfigured = !string.IsNullOrWhiteSpace(shopifyApiKey)
 
 builder.Services.AddShopifyBlazor(builder.Configuration, validateOnStart: shopifyConfigured);
 
+// In Development a rejected session token answers with the reason, so the page can show
+// "the aud claim is for a different app" instead of a bare "Unauthorized". Off elsewhere: a
+// production response should not tell an unauthenticated client why its credential failed.
+builder.Services.Configure<Shopify.Blazor.Authentication.ShopifyAuthenticationOptions>(options =>
+{
+    options.IncludeFailureDetail = builder.Environment.IsDevelopment();
+});
+
 // The Polaris component library's JavaScript interop layer.
 builder.Services.AddPolarisBlazor();
 
@@ -32,6 +42,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddScoped<ProductsService>();
 
 var app = builder.Build();
+
+// Says which configuration layer supplied the API key, because an environment variable silently
+// overrides user secrets and a key from a different Shopify app rejects every session token.
+app.LogShopifyConfiguration(builder.Configuration);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -90,6 +104,14 @@ if (app.Environment.IsDevelopment())
                 token)))
         .AllowAnonymous()
         .WithSummary("Reports what a session token contains and why it was rejected (development only).");
+
+    // Why the last requests were refused, as the server saw them. The browser only ever sees a 401,
+    // so this is the only way the page can explain itself.
+    app.MapGet("/api/diagnostics/rejections", (
+            [FromServices] Shopify.Blazor.Diagnostics.ISessionTokenRejectionLog log,
+            int? count) => Results.Ok(log.Recent(count ?? 5)))
+        .AllowAnonymous()
+        .WithSummary("The most recent session token rejections (development only).");
 }
 
 // The one authenticated backend endpoint the reference app demonstrates. It never trusts a query

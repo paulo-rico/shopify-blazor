@@ -14,7 +14,7 @@ Status: **proof of concept**, working end to end against the real runtime. See
 | `src/Polaris.Blazor` | Razor components wrapping Shopify's Polaris web components |
 | `src/Shopify.Blazor` | Embedded-app authentication, App Bridge 4 interop, Admin API client |
 | `samples/Shopify.Blazor.SampleApp` | Reference app: embedded shell, authenticated Admin API call |
-| `tests/` | 69 tests: component rendering, session token validation, token exchange, Admin API, embedded framing |
+| `tests/` | 74 tests: component rendering, session token validation, token exchange, Admin API, embedded framing |
 
 The split is deliberate: `Polaris.Blazor` has **no dependency** on `Shopify.Blazor`, so the
 component library can be used on its own.
@@ -83,7 +83,7 @@ Everything below was run on this machine, not asserted from documentation.
 
 | Check | Result |
 |---|---|
-| `dotnet test` — both suites | **69 passed, 0 failed** |
+| `dotnet test` — both suites | **74 passed, 0 failed** |
 | Polaris components upgrade with a shadow root in Chrome | **19 element types, 0 failures** |
 | Custom-event → C# round trip in a live browser | **counter 0 → 1 after a real click** |
 | Polaris form submits its values | **`{"q":"signet","status":"draft"}`** |

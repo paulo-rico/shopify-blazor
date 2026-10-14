@@ -26,6 +26,48 @@ The diagnostic reports the decoded `aud`, `iss`, `dest` and `exp`, whether they 
 configuration, whether the shop's key set is reachable, and the validator's real verdict. It decodes
 without verifying, so it is a debugging aid — never a way to grant access.
 
+## Which credentials did the app actually use?
+
+An environment variable overrides user secrets, silently. If the winning value belongs to a
+different Shopify app, every token is rejected as being for someone else. The app says which layer
+won at startup:
+
+```sh
+dotnet run --project samples/Shopify.Blazor.SampleApp 2>&1 | grep -E "ApiKey came from|Shopify app:"
+```
+
+```
+warn: Shopify:ApiKey came from the SHOPIFY_API_KEY environment variable. …
+      Shopify app: ApiKey=1a2b3c… Secret=set (32 characters) AppUrl=…
+```
+
+Compare that key with the `shopify-api-key` meta tag in the Admin's page source. They must be the
+same. Precedence, later wins: `appsettings.json`, `appsettings.Development.json`, **user secrets**,
+**environment variables**.
+
+## Why did the last request get a 401?
+
+The browser only ever sees a 401; the reason is known on the server. In Development the app records
+it and exposes it:
+
+```sh
+curl http://localhost:3458/api/diagnostics/rejections?count=3
+```
+
+```json
+[{ "path": "/api/products", "failure": "Invalid",
+   "reason": "The shop's signing keys could not be retrieved.",
+   "hint": "The aud claim is 'X', but this app's API key is 'Y'. The token was minted for a different Shopify app…" }]
+```
+
+The Products page calls this itself and shows the hint, so a failed load explains itself. The same
+line is in the server log at warning level:
+
+```
+warn: Session token rejected on /api/products (Invalid): The shop's signing keys could not be
+      retrieved. The aud claim is 'X', but this app's API key is 'Y'. …
+```
+
 ## "AuthenticationScheme: ShopifySessionToken was not authenticated"
 
 Several different problems produce that one line. The diagnostic separates them.

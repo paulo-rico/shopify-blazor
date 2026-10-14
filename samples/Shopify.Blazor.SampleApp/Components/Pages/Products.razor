@@ -121,6 +121,14 @@
             if (!result.IsSuccess)
             {
                 _error = result.Error ?? "The request failed.";
+
+                // A 401 from this app means the session token was refused. The browser cannot see
+                // why, so ask the server, which recorded it.
+                if (result.StatusCode == 401)
+                {
+                    _error += " " + await ExplainRejectionAsync();
+                }
+
                 return;
             }
 
@@ -142,6 +150,38 @@
             _loading = false;
         }
     }
+
+    /// <summary>
+    /// Asks the server why the last token was refused, so the page can say something useful.
+    /// </summary>
+    /// <remarks>
+    /// Only available in Development; elsewhere it returns an empty string and the page falls back
+    /// to the plain error, because the server does not expose its rejection reasons in production.
+    /// </remarks>
+    private async Task<string> ExplainRejectionAsync()
+    {
+        try
+        {
+            var response = await Bridge.FetchAsync<List<Rejection>>("/api/diagnostics/rejections?count=1");
+
+            if (!response.IsSuccess || response.Data is not { Count: > 0 } rejections)
+            {
+                return string.Empty;
+            }
+
+            var rejection = rejections[0];
+
+            return rejection.Hint is { Length: > 0 }
+                ? $"Server said: {rejection.Reason} {rejection.Hint}"
+                : $"Server said: {rejection.Reason}";
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
+    }
+
+    private sealed record Rejection(string Path, string Failure, string Reason, string? Hint);
 
     private static PolarisTone StatusTone(string status) => status.ToUpperInvariant() switch
     {

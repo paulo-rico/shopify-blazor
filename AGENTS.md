@@ -24,7 +24,7 @@ Both directories are git-ignored. Without them `dotnet` fails before doing anyth
 ## Commands
 
 ```sh
-dotnet test                                    # both suites, 69 tests
+dotnet test                                    # both suites, 74 tests
 dotnet build                                   # whole solution
 dotnet run --project samples/Shopify.Blazor.SampleApp   # http://localhost:3458
 ```

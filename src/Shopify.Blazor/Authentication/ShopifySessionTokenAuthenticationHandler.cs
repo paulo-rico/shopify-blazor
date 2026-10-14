@@ -1,8 +1,11 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Shopify.Blazor.Diagnostics;
+using Shopify.Blazor.Internal;
 
 namespace Shopify.Blazor.Authentication;
 
@@ -28,6 +31,16 @@ public sealed class ShopifyAuthenticationOptions : AuthenticationSchemeOptions
     /// exactly why the signature check matters.
     /// </summary>
     public string? ExpectedShopDomain { get; set; }
+
+    /// <summary>
+    /// Records the explanation for a rejection in the application's
+    /// <see cref="ISessionTokenRejectionLog"/>, so a developer can read why the last request failed.
+    /// </summary>
+    /// <remarks>
+    /// Off in production, where the reason belongs in the log only. The explanation names claim
+    /// values, which is useful to a developer and unnecessary for an unauthenticated caller.
+    /// </remarks>
+    public bool IncludeFailureDetail { get; set; } = true;
 }
 
 /// <summary>
@@ -53,6 +66,18 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
     {
         _validator = validator;
     }
+
+    /// <summary>
+    /// Where the most recent rejections are recorded.
+    /// </summary>
+    /// <remarks>
+    /// Resolved from the request's services rather than injected: an authentication scheme is built
+    /// from its options by the framework, so its constructor only receives the handful of types the
+    /// handler base declares. Resolving here keeps the log a normal singleton.
+    /// </remarks>
+    private ISessionTokenRejectionLog Rejections =>
+        Context.RequestServices.GetService(typeof(ISessionTokenRejectionLog)) as ISessionTokenRejectionLog
+        ?? NullRejectionLog.Instance;
 
     /// <inheritdoc />
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -95,14 +120,28 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
 
         if (!validation.Succeeded || validation.SessionToken is null)
         {
+            var hint = Explain(validation, token);
+
             // A token was presented and rejected: this is the line that matters.
             Logger.LogWarning(
-                "Session token rejected on {Path} ({Failure}): {Reason}",
+                "Session token rejected on {Path} ({Failure}): {Reason}{Hint}",
                 Request.Path,
                 validation.Failure,
-                validation.Reason);
+                validation.Reason,
+                string.IsNullOrEmpty(hint) ? string.Empty : $" {hint}");
 
-            return AuthenticateResult.Fail(validation.Reason ?? "The session token is not valid.");
+            var authenticationFailure = new AuthenticationFailure(
+                "session_token_rejected",
+                validation.Failure?.ToString() ?? "Invalid",
+                validation.Reason ?? "The session token is not valid.",
+                string.IsNullOrEmpty(hint) ? null : hint);
+
+            Rejections.Record(authenticationFailure, Request.Path);
+
+            return AuthenticateResult.Fail(
+                authenticationFailure.Hint is { Length: > 0 } tip
+                    ? $"{authenticationFailure.Reason} {tip}"
+                    : authenticationFailure.Reason);
         }
 
         var session = validation.SessionToken;
@@ -124,4 +163,93 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
 
         return AuthenticateResult.Success(new AuthenticationTicket(principal, ShopifyAuthenticationDefaults.Scheme));
     }
+
+
+    /// <summary>
+    /// Turns a rejection into the thing the caller should do about it.
+    /// </summary>
+    /// <remarks>
+    /// The audience check is reported first on purpose. A token minted for another app is signed
+    /// by a <em>different shop's</em> keys, so verification fails, the key-set fetch fails, and the
+    /// mechanical reason is "keys could not be retrieved" — which points at the network rather than
+    /// at the actual misconfiguration.
+    /// </remarks>
+    private string Explain(ShopifySessionTokenValidationResult validation, string token)
+    {
+        if (validation.Failure is null)
+        {
+            return string.Empty;
+        }
+
+        var expectedAudience = Options.IncludeFailureDetail
+            ? Context.RequestServices.GetService(typeof(IOptionsMonitor<ShopifyOptions>)) is IOptionsMonitor<ShopifyOptions> options
+                ? options.CurrentValue.ApiKey
+                : null
+            : null;
+
+        var claims = TryDecodeClaims(token);
+
+        var audience = claims is not null && claims.TryGetValue("aud", out var aud) ? aud?.ToString() : null;
+
+        if (!string.IsNullOrEmpty(expectedAudience)
+            && !string.IsNullOrEmpty(audience)
+            && !string.Equals(audience, expectedAudience, StringComparison.Ordinal))
+        {
+            return $"The aud claim is '{audience}', but this app's API key is '{expectedAudience}'. The token " +
+                   "was minted for a different Shopify app: the App URL open in the Admin belongs to an app " +
+                   "whose Client ID is not what this server is configured with. Check for a SHOPIFY_API_KEY " +
+                   "environment variable overriding user secrets.";
+        }
+
+        return validation.Failure switch
+        {
+            ShopifySessionTokenValidationFailure.Expired =>
+                "The session token has expired; it lives about a minute, so fetch a fresh one for each request.",
+            ShopifySessionTokenValidationFailure.WrongShop =>
+                "The token is for a different shop than the one the request addressed.",
+            ShopifySessionTokenValidationFailure.Missing =>
+                "No token was supplied.",
+            _ => $"The token's dest claim is '{(claims is not null && claims.TryGetValue("dest", out var dest) ? dest?.ToString() : "missing")}'. " +
+                 "Its signature, issuer or lifetime did not verify.",
+        };
+    }
+
+    /// <summary>Decodes a JWT payload without verifying it, for explanatory messages only.</summary>
+    private static Dictionary<string, object?>? TryDecodeClaims(string token)
+    {
+        var segments = token.Split('.');
+
+        if (segments.Length != 3)
+        {
+            return null;
+        }
+
+        try
+        {
+            var padded = segments[1].Replace('-', '+').Replace('_', '/');
+            padded = (padded.Length % 4) switch
+            {
+                2 => padded + "==",
+                3 => padded + "=",
+                _ => padded,
+            };
+
+            return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(
+                System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded)));
+        }
+        catch (Exception ex) when (ex is FormatException or System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
 }
+
+/// <summary>
+/// The reason an <c>Authorization</c> header was refused.
+/// </summary>
+/// <remarks>
+/// A bare "Unauthorized" costs a developer an hour; "the aud claim is for a different app" costs
+/// them a minute. <see cref="Hint"/> is only populated when the app opts in, so it can be shown to a
+/// developer without telling an unauthenticated client why its credential failed.
+/// </remarks>
+public sealed record AuthenticationFailure(string Code, string Failure, string Reason, string? Hint);

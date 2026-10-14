@@ -85,6 +85,38 @@ Open `https://<your-tunnel>/` and choose a development store when Shopify prompt
 is embedded and uses App Bridge, Shopify's own install and authorisation flow handles the grant; the
 app never builds an OAuth redirect of its own.
 
+## 6b. Check which credentials actually won
+
+Configuration precedence causes a class of failure that looks like an authentication bug: an
+environment variable silently **overrides** user secrets. If the value that wins belongs to a
+different Shopify app, every session token is rejected as being for someone else.
+
+The app logs which layer supplied the key at startup:
+
+```
+info: Shopify:ApiKey came from the user secrets store.
+      Shopify app: ApiKey=1a2b3c… Secret=set (32 characters) AppUrl=https://… AccessTokenKind=Online AdminApiVersion=2026-10
+```
+
+If instead you see:
+
+```
+warn: Shopify:ApiKey came from the SHOPIFY_API_KEY environment variable. An environment variable
+      overrides user secrets, so if this is not the app whose App URL is open in the Admin, every
+      session token will be rejected as belonging to another app.
+```
+
+then either unset `SHOPIFY_API_KEY`, or make sure the App URL open in the Admin is that app. Precedence,
+later wins:
+
+1. `appsettings.json` (committed, empty in a generated project)
+2. `appsettings.Development.json` (committed, non-secret)
+3. **user secrets**
+4. **environment variables**
+
+The log line also prints the exact value that will be rendered into the page's
+`shopify-api-key` meta tag, so you can compare it with the Admin's app at a glance.
+
 ## 7. Make an authenticated Admin API call
 
 In the app, open **Products** and press **Refresh**. What happens:
