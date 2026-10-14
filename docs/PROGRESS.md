@@ -8,7 +8,7 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
 
 | Area | State |
 |---|---|
-| Solution, CI, docs | Done. `dotnet test` = 62 passed, 0 failed. |
+| Solution, CI, docs | Done. `dotnet test` = 69 passed, 0 failed. |
 | `Polaris.Blazor` | 29 components + interop module. Verified in a real browser. |
 | `Shopify.Blazor` | Session token validation, token exchange, Admin API client, App Bridge interop. |
 | Reference app | Embedded shell, dashboard, products, component gallery. Authenticated `/api/products`. |
@@ -28,6 +28,8 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
 | Polaris form submits its values | Real form submission | `{"q":"signet","status":"draft"}` |
 | `commandFor` declarative modal wiring | Headless Chrome | present, no JavaScript |
 | `/api/products` rejects missing, malformed and `alg: none` tokens | `curl` | 401, 401, 401 |
+| The app can be framed by the Admin, and not by anything else | Chrome iframe test both ways | allowed origin frames it; any other is refused |
+| Session token diagnostics report the real reason for a rejection | Real RS256 token with a mismatched `aud` | names the audience mismatch |
 
 ## Next task, in order
 
@@ -41,6 +43,16 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
    phase 5 alongside it: it is the cheapest way to stop the silent failures recurring.
 4. **More components.** `PolarisChoiceList` first — it is the only multi-select and exercises the
    array-property path.
+
+## Resolved since the first push
+
+- **The app could not be embedded at all.** `UseAntiforgery()` sets `X-Frame-Options: SAMEORIGIN` and
+  `frame-ancestors 'self'`, which refuse the Admin's iframe. `UseShopifyEmbeddedFraming()` replaces
+  them with a policy naming the Admin origins. See `AGENTS.md` item 12.
+- **`Shopify.Blazor` shipped without `app-bridge.js`**, because the package used the plain SDK.
+- **Every page request logged an authentication warning**, because the session token scheme is the
+  default and reported a failure even when no token was presented. It now returns `NoResult` and logs
+  at debug, so a real rejection stands out.
 
 ## Known gaps
 

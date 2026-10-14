@@ -118,6 +118,8 @@ curl -i -H 'Authorization: Bearer not-a-jwt' http://localhost:3458/api/products
 | A modal never opens | Shopify only opens a modal in response to a user gesture. Use a `PolarisButton` with `CommandFor` rather than calling `ShowAsync()` from `OnInitialized`. |
 | The admin shows a progress bar that never stops | `shopify.loading(true)` without the matching `false`. Use `IAppBridgeInterop.WithLoadingAsync`, which clears it in a `finally`. |
 | `Field 'x' doesn't exist on type 'QueryRoot'` | The configured Admin API version does not match the field. Check `Shopify:AdminApiVersion` against <https://shopify.dev/docs/api/usage/versioning>. |
+| A blank frame where the app should be | The app is refusing to be framed — see [Troubleshooting](troubleshooting.md#the-app-shows-an-empty-frame-in-the-admin). |
+| `ShopifySessionToken was not authenticated` | Session token rejected. Run the diagnostic in [Troubleshooting](troubleshooting.md#authenticationscheme-shopifysessiontoken-was-not-authenticated); the usual cause is that the page and the server are configured for different apps. |
 
 ## Next steps
 

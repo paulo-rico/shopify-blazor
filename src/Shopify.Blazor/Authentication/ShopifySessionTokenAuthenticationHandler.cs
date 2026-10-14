@@ -59,6 +59,10 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
     {
         if (!Request.Headers.TryGetValue("Authorization", out var headerValues))
         {
+            // NoResult, not Fail: this scheme is the default, so it runs for every page and static
+            // asset request too. Reporting a failure for those fills the log with warnings and
+            // hides the one line that matters.
+            Logger.LogDebug("No Authorization header on {Path}; nothing to authenticate.", Request.Path);
             return AuthenticateResult.NoResult();
         }
 
@@ -67,14 +71,23 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
 
         if (header.Length <= prefix.Length || !header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
+            Logger.LogWarning(
+                "Authorization header on {Path} is not a bearer token: {Scheme}.",
+                Request.Path,
+                header.Split(' ', 2)[0]);
             return AuthenticateResult.Fail("The Authorization header is not a bearer token.");
         }
 
         var token = header[prefix.Length..].Trim();
         if (token.Length == 0)
         {
+            Logger.LogWarning("Bearer token on {Path} is empty.", Request.Path);
             return AuthenticateResult.Fail("The bearer token is empty.");
         }
+
+        // Enough to identify which token was presented without putting a credential in the log.
+        var segments = token.Split('.').Length;
+        Logger.LogDebug("Verifying a {Length}-character bearer token with {Segments} JWT segments.", token.Length, segments);
 
         var validation = await _validator
             .ValidateAsync(token, Options.ExpectedShopDomain, Context.RequestAborted)
@@ -82,7 +95,13 @@ public sealed class ShopifySessionTokenAuthenticationHandler : AuthenticationHan
 
         if (!validation.Succeeded || validation.SessionToken is null)
         {
-            Logger.LogWarning("Session token rejected: {Reason}", validation.Reason);
+            // A token was presented and rejected: this is the line that matters.
+            Logger.LogWarning(
+                "Session token rejected on {Path} ({Failure}): {Reason}",
+                Request.Path,
+                validation.Failure,
+                validation.Reason);
+
             return AuthenticateResult.Fail(validation.Reason ?? "The session token is not valid.");
         }
 

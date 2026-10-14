@@ -80,7 +80,15 @@ Read these before changing anything in `src/`.
     attacker-supplied. It is validated before being interpolated into the token-exchange URL.
 11. **Two caches hold the access token.** A 401 must clear both `IShopifyAccessTokenStore` **and**
     `IShopifyTokenExchanger` (`Invalidate`), or a revoked token is reused for ever.
-12. **A retired Admin API version does not error.** Shopify falls forward to an older stable release
+12. **The anti-forgery middleware makes the app unframeable, and this is invisible.** Blazor's
+    rendering pipeline requires `app.UseAntiforgery()`, and that middleware sets
+    `X-Frame-Options: SAMEORIGIN` and `Content-Security-Policy: frame-ancestors 'self'` on every
+    response that asks for a token. Both refuse the Admin's iframe, so the app can never be embedded
+    while looking perfect in a normal browser tab. `app.UseShopifyEmbeddedFraming()` must be
+    registered **first** — its `OnStarting` callback has to run after antiforgery's, and
+    `OnStarting` callbacks run last-registered-first. Verify with a real browser:
+    `Framing '…' violates … "frame-ancestors 'self'"` in the console is this bug.
+13. **A retired Admin API version does not error.** Shopify falls forward to an older stable release
     and answers normally; only the `X-Shopify-API-Version` header reveals it. Check the version table
     at <https://shopify.dev/docs/api/usage/versioning> before changing `AdminApiVersion`.
 

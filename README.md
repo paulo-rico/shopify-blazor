@@ -14,7 +14,7 @@ Status: **proof of concept**, working end to end against the real runtime. See
 | `src/Polaris.Blazor` | Razor components wrapping Shopify's Polaris web components |
 | `src/Shopify.Blazor` | Embedded-app authentication, App Bridge 4 interop, Admin API client |
 | `samples/Shopify.Blazor.SampleApp` | Reference app: embedded shell, authenticated Admin API call |
-| `tests/` | 62 tests: component rendering, session token validation, token exchange, Admin API |
+| `tests/` | 69 tests: component rendering, session token validation, token exchange, Admin API, embedded framing |
 
 The split is deliberate: `Polaris.Blazor` has **no dependency** on `Shopify.Blazor`, so the
 component library can be used on its own.
@@ -83,7 +83,7 @@ Everything below was run on this machine, not asserted from documentation.
 
 | Check | Result |
 |---|---|
-| `dotnet test` — both suites | **62 passed, 0 failed** |
+| `dotnet test` — both suites | **69 passed, 0 failed** |
 | Polaris components upgrade with a shadow root in Chrome | **19 element types, 0 failures** |
 | Custom-event → C# round trip in a live browser | **counter 0 → 1 after a real click** |
 | Polaris form submits its values | **`{"q":"signet","status":"draft"}`** |
@@ -91,6 +91,7 @@ Everything below was run on this machine, not asserted from documentation.
 | `/api/products` with no token | **401** |
 | `/api/products` with a malformed token | **401** |
 | `/api/products` with an unsigned `alg: none` token | **401** |
+| Embeddable by the Admin (the framing policy) | **allowed origin frames it; any other is refused** |
 
 **Not verified:** installation in a real Shopify development store. That needs Partner Dashboard
 credentials and a public HTTPS tunnel, so it is the one step a human has to do. The app is built for
@@ -112,6 +113,36 @@ node tools/verify-in-browser.mjs http://127.0.0.1:3459/components
 `tools/generate-component-reference.py` regenerates
 [docs/components.md](docs/components.md) from the component sources, so the reference cannot drift
 from the code.
+
+## The bug that stopped the app being embeddable at all
+
+Worth its own section, because it is the one that breaks installation and says nothing in the log.
+
+Blazor's rendering pipeline requires `app.UseAntiforgery()`. That middleware sets, on every response
+that asks for a token:
+
+```
+X-Frame-Options: SAMEORIGIN
+Content-Security-Policy: frame-ancestors 'self'
+```
+
+Both refuse the Admin's iframe. The app therefore **can never be embedded**, while rendering
+perfectly in an ordinary browser tab — which is exactly why it is easy to miss. The browser console
+says it:
+
+```
+Framing 'https://your-app/' violates the following Content Security Policy directive:
+"frame-ancestors 'self'". The request has been blocked.
+```
+
+`app.UseShopifyEmbeddedFraming()` replaces those headers with a policy that names the Admin origins.
+It does **not** weaken clickjacking protection: `X-Frame-Options` cannot express "these origins
+only" (`ALLOW-FROM` is dead), so it is removed in favour of `frame-ancestors`, and the app stays
+unframeable by anything except the origins you list. Register it **first**, because its `OnStarting`
+callback has to run after antiforgery's, and those run last-registered-first.
+
+Verified in Chrome: an origin in the policy frames the app with zero violations; an origin not in
+the policy is refused and the document is never even served.
 
 ## Three bugs the tests found
 
@@ -138,6 +169,7 @@ perfectly and did nothing.
 | Document | Contents |
 |---|---|
 | [Getting started](docs/getting-started.md) | Shopify app, tunnel, configuration, first authenticated call |
+| [Troubleshooting](docs/troubleshooting.md) | Diagnosing a rejected session token, and the framing trap |
 | [Component reference](docs/components.md) | All 29 components, generated from source |
 | [Authentication](docs/authentication.md) | Session tokens, token exchange, what not to do |
 | [ADR 0001](docs/adr/0001-hosting-model-and-integration.md) | Hosting model, integration and interop decisions |
