@@ -287,7 +287,24 @@ case "$TUNNEL" in
         log "ngrok already tunnelling to port $PORT — reusing it"
         PUBLIC="$(ngrok_api | grep -oE '"public_url":"[^"]+"' | head -1 | sed -E 's/.*"public_url":"([^"]+)".*/\1/')"
       else
-        die "ngrok is running but forwards to port ${FORWARDED:-?}, not $PORT."
+        cat >&2 <<EOF
+
+!! ngrok is already running, forwarding to port ${FORWARDED:-?}, not $PORT.
+
+   ngrok is a single-tunnel agent: one process, one tunnel. It cannot serve a second
+   port without being restarted, and if that tunnel holds your reserved domain then a
+   second agent cannot take that domain either.
+
+   Either stop the running ngrok and re-run this, or work on the app that owns it:
+
+     pkill -x ngrok      # then re-run ./bin/shopify-dev
+
+   If you are switching between this app and the Rails one next door, only one of them
+   can hold the reserved domain at a time -- both are configured with
+   \$SHOPIFY_APP_URL=$APP_URL.
+
+EOF
+        exit 1
       fi
     else
       start_ngrok
@@ -317,6 +334,29 @@ done
 
 app_responding "$PORT" || die "the app did not answer on port $PORT within 90s. See /tmp/shopify-blazor-app.log"
 log "app is up"
+
+# ── 3b. does the public URL actually reach this app? ─────────────────────────
+# A tunnel can register while its route points somewhere else, or the app can be unreachable through
+# it, and the first sign is an empty frame in the Admin. Check it here so the script says so.
+if [[ -n "$PUBLIC" ]]; then
+  PUBLIC_CHECK="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+    -A 'Mozilla/5.0 (compatible; shopify-dev-check)' \
+    -H 'ngrok-skip-browser-warning: true' "$PUBLIC/" 2>/dev/null || echo 000)"
+
+  case "$PUBLIC_CHECK" in
+    200)
+      log "public URL reaches the app (HTTP 200)"
+      ;;
+    000)
+      warn "the public URL did not answer: $PUBLIC"
+      warn "The tunnel may still be starting. If it persists, check the tunnel log."
+      ;;
+    *)
+      warn "the public URL answered HTTP $PUBLIC_CHECK, not 200: $PUBLIC"
+      warn "That is usually the tunnel's own error page. Check the tunnel log."
+      ;;
+  esac
+fi
 
 # ── 4. where to go ───────────────────────────────────────────────────────────
 TUNNEL_LOG="$NGROK_LOG"
