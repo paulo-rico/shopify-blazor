@@ -13,8 +13,10 @@ Status: **proof of concept**, working end to end against the real runtime. See
 |---|---|
 | `src/Polaris.Blazor` | Razor components wrapping Shopify's Polaris web components |
 | `src/Shopify.Blazor` | Embedded-app authentication, App Bridge 4 interop, Admin API client |
+| `src/Shopify.Blazor.Templates` | `dotnet new shopify-blazor` — generates a working embedded app |
+| `src/Shopify.Blazor.Cli` | The `shopify-blazor` tool: `new`, `add page`, `add component`, `configure`, `doctor` |
 | `samples/Shopify.Blazor.SampleApp` | Reference app: embedded shell, authenticated Admin API call |
-| `tests/` | 115 tests: component rendering, session token validation, token exchange, Admin API, embedded framing |
+| `tests/` | 246 tests: component rendering, session tokens, Admin API, embedded framing, the CLI |
 
 The split is deliberate: `Polaris.Blazor` has **no dependency** on `Shopify.Blazor`, so the
 component library can be used on its own.
@@ -60,6 +62,16 @@ the events you actually subscribe to. That is what `Polaris.Blazor` does, and no
 
 ## Quick start
 
+The fastest path is the template:
+
+```sh
+dotnet new install Shopify.Blazor.Templates
+dotnet new shopify-blazor -n MyShopifyApp
+cd MyShopifyApp && dotnet run
+```
+
+Or run the reference app from this repository directly:
+
 ```sh
 dotnet run --project samples/Shopify.Blazor.SampleApp
 ```
@@ -83,11 +95,13 @@ Everything below was run on this machine, not asserted from documentation.
 
 | Check | Result |
 |---|---|
-| `dotnet test` — both suites | **115 passed, 0 failed** |
-| Polaris components upgrade with a shadow root in Chrome | **19 element types from the first pass, 0 failures** |
+| `dotnet test` — every suite | **246 passed, 0 failed** |
+| Polaris elements defined, upgraded and present in Chrome | **all 60 asserted, 0 failures** |
+| `dotnet new shopify-blazor` generates a project that builds | **4 of 4 parameter combinations** |
 | Custom-event → C# round trip in a live browser | **counter 0 → 1 after a real click** |
 | Polaris form submits its values | **`{"q":"signet","status":"draft"}`** |
 | `commandFor` declarative modal wiring | **present, no JavaScript** |
+| Static assets the UI needs are served (Razor SDK trap) | **200 for all four, including `/_content/Polaris.Blazor/polaris-interop.js`** |
 | `/api/products` with no token | **401** |
 | `/api/products` with a malformed token | **401** |
 | `/api/products` with an unsigned `alg: none` token | **401** |
@@ -164,6 +178,13 @@ A fourth was found by the headless browser rather than by a test: **the library 
 The build succeeded, the file looked present, and the browser got a 404 — every button rendered
 perfectly and did nothing.
 
+A fifth, found the same way: **clearing an array-valued property with `undefined` throws inside
+Polaris.** `s-choice-list.values` is an array and Polaris calls array methods on it, so the wrapper
+that reset it by assigning `undefined` produced six uncaught `TypeError`s per page render while the
+markup looked perfect. bUnit asserts the interop *call*; only a browser can say what Shopify does
+with it, which is why the browser verification now asserts that the page raises no unexpected
+errors.
+
 ## Documentation
 
 | Document | Contents |
@@ -171,10 +192,14 @@ perfectly and did nothing.
 | [Getting started](docs/getting-started.md) | Shopify app, tunnel, configuration, first authenticated call |
 | [Troubleshooting](docs/troubleshooting.md) | Diagnosing a rejected session token, and the framing trap |
 | [Component reference](docs/components.md) | All 59 components — every documented Polaris element — generated from source |
+| [Component inventory](docs/component-inventory.md) | Every element with its slots, events, accessibility notes, version and verification status |
+| [CLI reference](docs/cli-reference.md) | Every command, option, exit code and check |
+| [Versioning](docs/versioning.md) | What a version promises, and what it is pinned to |
 | [Authentication](docs/authentication.md) | Session tokens, token exchange, what not to do |
 | [ADR 0001](docs/adr/0001-hosting-model-and-integration.md) | Hosting model, integration and interop decisions |
 | [Templates plan](docs/templates-plan.md) | Phase 4–6: `dotnet new`, CLI, generation |
 | [Progress](docs/PROGRESS.md) | Current state, for whoever picks this up next |
+| [Changelog](CHANGELOG.md) | What changed, in Keep a Changelog form |
 
 ## Security
 

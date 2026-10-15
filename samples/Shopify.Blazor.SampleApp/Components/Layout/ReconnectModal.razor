@@ -1,0 +1,45 @@
+@*
+    The reconnection dialog, driven by Blazor's own reconnection events.
+
+    Why this is not a Polaris component: it has to work when the SignalR circuit is gone, and its
+    markup is a contract with `blazor.web.js`, which toggles the `components-reconnect-*` classes on
+    the element whose id is `components-reconnect-modal` and fires
+    `components-reconnect-state-changed` on it. The ids and class names below are that contract — do
+    not rename them.
+
+    What it fixes: without this, a dropped circuit leaves a page whose controls do nothing at all,
+    with no spinner, no message and no way to recover except a manual reload. The markup is static
+    (no render mode), because a component that needs a circuit cannot report a missing circuit.
+
+    The styles are in wwwroot/css/reconnect-modal.css and the behaviour in
+    wwwroot/js/reconnect-modal.js, both loaded by App.razor.
+*@
+<dialog id="components-reconnect-modal" data-nosnippet>
+    <div class="components-reconnect-container">
+        <div class="components-rejoining-animation" aria-hidden="true">
+            <div></div>
+            <div></div>
+        </div>
+        <p class="components-reconnect-first-attempt-visible">
+            Rejoining the server...
+        </p>
+        <p class="components-reconnect-repeated-attempt-visible">
+            Rejoin failed... trying again in <span id="components-seconds-to-next-attempt"></span> seconds.
+        </p>
+        <p class="components-reconnect-failed-visible">
+            Failed to rejoin.<br />Please retry or reload the page.
+        </p>
+        <button id="components-reconnect-button" class="components-reconnect-failed-visible">
+            Retry
+        </button>
+        <p class="components-pause-visible">
+            The session has been paused by the server.
+        </p>
+        <p class="components-resume-failed-visible">
+            Failed to resume the session.<br />Please retry or reload the page.
+        </p>
+        <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible">
+            Resume
+        </button>
+    </div>
+</dialog>

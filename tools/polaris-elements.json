@@ -1,0 +1,1423 @@
+{
+  "minPolarisVersion": "1.1",
+  "elements": [
+    {
+      "element": "s-avatar",
+      "officialName": "Avatar",
+      "category": "media-and-visuals",
+      "slug": "avatar",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/media-and-visuals/avatar",
+      "slots": [],
+      "events": [
+        "error",
+        "load"
+      ],
+      "accessibility": [
+        "alt carries the person's name; without it the avatar is announced as a decorative image and the name is lost."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Cross-origin images need CORS headers. An unsupported format or a failed load falls back to initials. Initials longer than two characters may truncate. No slots, so an avatar cannot carry its own wrapper content."
+    },
+    {
+      "element": "s-badge",
+      "officialName": "Badge",
+      "category": "feedback-and-status-indicators",
+      "slug": "badge",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/feedback-and-status-indicators/badge",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The badge label. Single line and truncated with an ellipsis, with no tooltip, so a long value is silently cut."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The badge is a status indicator, not an interactive control: put the meaning in text, because tone alone is not announced.",
+        "tone must not be the only signal — critical and success read identically to a screen reader unless the label says so."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Single line, truncates with an ellipsis. Predefined admin icons only. Shopify's docs say to use s-chip instead when the content is a user-created label, category or tag rather than a status."
+    },
+    {
+      "element": "s-banner",
+      "officialName": "Banner",
+      "category": "feedback-and-status-indicators",
+      "slug": "banner",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/feedback-and-status-indicators/banner",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The banner body."
+        },
+        {
+          "name": "secondary-actions",
+          "accepts": "s-button with variant=\"secondary\" or \"auto\"",
+          "notes": "One or more secondary buttons. Polaris validates the children, so the slot attribute belongs on the button, not on a wrapping element."
+        }
+      ],
+      "events": [
+        "afterhide",
+        "dismiss"
+      ],
+      "accessibility": [
+        "A dismissible banner needs a heading or body text that says what is being dismissed; the close button is icon-only and its accessible name comes from Polaris.",
+        "critical tone is a visual signal only — state the problem in the text as well."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Dismissal is not persisted: record it in the application, or the banner returns on the next render. No auto-queueing or prioritisation, and it cannot be made sticky or fixed. The wrapper makes `afterhide` explicit because the DOM name is not one of the modelled constants."
+    },
+    {
+      "element": "s-box",
+      "officialName": "Box",
+      "category": "layout-and-structure",
+      "slug": "box",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/box",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Any content."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "A generic container carries no semantics; set accessibilityRole when the box is a landmark such as main, navigation or aside.",
+        "accessibilityLabel is only meaningful together with a role — a label on a generic box is ignored by assistive technology."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Box is the base for the shared styling prop set (padding, border, background, size, overflow, display) that s-clickable, s-grid, s-grid-item and s-stack inherit. Custom CSS is not supported anywhere in the library."
+    },
+    {
+      "element": "s-button",
+      "officialName": "Button",
+      "category": "actions",
+      "slug": "button",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/actions/button",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The button label."
+        }
+      ],
+      "events": [
+        "blur",
+        "click",
+        "focus"
+      ],
+      "accessibility": [
+        "An icon-only button must set accessibilityLabel: the icon is not announced, so without it the control has no name.",
+        "A disabled button leaves the tab order and cannot receive focus, so it needs visible text explaining why it is disabled.",
+        "loading communicates that an action is in progress; prefer it to disabled for an async operation."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "loading gives feedback but does not debounce or block repeat clicks — guard double submission in C#. External href targets may be blocked by the Admin. Icon-only buttons have a fixed touch target and do not fill the available space."
+    },
+    {
+      "element": "s-button-group",
+      "officialName": "Button group",
+      "category": "actions",
+      "slug": "button-group",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/actions/button-group",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Unslotted buttons."
+        },
+        {
+          "name": "primary-action",
+          "accepts": "one s-button with variant=\"primary\"",
+          "notes": "Exactly one button, and it cannot be used when gap=\"none\". Polaris rejects a wrapping element."
+        },
+        {
+          "name": "secondary-actions",
+          "accepts": "one or more s-button with variant=\"secondary\" or \"auto\"",
+          "notes": "Supporting actions, with lower emphasis than the primary action."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "accessibilityLabel is the only accessible name the group has, so set it when the surrounding heading does not already describe the actions."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "The primary-action slot is incompatible with gap=\"none\"; Polaris ignores the slot rather than failing loudly. Main actions belong in primary-action and supporting actions in secondary-actions to keep the hierarchy readable."
+    },
+    {
+      "element": "s-checkbox",
+      "officialName": "Checkbox",
+      "category": "forms",
+      "slug": "checkbox",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/checkbox",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; without it the box is announced as an unlabelled checkbox.",
+        "labelAccessibilityVisibility=\"exclusive\" hides the label visually but keeps it for screen readers, which is the correct way to label a checkbox inside a table."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "checked is not reflected: render it as a DOM property after upgrade, never as an attribute. indeterminate is a property for the same reason. Shopify's docs say to use s-switch instead when the setting applies immediately rather than being submitted with a form."
+    },
+    {
+      "element": "s-chip",
+      "officialName": "Chip",
+      "category": "typography-and-content",
+      "slug": "chip",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/typography-and-content/chip",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The chip label. Single line, truncated with an ellipsis."
+        },
+        {
+          "name": "graphic",
+          "accepts": "icon components only",
+          "notes": "A leading icon; Polaris validates the child and ignores anything that is not an icon."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "accessibilityLabel gives a chip whose visible text is ambiguous — or removed by removable — a name of its own."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Chips are visual indicators, not buttons; the docs point to s-clickable-chip for anything interactive or dismissible. No custom colours, and the standard icon set only."
+    },
+    {
+      "element": "s-choice-list",
+      "officialName": "Choice list",
+      "category": "forms",
+      "slug": "choice-list",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/choice-list",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-choice only",
+          "notes": "Anything other than an s-choice is rejected."
+        }
+      ],
+      "events": [
+        "change",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name of the whole group; without it the radio or checkbox group has none.",
+        "labelAccessibilityVisibility=\"exclusive\" keeps the label for screen readers while hiding it visually."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "The only multi-select control, and `values` is an array so it must be a DOM property — an attribute would render the type name and select nothing. A stale array keeps options selected that the server has dropped, so ClearedProperties must clear it. No search, filter or lazy loading, and the whole list is either single or multiple, never a mix."
+    },
+    {
+      "element": "s-choice",
+      "officialName": "Choice",
+      "componentOf": "s-choice-list",
+      "category": "forms",
+      "slug": "choice-list",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/choice-list",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The label is produced by concatenating the text nodes; markup inside is ignored."
+        },
+        {
+          "name": "details",
+          "accepts": "HTMLElement",
+          "notes": "Supporting text shown with the label."
+        },
+        {
+          "name": "secondary-content",
+          "accepts": "HTMLElement",
+          "notes": "Rich trailing content below the label, such as a field or a button. Not type-checked as strictly as the action slots."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "accessibilityLabel gives a choice whose visible label is not self-describing a name of its own."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Only valid inside s-choice-list. selected is not reflected, so it is set as a DOM property; the value reported up is the choice's `value`, or \"on\" when it is unset. The wrapper exposes details and secondary-content only through the child's own Slot parameter."
+    },
+    {
+      "element": "s-clickable",
+      "officialName": "Clickable",
+      "category": "actions",
+      "slug": "clickable",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/actions/clickable",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The clickable content."
+        }
+      ],
+      "events": [
+        "blur",
+        "click",
+        "focus"
+      ],
+      "accessibility": [
+        "Mandatory in practice: without accessibilityLabel or visible text the control is announced with no name.",
+        "accessibilityRole defaults to generic, which is not an interactive role — set button, link or another appropriate role so keyboard and screen-reader users can identify the control.",
+        "accessibilityVisibility=\"exclusive\" provides screen-reader-only content."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "For custom interactive surfaces that Button or Link cannot express. It inherits the whole box styling set, so it is the one action component whose appearance is configurable. Polaris adds keyboard handling for the element itself, but the role is still the caller's responsibility."
+    },
+    {
+      "element": "s-clickable-chip",
+      "officialName": "Clickable chip",
+      "category": "actions",
+      "slug": "clickable-chip",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/actions/clickable-chip",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The chip label."
+        },
+        {
+          "name": "graphic",
+          "accepts": "icon components only",
+          "notes": "A leading icon. Polaris ignores a child that is not an icon."
+        }
+      ],
+      "events": [
+        "afterhide",
+        "click",
+        "remove"
+      ],
+      "accessibility": [
+        "An interactive chip needs accessibilityLabel when its visible text does not say what activating it does.",
+        "The remove affordance is icon-only; accessibilityLabel should name the thing being removed."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "afterhide fires once the chip has finished hiding, so a removal animation can be waited on; remove fires when the merchant dismisses it. href makes it a link instead of a button. It is a button-like surface, so a disabled chip must explain why it is unavailable."
+    },
+    {
+      "element": "s-color-field",
+      "officialName": "Color field",
+      "category": "forms",
+      "slug": "color-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/color-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name and is required in practice, because the field renders a swatch rather than readable text.",
+        "alpha changes the value to eight-digit hex, so validation messages must quote the same format the field emits."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Accepts hex, RGB and HSL but always emits hex (`#RRGGBB`, or eight digits with alpha). value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-color-picker",
+      "officialName": "Color picker",
+      "category": "forms",
+      "slug": "color-picker",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/color-picker",
+      "slots": [],
+      "events": [
+        "change",
+        "input"
+      ],
+      "accessibility": [
+        "The picker has no label of its own, so it must be paired with a visible label or an accessibilityLabel on the surrounding control.",
+        "The two-dimensional gradient area needs pointer input and is poor for keyboard and touch users; provide a text or field alternative."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Works in HSL internally and emits hex. Exposes formResetCallback(). value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-date-field",
+      "officialName": "Date field",
+      "category": "forms",
+      "slug": "date-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/date-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input",
+        "invalid",
+        "viewchange"
+      ],
+      "accessibility": [
+        "label is the accessible name; a date field with no label is announced as an unlabelled text input.",
+        "error is announced as part of the field's description, so it must say what is wrong with the entered date."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "A range is expressed with a double hyphen: `2025-05-28--2025-05-31`. `invalid` fires for an unparseable date and `viewchange` when the visible month changes — both are modelled constants. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-date-picker",
+      "officialName": "Date picker",
+      "category": "forms",
+      "slug": "date-picker",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/date-picker",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input",
+        "viewchange"
+      ],
+      "accessibility": [
+        "The picker has no label of its own, so the surrounding control must carry one.",
+        "type=\"range\" emits a two-date value; a screen reader hears it as one string, so the visible summary should restate it."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "type is single or range; visibleMonths is auto, 1 or 2. viewchange has a modelled constant. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-divider",
+      "officialName": "Divider",
+      "category": "layout-and-structure",
+      "slug": "divider",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/divider",
+      "slots": [],
+      "events": [],
+      "accessibility": [
+        "A divider is presentational. Do not rely on it to convey grouping to assistive technology — use section headings or accessibilityRole on the container."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "direction=\"inline\" (the default) is the horizontal rule; direction=\"block\" is the vertical one, which is the counter-intuitive half of the API. No slots, no events."
+    },
+    {
+      "element": "s-drop-zone",
+      "officialName": "Drop zone",
+      "category": "forms",
+      "slug": "drop-zone",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/drop-zone",
+      "slots": [],
+      "events": [
+        "change",
+        "droprejected",
+        "input"
+      ],
+      "accessibility": [
+        "label names the drop zone; without it the drop target is not identifiable.",
+        "error must explain a rejected file, because droprejected is a developer event a screen-reader user never hears."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "`files` is a File[] DOM property and cannot be an attribute at all; the wrapper models only the string `value`, so uploading stays the application's job. Polaris validates file types only — size and content validation are yours. change does not upload anything. droprejected fires when the dropped files do not match accept."
+    },
+    {
+      "element": "s-email-field",
+      "officialName": "Email field",
+      "category": "forms",
+      "slug": "email-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/email-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name.",
+        "inputMode is set by the element for the optimised keyboard; do not override it from the wrapper."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "RFC 5321 caps an address at 254 characters. Browser email validation varies by vendor, so validate server-side. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-empty-state",
+      "officialName": "Empty state",
+      "category": "feedback-and-status-indicators",
+      "slug": "empty-state",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/feedback-and-status-indicators/empty-state",
+      "slots": [
+        {
+          "name": "graphic",
+          "accepts": "one s-image or s-icon, directly or as the only child of a wrapper",
+          "notes": "An icon must be size=\"base\"."
+        },
+        {
+          "name": "subheading",
+          "accepts": "HTMLElement",
+          "notes": "Supporting text below the heading."
+        },
+        {
+          "name": "primary-action",
+          "accepts": "exactly one s-button with variant=\"primary\"",
+          "notes": "Anything else is ignored with a development warning."
+        },
+        {
+          "name": "secondary-actions",
+          "accepts": "exactly one s-button with variant=\"secondary\" or \"auto\"",
+          "notes": "One button despite the plural name."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "heading is plain text and cannot contain markup, so it must read as a complete sentence for a screen reader.",
+        "The action buttons carry the only interactive names; label them with verbs that match the guidance."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Outside a table it does not detect emptiness, so render it conditionally. The action slots accept exactly one button each — a second button in primary-action is ignored silently. heading cannot contain markup."
+    },
+    {
+      "element": "s-grid",
+      "officialName": "Grid",
+      "category": "layout-and-structure",
+      "slug": "grid",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/grid",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Grid items or any content."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "A grid is a generic container; set accessibilityRole when it is a landmark.",
+        "Visual order is not reading order — keep the DOM order meaningful, because grid placement can differ from it."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "gridTemplateColumns, gap, alignItems and the rest take raw CSS strings, including responsive `@container (inline-size > 500px) large, small` values, which need an s-query-container ancestor. No CSS subgrid support."
+    },
+    {
+      "element": "s-grid-item",
+      "officialName": "Grid item",
+      "componentOf": "s-grid",
+      "category": "layout-and-structure",
+      "slug": "grid",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/grid",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The cell content."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "A grid item is presentational; a label only takes effect with a role, so set accessibilityRole alongside accessibilityLabel."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "gridColumn and gridRow take `auto` or `span N`; both are strings, because the value is a CSS shorthand rather than an enum. Inherits the box styling set."
+    },
+    {
+      "element": "s-heading",
+      "officialName": "Heading",
+      "category": "typography-and-content",
+      "slug": "heading",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/typography-and-content/heading",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The heading text."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The heading level is derived from nesting depth and cannot be set, so the document outline depends on where the heading sits in the tree.",
+        "accessibilityRole=\"none\" strips the heading semantics while keeping the appearance — the correct choice for a visual label that is not a section heading.",
+        "accessibilityVisibility=\"exclusive\" keeps a heading available to screen readers while hiding it visually."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "You cannot choose h1/h2/h3; the level follows nesting depth and stops at h4. lineClamp truncates visually only — the full text is still read out."
+    },
+    {
+      "element": "s-icon",
+      "officialName": "Icon",
+      "category": "media-and-visuals",
+      "slug": "icon",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/media-and-visuals/icon",
+      "slots": [],
+      "events": [],
+      "accessibility": [
+        "An icon that carries meaning needs accessibilityLabel; a decorative one should be given tone/color only, because the icon is otherwise announced by its name.",
+        "An icon inside a labelled control is decorative and must not add a second accessible name."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Only the admin's predefined icon set is available — no custom SVG and no icon fonts. type=\"\" hides it and type=\"empty\" reserves its space, which is how a column stays aligned. colour comes only from tone and color."
+    },
+    {
+      "element": "s-image",
+      "officialName": "Image",
+      "category": "media-and-visuals",
+      "slug": "image",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/media-and-visuals/image",
+      "slots": [],
+      "events": [
+        "error",
+        "load"
+      ],
+      "accessibility": [
+        "alt is the accessible name: describe the image, or set alt=\"\" deliberately for a decorative one.",
+        "accessibilityRole defaults to img; use presentation or none only when the image is genuinely decorative."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "With inlineSize=\"fill\" the aspect ratio is honoured; with \"auto\" the ratio is ignored and the image renders only after it loads. A placeholder is shown while loading or when src is absent. Cross-origin sources need CORS headers."
+    },
+    {
+      "element": "s-link",
+      "officialName": "Link",
+      "category": "actions",
+      "slug": "link",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/actions/link",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The link text."
+        }
+      ],
+      "events": [
+        "click"
+      ],
+      "accessibility": [
+        "The link text is the accessible name, so it must describe the destination rather than saying \"click here\".",
+        "lang makes a screen reader pronounce text in another language correctly.",
+        "target=\"_blank\" adds rel=\"noopener noreferrer\" automatically, but the destination should still be announced as a new window."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "No loading or disabled state, and a link must not be used as a button: Shopify's docs point to s-button for prominent actions and form submission. The Admin may override some navigation. download is unreliable cross-origin."
+    },
+    {
+      "element": "s-list-item",
+      "officialName": "List item",
+      "componentOf": "s-ordered-list",
+      "category": "layout-and-structure",
+      "slug": "ordered-list",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/ordered-list",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The item content. Markers come from the parent list."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The marker is supplied by the parent list, so the item text does not need to restate the number or bullet."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Only valid as a direct child of s-ordered-list or s-unordered-list. No props, no events. The marker style cannot be customised."
+    },
+    {
+      "element": "s-menu",
+      "officialName": "Menu",
+      "category": "actions",
+      "slug": "menu",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/actions/menu",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-button and s-section only",
+          "notes": "Any other child is rejected. An s-section groups menu items under a label."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "accessibilityLabel names the menu; the trigger button carries the visible name, and without a label the popover layer is unlabelled."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Needs an id, because it is opened by a trigger button's commandFor. No nested submenus, and more than roughly a dozen items is hard to scan. It renders in a popover layer, so it can interact badly with stacking contexts."
+    },
+    {
+      "element": "s-modal",
+      "officialName": "Modal",
+      "category": "overlays",
+      "slug": "modal",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/overlays/modal",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The modal body, which scrolls when it overflows."
+        },
+        {
+          "name": "primary-action",
+          "accepts": "one s-button with variant=\"primary\"",
+          "notes": "Polaris validates the child, so the slot belongs on the button; a wrapping element is rejected."
+        },
+        {
+          "name": "secondary-actions",
+          "accepts": "s-button with variant=\"secondary\" or \"auto\"",
+          "notes": "Cancel and other supporting actions."
+        }
+      ],
+      "events": [
+        "afterhide",
+        "aftershow",
+        "hide",
+        "show"
+      ],
+      "accessibility": [
+        "heading provides the dialog's accessible name; accessibilityLabel overrides it when the heading is not descriptive enough.",
+        "The modal traps focus while it is open, so the first focusable element should be meaningful.",
+        "The primary action button's label must say what it does — \"OK\" is not enough for a destructive confirmation."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Can only be opened by user interaction, never programmatically on page load. Imperative methods showOverlay(), hideOverlay() and toggleOverlay() exist for code that cannot use commandFor. `aftershow` is not one of the modelled event constants, so the wrapper currently forwards only show and hide."
+    },
+    {
+      "element": "s-money-field",
+      "officialName": "Money field",
+      "category": "forms",
+      "slug": "money-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/money-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; it should name the currency as well as the value when currencyCode is automatic.",
+        "The displayed value is locale-formatted, while the submitted value is a string — error text must quote the format the merchant sees."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Values are strings, so money arithmetic must not go through a double. JPY, KRW and VND have no decimals. There is no currency conversion. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-number",
+      "officialName": "Number",
+      "category": "typography-and-content",
+      "slug": "number",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/typography-and-content/number",
+      "slots": [],
+      "events": [],
+      "accessibility": [
+        "Inline element with no spacing of its own; its meaning comes from the surrounding text, so a bare figure needs a label nearby."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Uses tabular numerals, which is why it exists: figures line up in a column. It replaces the deprecated fontVariantNumeric property on s-text and s-paragraph. Text content only — it has no slots section."
+    },
+    {
+      "element": "s-number-field",
+      "officialName": "Number field",
+      "category": "forms",
+      "slug": "number-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/number-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; the prefix and suffix are decorative and are not announced, so the label must carry the unit.",
+        "inputMode is a mobile keyboard hint only and does not restrict input, so validation is still required."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "value is a string, not a number. step, min and max are numbers and are rendered with invariant formatting. prefix and suffix are not part of the submitted value. inputMode does not block non-numeric input."
+    },
+    {
+      "element": "s-option",
+      "officialName": "Option",
+      "componentOf": "s-select",
+      "category": "forms",
+      "slug": "select",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/select",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The option label. Plain text only."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The label text is what a screen reader reads for the option; it must match the value's meaning."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Only valid inside s-select. selected is not reflected, so it is set as a DOM property; value defaults to \"on\" when unset. Option text is plain text only."
+    },
+    {
+      "element": "s-option-group",
+      "officialName": "Option group",
+      "componentOf": "s-select",
+      "category": "forms",
+      "slug": "select",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/select",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-option only",
+          "notes": "The options in the group."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "label is the accessible group name; without it a screen reader announces the options with no context."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Only valid inside s-select. disabled disables every option in the group at once."
+    },
+    {
+      "element": "s-ordered-list",
+      "officialName": "Ordered list",
+      "category": "layout-and-structure",
+      "slug": "ordered-list",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/ordered-list",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-list-item only",
+          "notes": "Anything other than an s-list-item is rejected."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The list role and item count come from the element, so items must be real s-list-item children rather than styled text."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "No props of its own. Numbering is always decimal and starts at 1; bullets and numbers cannot be restyled."
+    },
+    {
+      "element": "s-page",
+      "officialName": "Page",
+      "category": "layout-and-structure",
+      "slug": "page",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/page",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The page body, normally sections."
+        },
+        {
+          "name": "aside",
+          "accepts": "HTMLElement",
+          "notes": "A side column, rendered only when inlineSize=\"base\". Not type-checked, so a fragment is safe."
+        },
+        {
+          "name": "breadcrumb-actions",
+          "accepts": "s-link only",
+          "notes": "Breadcrumb navigation; buttons are not accepted."
+        },
+        {
+          "name": "primary-action",
+          "accepts": "exactly one s-button with variant=\"primary\"",
+          "notes": "Validated: a wrapping element is rejected."
+        },
+        {
+          "name": "secondary-actions",
+          "accepts": "s-button-group and s-button with variant=\"secondary\" or \"auto\"",
+          "notes": "Validated."
+        },
+        {
+          "name": "supplemental-start",
+          "accepts": "HTMLElement",
+          "notes": "Content before the page body, typically an s-banner. Not type-checked, so a fragment is safe."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "heading provides the page's accessible name and its heading semantics — do not add a competing h1.",
+        "The aside column is invisible at other widths, so anything essential must not live only there."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "The aside slot only renders at inlineSize=\"base\" (the default); at small or large it is silently dropped. Two slots are exempt from validation — supplemental-start and aside — which is why those are the only two exposed as fragment parameters. Shopify's docs point to the App Bridge title bar when a native admin title bar is wanted without the styled page layout."
+    },
+    {
+      "element": "s-paragraph",
+      "officialName": "Paragraph",
+      "category": "typography-and-content",
+      "slug": "paragraph",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/typography-and-content/paragraph",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Inline content, including buttons and links."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "Block-level text with built-in vertical spacing; use it for prose, not for layout.",
+        "fontVariantNumeric is deprecated — use the Number component, which also gives tabular numerals."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Shares PolarisText with s-text: the wrapper switches element on its Paragraph parameter. `type` and `interestFor` exist on s-text but not on s-paragraph, so the wrapper omits them. Tone colours are tuned for light backgrounds."
+    },
+    {
+      "element": "s-password-field",
+      "officialName": "Password field",
+      "category": "forms",
+      "slug": "password-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/password-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name.",
+        "There is no built-in show/hide toggle; if one is added it needs its own accessible name and must not be the only way to check the entry."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "No show/hide toggle, so it has to be implemented in the application. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-popover",
+      "officialName": "Popover",
+      "category": "overlays",
+      "slug": "popover",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/overlays/popover",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The popover content."
+        }
+      ],
+      "events": [
+        "afterhide",
+        "aftershow",
+        "aftertoggle",
+        "hide",
+        "show",
+        "toggle"
+      ],
+      "accessibility": [
+        "A popover does not block the page, so focus is not trapped — the trigger must have an accessible name that explains what it opens.",
+        "Content does not scroll automatically; an overflowing popover needs a scrollable wrapper."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "User interaction only. `toggle`, `aftershow` and `aftertoggle` are not modelled event constants, so the wrapper forwards none of them today. Shopify's docs point to s-modal for confirmations and complex forms."
+    },
+    {
+      "element": "s-progress",
+      "officialName": "Progress",
+      "category": "feedback-and-status-indicators",
+      "slug": "progress",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/feedback-and-status-indicators/progress",
+      "slots": [],
+      "events": [],
+      "accessibility": [
+        "The bar renders no text and no percentage, so accessibilityLabel is the only thing that describes it.",
+        "Use it only for measurable progress; an unmeasurable wait belongs in s-spinner."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Determinate with value, indeterminate when value is omitted — so an unset value must not be rendered as \"0\". Values are clamped to 0..max and max <= 0 falls back to 1. Display-only, not form-associated."
+    },
+    {
+      "element": "s-query-container",
+      "officialName": "Query container",
+      "category": "layout-and-structure",
+      "slug": "query-container",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/query-container",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Content whose responsive values query this container."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "It is a layout primitive with no semantics, and it changes presentation only — never hide information that assistive technology needs."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Enables `@container (...)` values on descendants and does not expose its dimensions to JavaScript. containerName lets a descendant target a specific ancestor when several are nested."
+    },
+    {
+      "element": "s-search-field",
+      "officialName": "Search field",
+      "category": "forms",
+      "slug": "search-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/search-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; labelAccessibilityVisibility=\"exclusive\" is the usual choice when the placeholder already says \"Search\"."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Unlike s-text-field it exposes no icon, prefix, suffix or accessory, so a filter icon cannot be added without forking. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-section",
+      "officialName": "Section",
+      "category": "layout-and-structure",
+      "slug": "section",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/section",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The section body."
+        },
+        {
+          "name": "accessory",
+          "accepts": "s-badge, s-icon, s-button, s-menu, s-text, s-avatar, s-thumbnail, s-tooltip under strict prop constraints",
+          "notes": "Shown beside the heading."
+        },
+        {
+          "name": "graphic",
+          "accepts": "one s-icon with size=\"base\", or an icon-only s-badge with size=\"large\"",
+          "notes": "Not rendered when there is no heading."
+        },
+        {
+          "name": "primary-action",
+          "accepts": "one s-button with variant=\"primary\"",
+          "notes": "Validated."
+        },
+        {
+          "name": "secondary-actions",
+          "accepts": "s-button with variant=\"secondary\" or \"auto\"",
+          "notes": "Validated."
+        },
+        {
+          "name": "supplemental",
+          "accepts": "s-badge, s-avatar, s-text, s-icon or s-thumbnail — not an action",
+          "notes": "Same constraints as accessory; it must not be interactive."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "heading drives the heading semantics and the level follows nesting depth, stopping at h4.",
+        "accessibilityLabel names the region when there is no visible heading.",
+        "The action slots are visually distinct from supplemental, which must stay non-interactive."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "No built-in collapse or expand. Nesting deeper than four levels stops incrementing the heading level. Use padding=\"none\" for a section that wraps a table, which the table docs recommend."
+    },
+    {
+      "element": "s-select",
+      "officialName": "Select",
+      "category": "forms",
+      "slug": "select",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/select",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-option and s-option-group only",
+          "notes": "Anything else is rejected."
+        }
+      ],
+      "events": [
+        "change",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; a select with only a placeholder has none.",
+        "The native dropdown is rendered by the browser, so its styling and screen-reader behaviour vary by platform."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Single-select only — use a choice list for multi-select. No search or filtering, and option text is plain text only. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-spinner",
+      "officialName": "Spinner",
+      "category": "feedback-and-status-indicators",
+      "slug": "spinner",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/feedback-and-status-indicators/spinner",
+      "slots": [],
+      "events": [],
+      "accessibility": [
+        "accessibilityLabel is the only description a screen reader gets, so an unlabelled spinner is announced as nothing at all."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Indeterminate only, and it spins until removed — there is no completion signal. Shopify's docs say to use the button loading property instead when the wait belongs to a button."
+    },
+    {
+      "element": "s-stack",
+      "officialName": "Stack",
+      "category": "layout-and-structure",
+      "slug": "stack",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/stack",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The items to lay out."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "A stack is presentational; set accessibilityRole when it is a landmark.",
+        "direction=\"inline\" changes visual order only, so the DOM order must still read correctly."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "direction=\"block\" is the default. The gap is uniform: rowGap and columnGap are the only per-axis control, and a different gap between two children needs a nested stack. alignContent only affects wrapping content — use alignItems for a single line."
+    },
+    {
+      "element": "s-switch",
+      "officialName": "Switch",
+      "category": "forms",
+      "slug": "switch",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/switch",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; without it the switch has none.",
+        "labelAccessibilityVisibility=\"exclusive\" is the documented way to keep the name for screen readers while hiding it visually.",
+        "accessibilityLabel adds context beyond the visible label."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "checked is not reflected, so it is always a DOM property. Shopify's docs say to use a checkbox when the value is submitted with a form and a switch for a setting that applies immediately."
+    },
+    {
+      "element": "s-table",
+      "officialName": "Table",
+      "category": "layout-and-structure",
+      "slug": "table",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/table",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-table-header-row and s-table-body",
+          "notes": "The header row must come before the body."
+        },
+        {
+          "name": "filters",
+          "accepts": "HTMLElement",
+          "notes": "Content rendered in the table's filter area, typically search and choice controls."
+        }
+      ],
+      "events": [
+        "nextpage",
+        "previouspage"
+      ],
+      "accessibility": [
+        "The number of cells in a row should match the number of headers, or the column association is wrong for screen readers.",
+        "clickDelegate is a click-only affordance and adds no keyboard or screen-reader behaviour; the row must still contain an interactive element such as s-link that keyboard users can reach."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Composed: the header row, body, row and cell are separate elements. No built-in sorting or search and no sticky headers. variant=\"list\" renders stacked key-value pairs and is the default on mobile, which is what listSlot on the header controls. Shopify recommends wrapping it in s-section padding=\"none\"."
+    },
+    {
+      "element": "s-table-header",
+      "officialName": "Table header",
+      "componentOf": "s-table",
+      "category": "layout-and-structure",
+      "slug": "table",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/table",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The column heading text, which also labels the data in list variant."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The header text is the column's accessible name, so it must identify the column rather than repeat a unit.",
+        "format controls alignment as well as presentation, which matters for numeric columns."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Only valid inside s-table-header-row. format is base, numeric or currency; listSlot is primary, secondary, kicker, inline or labeled and decides what the column becomes in the mobile list variant."
+    },
+    {
+      "element": "s-table-header-row",
+      "officialName": "Table header row",
+      "componentOf": "s-table",
+      "category": "layout-and-structure",
+      "slug": "table",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/table",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-table-header only",
+          "notes": "Each header defines one column."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The row has no props; all of its meaning comes from the s-table-header children, so an empty header row is invisible to assistive technology."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Must be the first child of s-table, before the body. No props of its own."
+    },
+    {
+      "element": "s-table-body",
+      "officialName": "Table body",
+      "componentOf": "s-table",
+      "category": "layout-and-structure",
+      "slug": "table",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/table",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-table-row only",
+          "notes": "Each row is one record."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "Rows must be s-table-row children so the table exposes the correct row and cell structure to assistive technology."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Must be a child of s-table and must contain s-table-row elements. No props of its own."
+    },
+    {
+      "element": "s-table-row",
+      "officialName": "Table row",
+      "componentOf": "s-table",
+      "category": "layout-and-structure",
+      "slug": "table",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/table",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-table-cell only",
+          "notes": "One cell per column."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "clickDelegate is click-only and adds no keyboard or screen-reader affordance; the row must still contain a reachable interactive element."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "clickDelegate takes the id of an interactive element in the row, such as an s-link, which becomes the click target for the whole row. It must not be used for secondary actions."
+    },
+    {
+      "element": "s-table-cell",
+      "officialName": "Table cell",
+      "componentOf": "s-table",
+      "category": "layout-and-structure",
+      "slug": "table",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/table",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Text or inline components; the cell is a data value, not a layout box."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "Alignment and format are inherited from the column's header, so a numeric value in an unformatted column reads correctly but looks wrong."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "No props of its own. Only valid inside s-table-row, and the cell count should match the header count."
+    },
+    {
+      "element": "s-text",
+      "officialName": "Text",
+      "category": "typography-and-content",
+      "slug": "text",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/typography-and-content/text",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Inline content."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "Inline with no truncation, so it never hides content from anyone.",
+        "fontVariantNumeric is deprecated — use the Number component for figures.",
+        "accessibilityVisibility=\"exclusive\" provides screen-reader-only text."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Shares PolarisText with s-paragraph. `type` and `interestFor` exist only on s-text; the wrapper omits them when Paragraph is set, which is why the generated reference lists two tags for one class."
+    },
+    {
+      "element": "s-text-area",
+      "officialName": "Text area",
+      "category": "forms",
+      "slug": "text-area",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/text-area",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; a text area without one is announced as an unlabelled multiline input."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "Takes its value from the property, never from child text: copying the native <textarea> habit submits an empty string with no warning. maxLength does not reliably block pasted content. Plain text only."
+    },
+    {
+      "element": "s-text-field",
+      "officialName": "Text field",
+      "category": "forms",
+      "slug": "text-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/text-field",
+      "slots": [
+        {
+          "name": "accessory",
+          "accepts": "s-button or s-clickable with text only",
+          "notes": "Rendered at the end of the field. An icon-only accessory is not accepted."
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; placeholder is not a substitute for it.",
+        "The accessory control needs its own accessible name, because it is a separate interactive element inside the field."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "browser-verified",
+      "notes": "prefix and suffix are decorative and are not part of the submitted value. Pasted content may exceed maxLength, so validate server-side. value is not reflected, so it is a DOM property, and is also rendered as defaultValue for the first paint."
+    },
+    {
+      "element": "s-thumbnail",
+      "officialName": "Thumbnail",
+      "category": "media-and-visuals",
+      "slug": "thumbnail",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/media-and-visuals/thumbnail",
+      "slots": [],
+      "events": [
+        "error",
+        "load"
+      ],
+      "accessibility": [
+        "alt is the accessible name; a thumbnail that only repeats the adjacent product name should use alt=\"\" instead."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "Small preview image. Fonts its own frame, so an image with a different aspect ratio is cropped rather than stretched. load and error are the only events."
+    },
+    {
+      "element": "s-tooltip",
+      "officialName": "Tooltip",
+      "category": "typography-and-content",
+      "slug": "tooltip",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/typography-and-content/tooltip",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "plain text, s-paragraph or raw textContent",
+          "notes": "Cannot contain interactive elements."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "A tooltip supplements a name, it does not provide one: the trigger must still be identifiable without it.",
+        "Mouse and trackpad only — there is no touch equivalent, so a tooltip must never be the only place information appears."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "No attributes of its own: give it an id and point the trigger at it with interestFor. Positioning is automatic. Shopify documents it under typography-and-content/tooltip even though it behaves like an overlay."
+    },
+    {
+      "element": "s-unordered-list",
+      "officialName": "Unordered list",
+      "category": "layout-and-structure",
+      "slug": "unordered-list",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/unordered-list",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-list-item only",
+          "notes": "Anything other than an s-list-item is rejected."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "The list role and item count come from the element, so items must be real s-list-item children."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "No props of its own. Bullets cannot be restyled."
+    },
+    {
+      "element": "s-url-field",
+      "officialName": "URL field",
+      "category": "forms",
+      "slug": "url-field",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/forms/url-field",
+      "slots": [],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "accessibility": [
+        "label is the accessible name; the field does not add a scheme, so the label should say whether one is expected."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "HTML5 URL validation is weak and vendor-specific, and special characters are not auto-encoded. It does not prepend https://. value is not reflected, so it is a DOM property."
+    }
+  ]
+}

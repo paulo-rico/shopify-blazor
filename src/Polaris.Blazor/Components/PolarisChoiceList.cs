@@ -12,14 +12,13 @@ namespace Polaris.Blazor.Components;
 /// </para>
 /// <para>
 /// <see cref="Values"/> is an array, which no attribute can carry, so it is written to the element
-/// as a DOM property after it upgrades and cleared when it goes back to null. A stale array here
-/// leaves options selected that the server has since deselected, and the markup shows nothing.
+/// as a DOM property. It is <em>always</em> written, as an empty array when nothing is selected:
+/// Polaris calls array methods on this property, and leaving it undefined throws inside the
+/// component rather than merely clearing the selection.
 /// </para>
 /// </remarks>
 public sealed class PolarisChoiceList : PolarisContentComponentBase
 {
-    private static readonly string[] ValuesProperty = ["values"];
-
     /// <inheritdoc />
     protected override string TagName => "s-choice-list";
 
@@ -35,7 +34,7 @@ public sealed class PolarisChoiceList : PolarisContentComponentBase
     /// <summary>Allows more than one choice. Without it the list is a radio group.</summary>
     [Parameter] public bool Multiple { get; set; }
 
-    /// <summary>The chosen values. Empty selects nothing; null clears the property entirely.</summary>
+    /// <summary>The chosen values. Null or empty selects nothing.</summary>
     [Parameter] public IReadOnlyList<string>? Values { get; set; }
 
     /// <summary>Prevents interaction with the whole list.</summary>
@@ -76,10 +75,13 @@ public sealed class PolarisChoiceList : PolarisContentComponentBase
     }
 
     /// <inheritdoc />
-    protected override IReadOnlyDictionary<string, object?> Properties => Values is null
-        ? EmptyPropertySet
-        : new Dictionary<string, object?>(StringComparer.Ordinal) { ["values"] = Values };
-
-    /// <inheritdoc />
-    protected override IEnumerable<string> ClearedProperties => Values is null ? ValuesProperty : [];
+    /// <remarks>
+    /// Never left unset. Polaris reads this array with array methods, so an undefined property is an
+    /// uncaught <c>TypeError: Cannot read properties of undefined (reading 'join')</c> inside the
+    /// component — found by the browser verification, and invisible to a markup test.
+    /// </remarks>
+    protected override IReadOnlyDictionary<string, object?> Properties => new Dictionary<string, object?>(StringComparer.Ordinal)
+    {
+        ["values"] = Values ?? [],
+    };
 }

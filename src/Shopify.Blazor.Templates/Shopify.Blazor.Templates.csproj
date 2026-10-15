@@ -1,0 +1,51 @@
+<!--
+  A template package, not a library: this project has no code of its own and produces no assembly.
+  Everything it ships is content under templates/, which `dotnet new install` extracts into the
+  template engine's store.
+
+  Note that templates/** is deliberately NOT part of any solution build. The content contains a
+  .csproj that references the published packages, so building it here would fail until the packages
+  exist on a feed — which is exactly what tools/verify-template.py is for.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Shopify.Blazor.Templates</PackageId>
+    <PackageType>Template</PackageType>
+    <Title>Shopify Blazor app templates</Title>
+    <Description>dotnet new templates for embedded Shopify admin apps built with Blazor and Shopify's Polaris web components.</Description>
+    <PackageTags>dotnet-new;templates;shopify;blazor;polaris</PackageTags>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <!--
+      No lib/ folder is produced (there is no assembly), which NU5128 reports as a mismatch between
+      the package and its dependencies. There are no dependencies, so the warning is noise here.
+    -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!--
+      No symbols package. Directory.Build.props turns symbols on for the libraries, but a template
+      has no assembly to symbolise, so packing a .snupkg fails with NU5017 ("no dependencies nor
+      content") even though the real package was written correctly.
+    -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <!-- A template has no code, so the compiler and the doc-file generator must both stand down. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The build output of a template is the template. Excluding bin/obj matters: `dotnet new` would
+      otherwise install a template whose content includes a stray build output tree.
+    -->
+    <Content Include="templates/**/*" Exclude="templates/**/bin/**;templates/**/obj/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" Condition="Exists('README.md')" />
+  </ItemGroup>
+
+</Project>

@@ -11,11 +11,11 @@ live in a shadow root and cannot be restyled.
 | Component | Element | Events forwarded | Named in tests |
 |---|---|---|---|
 | `PolarisAvatar` | `<s-avatar>` | `Error`, `Load` | yes |
-| `PolarisBadge` | `<s-badge>` | — | **no** |
+| `PolarisBadge` | `<s-badge>` | — | yes |
 | `PolarisBanner` | `<s-banner>` | `Dismiss`, `afterhide` | yes |
-| `PolarisBox` | `<s-box>` | — | **no** |
+| `PolarisBox` | `<s-box>` | — | yes |
 | `PolarisButton` | `<s-button>` | `Blur`, `Click`, `Focus` | yes |
-| `PolarisButtonGroup` | `<s-button-group>` | — | **no** |
+| `PolarisButtonGroup` | `<s-button-group>` | — | yes |
 | `PolarisCheckbox` | `<s-checkbox>` | `Blur`, `Change`, `Input` | yes |
 | `PolarisChip` | `<s-chip>` | — | yes |
 | `PolarisChoice` | `<s-choice>` | — | yes |
@@ -32,8 +32,8 @@ live in a shadow root and cannot be restyled.
 | `PolarisEmptyState` | `<s-empty-state>` | — | yes |
 | `PolarisGrid` | `<s-grid>` | — | yes |
 | `PolarisGridItem` | `<s-grid-item>` | — | yes |
-| `PolarisHeading` | `<s-heading>` | — | **no** |
-| `PolarisIcon` | `<s-icon>` | — | **no** |
+| `PolarisHeading` | `<s-heading>` | — | yes |
+| `PolarisIcon` | `<s-icon>` | — | yes |
 | `PolarisImage` | `<s-image>` | `Error`, `Load` | yes |
 | `PolarisLink` | `<s-link>` | `Click` | yes |
 | `PolarisListItem` | `<s-list-item>` | — | yes |
@@ -43,25 +43,25 @@ live in a shadow root and cannot be restyled.
 | `PolarisNumber` | `<s-number>` | — | yes |
 | `PolarisNumberField` | `<s-number-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
 | `PolarisOption` | `<s-option>` | — | yes |
-| `PolarisOptionGroup` | `<s-option-group>` | — | **no** |
+| `PolarisOptionGroup` | `<s-option-group>` | — | yes |
 | `PolarisOrderedList` | `<s-ordered-list>` | — | yes |
 | `PolarisPage` | `<s-page>` | — | yes |
 | `PolarisPasswordField` | `<s-password-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
-| `PolarisPopover` | `<s-popover>` | — | **no** |
+| `PolarisPopover` | `<s-popover>` | — | yes |
 | `PolarisProgress` | `<s-progress>` | — | yes |
 | `PolarisQueryContainer` | `<s-query-container>` | — | yes |
 | `PolarisSearchField` | `<s-search-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
-| `PolarisSection` | `<s-section>` | — | **no** |
+| `PolarisSection` | `<s-section>` | — | yes |
 | `PolarisSelect` | `<s-select>` | `Change`, `Input` | yes |
-| `PolarisSpinner` | `<s-spinner>` | — | **no** |
-| `PolarisStack` | `<s-stack>` | — | **no** |
-| `PolarisSwitch` | `<s-switch>` | `Change`, `Input` | **no** |
+| `PolarisSpinner` | `<s-spinner>` | — | yes |
+| `PolarisStack` | `<s-stack>` | — | yes |
+| `PolarisSwitch` | `<s-switch>` | `Change`, `Input` | yes |
 | `PolarisTable` | `<s-table>` | `NextPage`, `PreviousPage` | yes |
-| `PolarisTableBody` | `<s-table-body>` | — | **no** |
-| `PolarisTableCell` | `<s-table-cell>` | — | **no** |
+| `PolarisTableBody` | `<s-table-body>` | — | yes |
+| `PolarisTableCell` | `<s-table-cell>` | — | yes |
 | `PolarisTableHeader` | `<s-table-header>` | — | yes |
-| `PolarisTableHeaderRow` | `<s-table-header-row>` | — | **no** |
-| `PolarisTableRow` | `<s-table-row>` | — | **no** |
+| `PolarisTableHeaderRow` | `<s-table-header-row>` | — | yes |
+| `PolarisTableRow` | `<s-table-row>` | — | yes |
 | `PolarisText` | `<s-paragraph / s-text>` | — | yes |
 | `PolarisTextArea` | `<s-text-area>` | `Blur`, `Change`, `Focus`, `Input` | yes |
 | `PolarisTextField` | `<s-text-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |

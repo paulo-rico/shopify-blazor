@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Shopify Blazor Toolkit contributors",
+  "classifications": [ "Web", "Blazor", "Shopify" ],
+  "identity": "Shopify.Blazor.Templates.EmbeddedApp",
+  "name": "Shopify embedded app (Blazor Web App, Interactive Server)",
+  "shortName": "shopify-blazor",
+  "description": "An embedded Shopify admin app: a Blazor Web App with Interactive Server, Shopify's own Polaris web components, App Bridge 4, and a verified session-token authentication path.",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "Shopify.Blazor.SampleApp",
+  "preferNameDirectory": true,
+  "defaultName": "MyShopifyApp",
+  "symbols": {
+    "Framework": {
+      "type": "parameter",
+      "description": "The target framework for the project.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "net10.0",
+          "description": "The only framework the toolkit supports. See ADR 0001."
+        }
+      ],
+      "defaultValue": "net10.0",
+      "replaces": "net10.0"
+    },
+    "include-sample-pages": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the sample pages: a products list that calls the Admin API, and a gallery of every Polaris component the toolkit wraps."
+    },
+    "include-admin-api-example": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the authenticated /api/products endpoint, its service, and the browser module that calls it."
+    },
+    "toolkitVersion": {
+      "type": "parameter",
+      "datatype": "string",
+      "replaces": "TOOLKIT_PACKAGE_VERSION",
+      "defaultValue": "0.1.0-preview.1",
+      "description": "Version of the Polaris.Blazor and Shopify.Blazor packages to reference. Point this at a locally packed version to try an unpublished build."
+    },
+    "userSecretsId": {
+      "type": "generated",
+      "generator": "guid",
+      "replaces": "SHOPIFY_BLAZOR_USER_SECRETS_ID",
+      "parameters": {
+        "defaultFormat": "D"
+      }
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!include-sample-pages)",
+          "exclude": [ "**/Components/Pages/Products.razor", "**/Components/Pages/Components.razor" ]
+        },
+        {
+          "condition": "(!include-admin-api-example)",
+          "exclude": [
+            "**/Components/Pages/Products.razor",
+            "**/Services/ProductsService.cs",
+            "**/wwwroot/js/shopify-fetch.js"
+          ]
+        }
+      ]
+    }
+  ]
+}

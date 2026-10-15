@@ -97,25 +97,12 @@ export function loading(isLoading) {
     return true;
 }
 
-/**
- * Reports which Polaris custom elements are registered and upgraded.
+/*
+ * There is deliberately no componentStatus export here.
  *
- * An element that never upgrades renders as an empty box while the markup looks perfectly
- * correct, so the Components page surfaces this rather than leaving it to guesswork.
+ * The component library already ships one, reached from C# through
+ * IPolarisInterop.GetComponentStatusAsync. A second copy in the app made it easy to invoke this one
+ * as a global function (IJSRuntime.InvokeAsync("componentStatus", …)), which cannot work for an ES
+ * module export: it throws "could not find componentStatus" and the page reports a broken runtime
+ * check that says nothing about the elements.
  */
-export function componentStatus(tagNames) {
-    const result = {};
-
-    for (const name of tagNames) {
-        const definition = window.customElements?.get(name);
-        const elements = Array.from(document.querySelectorAll(name));
-
-        result[name] = {
-            defined: Boolean(definition),
-            count: elements.length,
-            upgraded: Boolean(definition) && elements.every((el) => el instanceof definition),
-        };
-    }
-
-    return result;
-}

@@ -5,9 +5,18 @@
   <Folder Name="/src/">
     <Project Path="src/Polaris.Blazor/Polaris.Blazor.csproj" />
     <Project Path="src/Shopify.Blazor/Shopify.Blazor.csproj" />
+    <!--
+      The template and the CLI are part of the solution so that CI restores, builds and packs them
+      with everything else. The template's *content* (templates/**) is not: it references the
+      published packages, so building it here would fail until those packages exist on a feed. That
+      is what tools/verify-template.py is for.
+    -->
+    <Project Path="src/Shopify.Blazor.Cli/Shopify.Blazor.Cli.csproj" />
+    <Project Path="src/Shopify.Blazor.Templates/Shopify.Blazor.Templates.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Polaris.Blazor.Tests/Polaris.Blazor.Tests.csproj" />
     <Project Path="tests/Shopify.Blazor.Tests/Shopify.Blazor.Tests.csproj" />
+    <Project Path="tests/Shopify.Blazor.Cli.Tests/Shopify.Blazor.Cli.Tests.csproj" />
   </Folder>
 </Solution>

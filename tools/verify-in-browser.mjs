@@ -8,7 +8,11 @@
  * renders as an empty box while the markup looks perfectly correct. Only a browser can say
  * whether the elements are really there.
  *
- * Usage: node tools/verify-in-browser.mjs [url] [--chrome <path>]
+ * Usage: node tools/verify-in-browser.mjs [url] [--chrome <path>] [--assert]
+ *
+ * Without --assert it prints the full report and exits 0, which is what you want while developing.
+ * With --assert it also checks every expectation the toolkit makes of a live page and exits non-zero
+ * if any of them is false, which is what CI wants: a report nobody reads is not a test.
  */
 
 import { spawn } from "node:child_process";
@@ -16,7 +20,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const url = process.argv[2] ?? "http://127.0.0.1:3459/";
+const assertMode = process.argv.includes("--assert");
+const url = process.argv.slice(2).find((argument) => argument.startsWith("http")) ?? "http://127.0.0.1:3459/";
 const chromeFlagIndex = process.argv.indexOf("--chrome");
 const chromePath = chromeFlagIndex >= 0 ? process.argv[chromeFlagIndex + 1] : "google-chrome";
 
@@ -112,7 +117,17 @@ class DevTools {
             }
 
             if (message.method === "Runtime.exceptionThrown") {
-                this.pageErrors.push(message.params.exceptionDetails?.exception?.description ?? "unknown");
+                // The whole detail object matters. `exception.description` alone is absent for an
+                // error thrown by a script the page loaded from a CDN, which reported as the word
+                // "unknown" — a failure nobody can act on.
+                const details = message.params.exceptionDetails ?? {};
+                this.pageErrors.push({
+                    text: details.text ?? "",
+                    description: details.exception?.description ?? "",
+                    url: details.url ?? "",
+                    line: details.lineNumber ?? null,
+                    column: details.columnNumber ?? null,
+                });
             }
         });
 
@@ -177,11 +192,15 @@ const markedElementHelper = `
  * really reaches a C# handler over the Blazor circuit.
  */
 const probe = markedElementHelper + `(async () => {
-    const elements = [
-        "s-page", "s-section", "s-stack", "s-button", "s-badge", "s-banner", "s-spinner",
-        "s-text-field", "s-text-area", "s-checkbox", "s-switch", "s-select", "s-option",
-        "s-modal", "s-popover", "s-table", "s-table-header", "s-table-row", "s-table-cell",
-    ];
+    // The list comes from the page, not from this file. Components.razor renders it, so a component
+    // added to the gallery is verified here without anyone remembering to update a second list — and
+    // a component listed but never rendered fails the count check instead of passing vacuously.
+    const marker = document.getElementById("polaris-probe-elements");
+    const elements = (marker?.dataset.elements ?? "").split(",").map((name) => name.trim()).filter(Boolean);
+
+    if (elements.length === 0) {
+        return { error: "the page did not render #polaris-probe-elements, so there is nothing to verify" };
+    }
 
     // Polaris defines its elements asynchronously after the CDN script runs, so this waits rather
     // than reading customElements too early and reporting everything as missing.
@@ -199,9 +218,55 @@ const probe = markedElementHelper + `(async () => {
             defined: Boolean(definition),
             count: found.length,
             upgraded: Boolean(definition) && found.every((el) => el instanceof definition),
-            hasShadowRoot: Boolean(definition) && found.every((el) => el.shadowRoot !== null),
+            hasShadowRoot: Boolean(definition) && found.length > 0 && found.every((el) => el.shadowRoot !== null),
         };
     }
+
+    // Three separate failure modes, and they need different fixes: an element that is not defined at
+    // all (the CDN script did not load), one that is defined but never rendered (the gallery forgot
+    // it), and one that is rendered but never upgraded (the markup looks right and does nothing).
+    const counts = {
+        listed: elements.length,
+        notDefined: elements.filter((name) => !status[name].defined),
+        notUpgraded: elements.filter((name) => status[name].defined && !status[name].upgraded),
+        notRendered: elements.filter((name) => status[name].count === 0),
+        withoutShadowRoot: elements.filter((name) => status[name].defined && !status[name].hasShadowRoot && status[name].count > 0),
+        instances: Object.fromEntries(elements.map((name) => [name, status[name].count])),
+    };
+
+    // The static assets each renderer must serve. A package that ships JavaScript without the Razor
+    // SDK answers 404 here while the page looks perfect, which is the failure that makes every
+    // button inert; the reconnect files are plain static files that must also resolve.
+    const assets = {};
+    for (const path of [
+        "css/reconnect-modal.css",
+        "js/reconnect-modal.js",
+        "_content/Polaris.Blazor/polaris-interop.js",
+        "_content/Shopify.Blazor/app-bridge.js",
+    ]) {
+        try {
+            const response = await fetch(path, { cache: "no-store" });
+            assets[path] = response.status;
+        } catch (error) {
+            assets[path] = String(error);
+        }
+    }
+
+    // The reconnection dialog has to exist before it is needed: it is shown from JavaScript when the
+    // circuit is already gone, so a missing element is a page nobody can recover but by reloading.
+    const reconnect = (() => {
+        const modal = document.getElementById("components-reconnect-modal");
+        const href = (selector, attribute) => Array.from(document.querySelectorAll(selector))
+            .map((el) => el.getAttribute(attribute))
+            .find((value) => value && value.includes("reconnect-modal"));
+
+        return {
+            present: modal !== null,
+            isDialog: (modal?.tagName ?? "").toLowerCase() === "dialog",
+            stylesheet: href('link[rel="stylesheet"]', "href") ?? null,
+            script: href("script[src]", "src") ?? null,
+        };
+    })();
 
     // A form built from Polaris fields, submitted for real. This is the check that catches a field
     // whose value never reaches the request: the failure is silent and the page looks normal.
@@ -277,6 +342,9 @@ const probe = markedElementHelper + `(async () => {
         appBridgeGlobal: typeof window.shopify,
         // Blazor's per-circuit marker. Zero means the page is static and nothing is clickable.
         markedElements: markedElementCount(),
+        counts,
+        reconnect,
+        assets,
         status,
         form,
         commandForWired: document.querySelector("s-button[commandfor]") !== null,
@@ -296,6 +364,92 @@ const probe = markedElementHelper + `(async () => {
     };
 })()`;
 
+/**
+ * The expectations the toolkit makes of a live page.
+ *
+ * Each one is a failure that unit tests cannot see, because it depends on Shopify's CDN, on static
+ * web assets being served, on the render mode, or on the Blazor circuit actually being alive.
+ *
+ * @param {object} result the probe's output
+ * @returns {string[]} one description per failed expectation
+ */
+function evaluateAssertions(result) {
+    const failures = [];
+    const check = (ok, description) => {
+        console.log(`  ${ok ? "PASS" : "FAIL"}  ${description}`);
+        if (!ok) failures.push(description);
+    };
+
+    if (result.error) {
+        console.log(`  FAIL  the probe could not run: ${result.error}`);
+        return [result.error];
+    }
+
+    const counts = result.counts ?? {};
+    const reconnect = result.reconnect ?? {};
+    const assets = result.assets ?? {};
+
+    console.log("assertions:");
+
+    check(result.markedElements > 0, "the Blazor circuit is connected (interactive markers are present)");
+    check(
+        (counts.notDefined ?? []).length === 0,
+        `every listed element is defined by Polaris (not defined: ${(counts.notDefined ?? []).join(", ") || "none"})`,
+    );
+    check(
+        (counts.notUpgraded ?? []).length === 0,
+        `every rendered element has upgraded (not upgraded: ${(counts.notUpgraded ?? []).join(", ") || "none"})`,
+    );
+    check(
+        (counts.notRendered ?? []).length === 0,
+        `every listed element is actually on the page (never rendered: ${(counts.notRendered ?? []).join(", ") || "none"})`,
+    );
+
+    check(result.form?.submitted?.q === "signet", "a Polaris text field's value reaches the submitted form");
+    check(result.form?.submitted?.status === "draft", "a Polaris select's selected value reaches the submitted form");
+    check(result.counter?.roundTripped === true, "a real click reaches the C# handler and re-renders");
+    check(result.commandForWired === true, "a modal or popover is wired declaratively with commandFor");
+    check(result.tableStructure?.rowsInsideBody === true, "table rows live inside s-table-body");
+
+    check(reconnect.present === true, "#components-reconnect-modal exists on the page");
+    check(reconnect.isDialog === true, "the reconnection element is a <dialog>, which is Blazor's contract");
+    check(reconnect.stylesheet !== null, "the reconnection stylesheet is linked");
+    check(reconnect.script !== null, "the reconnection script is loaded");
+
+    for (const [path, status] of Object.entries(assets)) {
+        check(status === 200, `${path} is served (HTTP ${status})`);
+    }
+
+    // One uncaught error is expected when the page is opened outside the Admin: App Bridge has no
+    // shop to attach to, refuses to initialise and throws. The app handles that case deliberately (it
+    // renders "Opened outside the Shopify Admin"), and the alternative — failing on it — would mean
+    // never testing the standalone path, which is how a developer first runs the app.
+    const expectedOutsideAdmin = [/App Bridge Next: missing required configuration fields/];
+    const unexpectedErrors = (result.pageErrors ?? []).filter(
+        (error) => !expectedOutsideAdmin.some((pattern) => pattern.test(error.description || error.text || "")),
+    );
+
+    check(
+        unexpectedErrors.length === 0,
+        `the page raised no unexpected errors (${unexpectedErrors.length} of ${(result.pageErrors ?? []).length} ` +
+        "are unexpected; the rest are App Bridge's standalone-mode error)",
+    );
+
+    for (const error of unexpectedErrors) {
+        console.log(`        ${error.url || "(no url)"}:${error.line ?? "?"} ${error.description || error.text}`);
+    }
+
+    // Reported rather than asserted: an element may legitimately be light-DOM, so the absence of a
+    // shadow root is information, not a failure.
+    console.log(
+        `  note  shadow roots: ${(counts.listed ?? 0) - (counts.withoutShadowRoot ?? []).length}/${counts.listed ?? 0} ` +
+        `of the listed elements have one` +
+        ((counts.withoutShadowRoot ?? []).length > 0 ? ` (light DOM: ${counts.withoutShadowRoot.join(", ")})` : ""),
+    );
+
+    return failures;
+}
+
 let devtools;
 
 try {
@@ -313,6 +467,19 @@ try {
     result.probeKeys = Object.keys(result);
 
     console.log(JSON.stringify(result, null, 2));
+
+    if (assertMode) {
+        console.log("");
+        const failures = evaluateAssertions(result);
+
+        if (failures.length > 0) {
+            console.error(`\n${failures.length} assertion(s) failed:`);
+            for (const failure of failures) console.error(`  - ${failure}`);
+            process.exitCode = 1;
+        } else {
+            console.log("\nall assertions passed");
+        }
+    }
 } finally {
     devtools?.close();
     chrome.kill("SIGKILL");

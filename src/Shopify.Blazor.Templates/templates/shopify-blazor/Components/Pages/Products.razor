@@ -1,0 +1,196 @@
+@page "/products"
+@using Shopify.Blazor.AppBridge
+@inject IAppBridgeInterop Bridge
+
+<PolarisStack Gap="PolarisGap.Base">
+    <PolarisSection Heading="Products">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisText>
+                Fetched from the GraphQL Admin API by this app's own server. The browser contributes
+                one thing: a freshly minted App Bridge session token, which the server verifies
+                against Shopify's published keys before it exchanges it for an access token that never
+                leaves the server.
+            </PolarisText>
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisButton Variant="PolarisButtonVariant.Primary"
+                               OnClick="LoadFromButtonAsync"
+                               Loading="_loading">
+                    Refresh
+                </PolarisButton>
+                @if (_shop is not null)
+                {
+                    <PolarisBadge Tone="PolarisTone.Neutral">@_shop</PolarisBadge>
+                }
+                @if (_apiVersion is not null)
+                {
+                    <PolarisBadge Tone="PolarisTone.Info">Admin API @_apiVersion</PolarisBadge>
+                }
+            </PolarisStack>
+
+            @if (_error is not null)
+            {
+                <PolarisBanner Heading="Could not load products" Tone="PolarisTone.Critical">
+                    <PolarisText Paragraph="true">@_error</PolarisText>
+                </PolarisBanner>
+            }
+        </PolarisStack>
+    </PolarisSection>
+
+    @if (_loading)
+    {
+        <PolarisSection>
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisSpinner AccessibilityLabel="Loading products" />
+                <PolarisText>Loading products…</PolarisText>
+            </PolarisStack>
+        </PolarisSection>
+    }
+    else if (_products is null)
+    {
+        <PolarisSection>
+            <PolarisText>No request has been made yet. Use Refresh to load products.</PolarisText>
+        </PolarisSection>
+    }
+    else if (_products.Count == 0)
+    {
+        @* Render the empty state conditionally; it cannot detect emptiness on its own. *@
+        <PolarisSection>
+            <PolarisEmptyState Heading="No products yet">
+                <PolarisText Slot="subheading">Products you add in Shopify will appear here.</PolarisText>
+            </PolarisEmptyState>
+        </PolarisSection>
+    }
+    else
+    {
+        <PolarisSection Padding="PolarisSectionPadding.None">
+            <PolarisTable>
+                    <PolarisTableHeaderRow>
+                        <PolarisTableHeader ListSlot="PolarisTableListSlot.Primary">Title</PolarisTableHeader>
+                        <PolarisTableHeader>Status</PolarisTableHeader>
+                        <PolarisTableHeader Format="PolarisTableHeaderFormat.Currency">Price</PolarisTableHeader>
+                        <PolarisTableHeader>Updated</PolarisTableHeader>
+                    </PolarisTableHeaderRow>
+                    <PolarisTableBody>
+                        @foreach (var row in Rows)
+                        {
+                            <PolarisTableRow @key="row.Id">
+                                @* One cell per header, in the same order: a mismatch shifts every
+                                   later column without raising anything. *@
+                                <PolarisTableCell><PolarisText Type="PolarisTextType.Strong">@row.Title</PolarisText></PolarisTableCell>
+                                <PolarisTableCell>
+                                    <PolarisBadge Tone="@StatusTone(row.Status)">@row.Status</PolarisBadge>
+                                </PolarisTableCell>
+                                <PolarisTableCell>@(row.Price ?? "—")</PolarisTableCell>
+                                <PolarisTableCell>@(row.UpdatedAt?.ToString("d MMM yyyy HH:mm") ?? "—")</PolarisTableCell>
+                            </PolarisTableRow>
+                        }
+                    </PolarisTableBody>
+            </PolarisTable>
+        </PolarisSection>
+    }
+</PolarisStack>
+
+@code {
+    private bool _loading;
+    private string? _error;
+    private string? _shop;
+    private string? _apiVersion;
+    private List<ProductSummary>? _products;
+
+    private IReadOnlyList<ProductSummary> Rows => _products ?? [];
+
+    private Task LoadFromButtonAsync(PolarisEventArgs args) => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            // The Admin's own header progress bar, cleared in all cases.
+            var result = await Bridge.WithLoadingAsync(
+                () => Bridge.FetchAsync<ProductListResponse>("/api/products").AsTask());
+
+            if (!result.IsSuccess)
+            {
+                _error = result.Error ?? "The request failed.";
+
+                // A 401 from this app means the session token was refused. The browser cannot see
+                // why, so ask the server, which recorded it.
+                if (result.StatusCode == 401)
+                {
+                    _error += " " + await ExplainRejectionAsync();
+                }
+
+                return;
+            }
+
+            _shop = result.Data?.Shop;
+            _apiVersion = result.Data?.ApiVersion;
+            _products = result.Data?.Products ?? [];
+
+            if (_products.Count > 0)
+            {
+                await Bridge.ShowToastAsync($"Loaded {_products.Count} products.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>
+    /// Asks the server why the last token was refused, so the page can say something useful.
+    /// </summary>
+    /// <remarks>
+    /// Only available in Development; elsewhere it returns an empty string and the page falls back
+    /// to the plain error, because the server does not expose its rejection reasons in production.
+    /// </remarks>
+    private async Task<string> ExplainRejectionAsync()
+    {
+        try
+        {
+            var response = await Bridge.FetchAsync<List<Rejection>>("/api/diagnostics/rejections?count=1");
+
+            if (!response.IsSuccess || response.Data is not { Count: > 0 } rejections)
+            {
+                return string.Empty;
+            }
+
+            var rejection = rejections[0];
+
+            // The hint comes first: it names the cause, whereas the reason names the symptom.
+            return rejection.Hint is { Length: > 0 }
+                ? rejection.Hint
+                : $"Server said: {rejection.Reason}";
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
+    }
+
+    private sealed record Rejection(string Path, string Failure, string Reason, string? Hint);
+
+    private static PolarisTone StatusTone(string status) => status.ToUpperInvariant() switch
+    {
+        "ACTIVE" => PolarisTone.Success,
+        "DRAFT" => PolarisTone.Warning,
+        "ARCHIVED" => PolarisTone.Neutral,
+        _ => PolarisTone.Info,
+    };
+
+    private sealed record ProductListResponse(string? Shop, List<ProductSummary>? Products, string? ApiVersion);
+}

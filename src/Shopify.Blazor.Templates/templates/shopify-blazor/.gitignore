@@ -1,0 +1,11 @@
+# Build output
+bin/
+obj/
+
+# Local and secret configuration. Credentials belong in user secrets or environment variables, and
+# this file exists so that a local override cannot be committed by accident.
+appsettings.Local.json
+.env
+
+# Tooling
+*.user

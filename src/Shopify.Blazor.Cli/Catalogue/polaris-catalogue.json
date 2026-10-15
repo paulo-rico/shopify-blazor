@@ -1,0 +1,2958 @@
+{
+  "generatedBy": "generate-component-inventory.py",
+  "components": [
+    {
+      "wrapper": "PolarisAvatar",
+      "element": "s-avatar",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-avatar>`, a compact profile image or initials.",
+      "parameters": [
+        {
+          "name": "Initials",
+          "type": "string?"
+        },
+        {
+          "name": "Src",
+          "type": "string?"
+        },
+        {
+          "name": "Alt",
+          "type": "string?"
+        },
+        {
+          "name": "Size",
+          "type": "PolarisSize"
+        },
+        {
+          "name": "OnLoad",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnError",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "error",
+        "load"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisBadge",
+      "element": "s-badge",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-badge>`.",
+      "parameters": [
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        },
+        {
+          "name": "Size",
+          "type": "PolarisSize"
+        },
+        {
+          "name": "Icon",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisBanner",
+      "element": "s-banner",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-banner>`.",
+      "parameters": [
+        {
+          "name": "Heading",
+          "type": "string?"
+        },
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Hidden",
+          "type": "bool"
+        },
+        {
+          "name": "Dismissible",
+          "type": "bool"
+        },
+        {
+          "name": "OnDismiss",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnAfterHide",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "afterhide",
+        "dismiss"
+      ],
+      "slots": [
+        "children",
+        "secondary-actions"
+      ]
+    },
+    {
+      "wrapper": "PolarisBox",
+      "element": "s-box",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-box>`, the generic styling container.",
+      "parameters": [
+        {
+          "name": "Background",
+          "type": "string?"
+        },
+        {
+          "name": "Padding",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlock",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInline",
+          "type": "string?"
+        },
+        {
+          "name": "Border",
+          "type": "string?"
+        },
+        {
+          "name": "BorderStyle",
+          "type": "string?"
+        },
+        {
+          "name": "BorderRadius",
+          "type": "string?"
+        },
+        {
+          "name": "Overflow",
+          "type": "string?"
+        },
+        {
+          "name": "Display",
+          "type": "string?"
+        },
+        {
+          "name": "BlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "InlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "AccessibilityRole",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisButton",
+      "element": "s-button",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps Shopify's `<s-button>`.",
+      "parameters": [
+        {
+          "name": "Variant",
+          "type": "PolarisButtonVariant"
+        },
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Icon",
+          "type": "string?"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "Loading",
+          "type": "bool"
+        },
+        {
+          "name": "Type",
+          "type": "PolarisButtonType"
+        },
+        {
+          "name": "Href",
+          "type": "string?"
+        },
+        {
+          "name": "Target",
+          "type": "PolarisLinkTarget"
+        },
+        {
+          "name": "InlineSize",
+          "type": "PolarisButtonInlineSize"
+        },
+        {
+          "name": "CommandFor",
+          "type": "string?"
+        },
+        {
+          "name": "Command",
+          "type": "PolarisCommand"
+        },
+        {
+          "name": "InterestFor",
+          "type": "string?"
+        },
+        {
+          "name": "OnClick",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "click",
+        "focus"
+      ],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisButtonGroup",
+      "element": "s-button-group",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-button-group>`.",
+      "parameters": [
+        {
+          "name": "Gap",
+          "type": "PolarisButtonGroupGap"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children",
+        "primary-action",
+        "secondary-actions"
+      ]
+    },
+    {
+      "wrapper": "PolarisCheckbox",
+      "element": "s-checkbox",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-checkbox>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Checked",
+          "type": "bool"
+        },
+        {
+          "name": "DefaultChecked",
+          "type": "bool?"
+        },
+        {
+          "name": "Indeterminate",
+          "type": "bool"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisChip",
+      "element": "s-chip",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-chip>`, a user-supplied label or tag.",
+      "parameters": [
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        },
+        {
+          "name": "Removable",
+          "type": "bool"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children",
+        "graphic"
+      ]
+    },
+    {
+      "wrapper": "PolarisChoiceList",
+      "element": "s-choice-list",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-choice-list>`, for choosing one or many options.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Multiple",
+          "type": "bool"
+        },
+        {
+          "name": "Values",
+          "type": "IReadOnlyList<string>?"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "change",
+        "input"
+      ],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisChoice",
+      "element": "s-choice",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-choice>`.",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "Selected",
+          "type": "bool"
+        },
+        {
+          "name": "DefaultSelected",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children",
+        "details",
+        "secondary-content"
+      ]
+    },
+    {
+      "wrapper": "PolarisClickable",
+      "element": "s-clickable",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-clickable>`, a custom interactive surface.",
+      "parameters": [
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "Loading",
+          "type": "bool"
+        },
+        {
+          "name": "Href",
+          "type": "string?"
+        },
+        {
+          "name": "Target",
+          "type": "PolarisLinkTarget"
+        },
+        {
+          "name": "Download",
+          "type": "string?"
+        },
+        {
+          "name": "Type",
+          "type": "PolarisButtonType"
+        },
+        {
+          "name": "AccessibilityRole",
+          "type": "string?"
+        },
+        {
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "CommandFor",
+          "type": "string?"
+        },
+        {
+          "name": "Command",
+          "type": "PolarisCommand"
+        },
+        {
+          "name": "InterestFor",
+          "type": "string?"
+        },
+        {
+          "name": "Background",
+          "type": "string?"
+        },
+        {
+          "name": "Padding",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlock",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlockStart",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlockEnd",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInline",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInlineStart",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInlineEnd",
+          "type": "string?"
+        },
+        {
+          "name": "Border",
+          "type": "string?"
+        },
+        {
+          "name": "BorderWidth",
+          "type": "string?"
+        },
+        {
+          "name": "BorderStyle",
+          "type": "string?"
+        },
+        {
+          "name": "BorderColor",
+          "type": "string?"
+        },
+        {
+          "name": "BorderRadius",
+          "type": "string?"
+        },
+        {
+          "name": "BlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "MinBlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "MaxBlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "InlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "MinInlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "MaxInlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "Overflow",
+          "type": "string?"
+        },
+        {
+          "name": "Display",
+          "type": "string?"
+        },
+        {
+          "name": "OnClick",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "click",
+        "focus"
+      ],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisClickableChip",
+      "element": "s-clickable-chip",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-clickable-chip>`, an interactive or dismissible chip.",
+      "parameters": [
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        },
+        {
+          "name": "Removable",
+          "type": "bool"
+        },
+        {
+          "name": "Hidden",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "Href",
+          "type": "string?"
+        },
+        {
+          "name": "CommandFor",
+          "type": "string?"
+        },
+        {
+          "name": "Command",
+          "type": "PolarisCommand"
+        },
+        {
+          "name": "InterestFor",
+          "type": "string?"
+        },
+        {
+          "name": "OnClick",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnRemove",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnAfterHide",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "afterhide",
+        "click",
+        "remove"
+      ],
+      "slots": [
+        "children",
+        "graphic"
+      ]
+    },
+    {
+      "wrapper": "PolarisColorField",
+      "element": "s-color-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-color-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Alpha",
+          "type": "bool"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisColorPicker",
+      "element": "s-color-picker",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-color-picker>`, the palette with no field chrome.",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Alpha",
+          "type": "bool"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "change",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisDateField",
+      "element": "s-date-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-date-field>`, a single date with a picker.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "View",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultView",
+          "type": "string?"
+        },
+        {
+          "name": "Allow",
+          "type": "string?"
+        },
+        {
+          "name": "Disallow",
+          "type": "string?"
+        },
+        {
+          "name": "AllowDays",
+          "type": "string?"
+        },
+        {
+          "name": "DisallowDays",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnInvalid",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnViewChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input",
+        "invalid",
+        "viewchange"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisDatePicker",
+      "element": "s-date-picker",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-date-picker>`, the calendar on its own.",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "View",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultView",
+          "type": "string?"
+        },
+        {
+          "name": "Type",
+          "type": "PolarisDatePickerType"
+        },
+        {
+          "name": "VisibleMonths",
+          "type": "PolarisDatePickerVisibleMonths"
+        },
+        {
+          "name": "Allow",
+          "type": "string?"
+        },
+        {
+          "name": "Disallow",
+          "type": "string?"
+        },
+        {
+          "name": "AllowDays",
+          "type": "string?"
+        },
+        {
+          "name": "DisallowDays",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnViewChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input",
+        "viewchange"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisDivider",
+      "element": "s-divider",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-divider>`.",
+      "parameters": [
+        {
+          "name": "Direction",
+          "type": "PolarisDividerDirection"
+        },
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        }
+      ],
+      "events": [],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisDropZone",
+      "element": "s-drop-zone",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-drop-zone>`, for uploading files by drag and drop.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Accept",
+          "type": "string?"
+        },
+        {
+          "name": "Multiple",
+          "type": "bool"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnDropRejected",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "change",
+        "droprejected",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisEmailField",
+      "element": "s-email-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-email-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "MaxLength",
+          "type": "int?"
+        },
+        {
+          "name": "MinLength",
+          "type": "int?"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisEmptyState",
+      "element": "s-empty-state",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-empty-state>`.",
+      "parameters": [
+        {
+          "name": "Heading",
+          "type": "string?"
+        },
+        {
+          "name": "Subheading",
+          "type": "RenderFragment?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "graphic",
+        "subheading",
+        "primary-action",
+        "secondary-actions"
+      ]
+    },
+    {
+      "wrapper": "PolarisGrid",
+      "element": "s-grid",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-grid>`, a matrix of rows and columns.",
+      "parameters": [
+        {
+          "name": "GridTemplateColumns",
+          "type": "string?"
+        },
+        {
+          "name": "GridTemplateRows",
+          "type": "string?"
+        },
+        {
+          "name": "Gap",
+          "type": "string?"
+        },
+        {
+          "name": "RowGap",
+          "type": "string?"
+        },
+        {
+          "name": "ColumnGap",
+          "type": "string?"
+        },
+        {
+          "name": "JustifyContent",
+          "type": "string?"
+        },
+        {
+          "name": "AlignContent",
+          "type": "string?"
+        },
+        {
+          "name": "JustifyItems",
+          "type": "string?"
+        },
+        {
+          "name": "AlignItems",
+          "type": "string?"
+        },
+        {
+          "name": "PlaceContent",
+          "type": "string?"
+        },
+        {
+          "name": "PlaceItems",
+          "type": "string?"
+        },
+        {
+          "name": "AccessibilityRole",
+          "type": "string?"
+        },
+        {
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "Background",
+          "type": "string?"
+        },
+        {
+          "name": "Padding",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlock",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlockStart",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlockEnd",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInline",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInlineStart",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInlineEnd",
+          "type": "string?"
+        },
+        {
+          "name": "Border",
+          "type": "string?"
+        },
+        {
+          "name": "BorderWidth",
+          "type": "string?"
+        },
+        {
+          "name": "BorderStyle",
+          "type": "string?"
+        },
+        {
+          "name": "BorderColor",
+          "type": "string?"
+        },
+        {
+          "name": "BorderRadius",
+          "type": "string?"
+        },
+        {
+          "name": "BlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "MinBlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "MaxBlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "InlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "MinInlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "MaxInlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "Overflow",
+          "type": "string?"
+        },
+        {
+          "name": "Display",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisGridItem",
+      "element": "s-grid-item",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-grid-item>`, one cell of a `PolarisGrid`.",
+      "parameters": [
+        {
+          "name": "GridColumn",
+          "type": "string?"
+        },
+        {
+          "name": "GridRow",
+          "type": "string?"
+        },
+        {
+          "name": "AccessibilityRole",
+          "type": "string?"
+        },
+        {
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "Background",
+          "type": "string?"
+        },
+        {
+          "name": "Padding",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlock",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlockStart",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingBlockEnd",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInline",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInlineStart",
+          "type": "string?"
+        },
+        {
+          "name": "PaddingInlineEnd",
+          "type": "string?"
+        },
+        {
+          "name": "Border",
+          "type": "string?"
+        },
+        {
+          "name": "BorderWidth",
+          "type": "string?"
+        },
+        {
+          "name": "BorderStyle",
+          "type": "string?"
+        },
+        {
+          "name": "BorderColor",
+          "type": "string?"
+        },
+        {
+          "name": "BorderRadius",
+          "type": "string?"
+        },
+        {
+          "name": "BlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "MinBlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "MaxBlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "InlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "MinInlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "MaxInlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "Overflow",
+          "type": "string?"
+        },
+        {
+          "name": "Display",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisHeading",
+      "element": "s-heading",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-heading>`.",
+      "parameters": [
+        {
+          "name": "FontSize",
+          "type": "PolarisFontSize"
+        },
+        {
+          "name": "LineClamp",
+          "type": "int?"
+        },
+        {
+          "name": "AccessibilityRole",
+          "type": "string?"
+        },
+        {
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisIcon",
+      "element": "s-icon",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-icon>`.",
+      "parameters": [
+        {
+          "name": "Type",
+          "type": "string?"
+        },
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        },
+        {
+          "name": "Size",
+          "type": "PolarisIconSize"
+        },
+        {
+          "name": "InterestFor",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisImage",
+      "element": "s-image",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-image>`.",
+      "parameters": [
+        {
+          "name": "Src",
+          "type": "string?"
+        },
+        {
+          "name": "SrcSet",
+          "type": "string?"
+        },
+        {
+          "name": "Sizes",
+          "type": "string?"
+        },
+        {
+          "name": "Alt",
+          "type": "string?"
+        },
+        {
+          "name": "AspectRatio",
+          "type": "string?"
+        },
+        {
+          "name": "ObjectFit",
+          "type": "PolarisImageObjectFit"
+        },
+        {
+          "name": "Loading",
+          "type": "PolarisImageLoading"
+        },
+        {
+          "name": "AccessibilityRole",
+          "type": "PolarisImageAccessibilityRole"
+        },
+        {
+          "name": "InlineSize",
+          "type": "PolarisImageInlineSize"
+        },
+        {
+          "name": "Border",
+          "type": "string?"
+        },
+        {
+          "name": "BorderWidth",
+          "type": "string?"
+        },
+        {
+          "name": "BorderStyle",
+          "type": "string?"
+        },
+        {
+          "name": "BorderColor",
+          "type": "string?"
+        },
+        {
+          "name": "BorderRadius",
+          "type": "string?"
+        },
+        {
+          "name": "OnLoad",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnError",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "error",
+        "load"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisLink",
+      "element": "s-link",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-link>`, for navigating to another page.",
+      "parameters": [
+        {
+          "name": "Href",
+          "type": "string?"
+        },
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Target",
+          "type": "PolarisLinkTarget"
+        },
+        {
+          "name": "Download",
+          "type": "string?"
+        },
+        {
+          "name": "Lang",
+          "type": "string?"
+        },
+        {
+          "name": "CommandFor",
+          "type": "string?"
+        },
+        {
+          "name": "Command",
+          "type": "PolarisCommand"
+        },
+        {
+          "name": "InterestFor",
+          "type": "string?"
+        },
+        {
+          "name": "OnClick",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "click"
+      ],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisListItem",
+      "element": "s-list-item",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-list-item>`.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisMenu",
+      "element": "s-menu",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-menu>`, a list of actions that apply to one resource.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisModal",
+      "element": "s-modal",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-modal>`.",
+      "parameters": [
+        {
+          "name": "Heading",
+          "type": "string?"
+        },
+        {
+          "name": "Padding",
+          "type": "PolarisModalPadding"
+        },
+        {
+          "name": "Size",
+          "type": "PolarisModalSize"
+        },
+        {
+          "name": "OnShow",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnHide",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "hide",
+        "show"
+      ],
+      "slots": [
+        "children",
+        "primary-action",
+        "secondary-actions"
+      ]
+    },
+    {
+      "wrapper": "PolarisMoneyField",
+      "element": "s-money-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-money-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Min",
+          "type": "double?"
+        },
+        {
+          "name": "Max",
+          "type": "double?"
+        },
+        {
+          "name": "CurrencyCode",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisNumber",
+      "element": "s-number",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-number>`, an inline numeric value.",
+      "parameters": [
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        },
+        {
+          "name": "FontSize",
+          "type": "PolarisFontSize"
+        },
+        {
+          "name": "FontWeight",
+          "type": "PolarisFontWeight"
+        },
+        {
+          "name": "Dir",
+          "type": "PolarisTextDirection?"
+        },
+        {
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        }
+      ],
+      "events": [],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisNumberField",
+      "element": "s-number-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-number-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Step",
+          "type": "double?"
+        },
+        {
+          "name": "Min",
+          "type": "double?"
+        },
+        {
+          "name": "Max",
+          "type": "double?"
+        },
+        {
+          "name": "Prefix",
+          "type": "string?"
+        },
+        {
+          "name": "Suffix",
+          "type": "string?"
+        },
+        {
+          "name": "InputMode",
+          "type": "PolarisNumberFieldInputMode"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisOption",
+      "element": "s-option",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-option>`.",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "Selected",
+          "type": "bool"
+        },
+        {
+          "name": "DefaultSelected",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisOptionGroup",
+      "element": "s-option-group",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-option-group>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisOrderedList",
+      "element": "s-ordered-list",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-ordered-list>`.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisPage",
+      "element": "s-page",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-page>`, the top-level container for a screen.",
+      "parameters": [
+        {
+          "name": "Heading",
+          "type": "string?"
+        },
+        {
+          "name": "InlineSize",
+          "type": "PolarisPageInlineSize"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children",
+        "aside",
+        "breadcrumb-actions",
+        "primary-action",
+        "secondary-actions",
+        "supplemental-start"
+      ]
+    },
+    {
+      "wrapper": "PolarisText",
+      "element": "s-paragraph",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.",
+      "parameters": [
+        {
+          "name": "Paragraph",
+          "type": "bool"
+        },
+        {
+          "name": "Type",
+          "type": "PolarisTextType"
+        },
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        },
+        {
+          "name": "FontSize",
+          "type": "PolarisFontSize"
+        },
+        {
+          "name": "FontWeight",
+          "type": "PolarisFontWeight"
+        },
+        {
+          "name": "LineClamp",
+          "type": "int?"
+        },
+        {
+          "name": "InterestFor",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisPasswordField",
+      "element": "s-password-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-password-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "MaxLength",
+          "type": "int?"
+        },
+        {
+          "name": "MinLength",
+          "type": "int?"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisPopover",
+      "element": "s-popover",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-popover>`.",
+      "parameters": [
+        {
+          "name": "MaxBlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "BlockSize",
+          "type": "string?"
+        },
+        {
+          "name": "MaxInlineSize",
+          "type": "string?"
+        },
+        {
+          "name": "InlineSize",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisProgress",
+      "element": "s-progress",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-progress>`.",
+      "parameters": [
+        {
+          "name": "Value",
+          "type": "double?"
+        },
+        {
+          "name": "Max",
+          "type": "double?"
+        },
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        }
+      ],
+      "events": [],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisQueryContainer",
+      "element": "s-query-container",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-query-container>`.",
+      "parameters": [
+        {
+          "name": "ContainerName",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisSearchField",
+      "element": "s-search-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-search-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "MaxLength",
+          "type": "int?"
+        },
+        {
+          "name": "MinLength",
+          "type": "int?"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisSection",
+      "element": "s-section",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-section>`, a labelled group inside a page.",
+      "parameters": [
+        {
+          "name": "Heading",
+          "type": "string?"
+        },
+        {
+          "name": "Subheading",
+          "type": "string?"
+        },
+        {
+          "name": "Padding",
+          "type": "PolarisSectionPadding"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children",
+        "accessory",
+        "graphic",
+        "primary-action",
+        "secondary-actions",
+        "supplemental"
+      ]
+    },
+    {
+      "wrapper": "PolarisSelect",
+      "element": "s-select",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-select>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "Icon",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "change",
+        "input"
+      ],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisSpinner",
+      "element": "s-spinner",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-spinner>`.",
+      "parameters": [
+        {
+          "name": "Size",
+          "type": "PolarisSpinnerSize"
+        }
+      ],
+      "events": [],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisStack",
+      "element": "s-stack",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-stack>`, the layout primitive for a single axis of spacing.",
+      "parameters": [
+        {
+          "name": "Direction",
+          "type": "PolarisStackDirection"
+        },
+        {
+          "name": "Gap",
+          "type": "PolarisGap"
+        },
+        {
+          "name": "RowGap",
+          "type": "PolarisGap?"
+        },
+        {
+          "name": "ColumnGap",
+          "type": "PolarisGap?"
+        },
+        {
+          "name": "JustifyContent",
+          "type": "string?"
+        },
+        {
+          "name": "AlignItems",
+          "type": "string?"
+        },
+        {
+          "name": "AlignContent",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisSwitch",
+      "element": "s-switch",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-switch>`, for a setting that applies immediately.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Checked",
+          "type": "bool"
+        },
+        {
+          "name": "DefaultChecked",
+          "type": "bool?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "change",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisTable",
+      "element": "s-table",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-table>`.",
+      "parameters": [
+        {
+          "name": "Loading",
+          "type": "bool"
+        },
+        {
+          "name": "Variant",
+          "type": "string?"
+        },
+        {
+          "name": "Paginate",
+          "type": "bool"
+        },
+        {
+          "name": "HasNextPage",
+          "type": "bool"
+        },
+        {
+          "name": "HasPreviousPage",
+          "type": "bool"
+        },
+        {
+          "name": "Filters",
+          "type": "RenderFragment?"
+        },
+        {
+          "name": "ChildContent",
+          "type": "RenderFragment?"
+        },
+        {
+          "name": "OnNextPage",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnPreviousPage",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "nextpage",
+        "previouspage"
+      ],
+      "slots": [
+        "children",
+        "filters"
+      ]
+    },
+    {
+      "wrapper": "PolarisTableHeader",
+      "element": "s-table-header",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-table-header>`.",
+      "parameters": [
+        {
+          "name": "Format",
+          "type": "PolarisTableHeaderFormat"
+        },
+        {
+          "name": "ListSlot",
+          "type": "PolarisTableListSlot"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisTableHeaderRow",
+      "element": "s-table-header-row",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-table-header-row>`.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisTableBody",
+      "element": "s-table-body",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-table-body>`.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisTableRow",
+      "element": "s-table-row",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-table-row>`.",
+      "parameters": [
+        {
+          "name": "ClickDelegate",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisTableCell",
+      "element": "s-table-cell",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-table-cell>`.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisText",
+      "element": "s-text",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.",
+      "parameters": [
+        {
+          "name": "Paragraph",
+          "type": "bool"
+        },
+        {
+          "name": "Type",
+          "type": "PolarisTextType"
+        },
+        {
+          "name": "Tone",
+          "type": "PolarisTone"
+        },
+        {
+          "name": "Color",
+          "type": "PolarisColor"
+        },
+        {
+          "name": "FontSize",
+          "type": "PolarisFontSize"
+        },
+        {
+          "name": "FontWeight",
+          "type": "PolarisFontWeight"
+        },
+        {
+          "name": "LineClamp",
+          "type": "int?"
+        },
+        {
+          "name": "InterestFor",
+          "type": "string?"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisTextArea",
+      "element": "s-text-area",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-text-area>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Rows",
+          "type": "int?"
+        },
+        {
+          "name": "MaxLength",
+          "type": "int?"
+        },
+        {
+          "name": "MinLength",
+          "type": "int?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisTextField",
+      "element": "s-text-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-text-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Icon",
+          "type": "string?"
+        },
+        {
+          "name": "Prefix",
+          "type": "string?"
+        },
+        {
+          "name": "Suffix",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "MaxLength",
+          "type": "int?"
+        },
+        {
+          "name": "MinLength",
+          "type": "int?"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": [
+        "accessory"
+      ]
+    },
+    {
+      "wrapper": "PolarisThumbnail",
+      "element": "s-thumbnail",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-thumbnail>`, a small preview of content, a product or media.",
+      "parameters": [
+        {
+          "name": "Src",
+          "type": "string?"
+        },
+        {
+          "name": "Alt",
+          "type": "string?"
+        },
+        {
+          "name": "Size",
+          "type": "PolarisSize"
+        },
+        {
+          "name": "OnLoad",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnError",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "error",
+        "load"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisTooltip",
+      "element": "s-tooltip",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-tooltip>`.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisUnorderedList",
+      "element": "s-unordered-list",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-unordered-list>`.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisUrlField",
+      "element": "s-url-field",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-url-field>`.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?"
+        },
+        {
+          "name": "Details",
+          "type": "string?"
+        },
+        {
+          "name": "Error",
+          "type": "string?"
+        },
+        {
+          "name": "Placeholder",
+          "type": "string?"
+        },
+        {
+          "name": "Value",
+          "type": "string?"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "string?"
+        },
+        {
+          "name": "Name",
+          "type": "string?"
+        },
+        {
+          "name": "Required",
+          "type": "bool"
+        },
+        {
+          "name": "Disabled",
+          "type": "bool"
+        },
+        {
+          "name": "ReadOnly",
+          "type": "bool"
+        },
+        {
+          "name": "MaxLength",
+          "type": "int?"
+        },
+        {
+          "name": "MinLength",
+          "type": "int?"
+        },
+        {
+          "name": "Autocomplete",
+          "type": "string?"
+        },
+        {
+          "name": "LabelAccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
+        },
+        {
+          "name": "OnInput",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnChange",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "blur",
+        "change",
+        "focus",
+        "input"
+      ],
+      "slots": []
+    }
+  ]
+}

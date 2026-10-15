@@ -1,0 +1,46 @@
+{
+  "minPolarisVersion": "1.1",
+  "elements": [
+    {
+      "element": "s-accordion",
+      "officialName": "Accordion",
+      "category": "layout-and-structure",
+      "slug": "accordion",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/accordion",
+      "wrapper": "PolarisAccordion",
+      "base": "PolarisElementComponentBase",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps a fixture element with a value Polaris does not reflect.",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The panel content."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "heading is the only accessible name the panel has."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "A fixture, not a real Polaris element.",
+      "parameters": [
+        {
+          "name": "Label",
+          "type": "string?",
+          "kind": "attribute",
+          "doc": "Visible label.",
+          "default": null
+        },
+        {
+          "name": "Value",
+          "type": "string?",
+          "kind": "dom property",
+          "doc": "The field value; not reflected.",
+          "default": null
+        }
+      ]
+    }
+  ]
+}

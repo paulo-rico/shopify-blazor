@@ -1,0 +1,150 @@
+# Publishes a release when a version tag is pushed.
+#
+# Separate from CI on purpose. CI answers "is main healthy?" on every push; this answers "is this
+# exact commit a release?" and is the only workflow with permission to write to a package feed. A
+# release that also runs on every push is a release that publishes by accident.
+#
+# Publishing to nuget.org happens only when the NUGET_API_KEY secret exists, so a fork or a clone
+# without the secret still produces the packages and the GitHub release.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to pack (informational; the version comes from Directory.Build.props)"
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+
+jobs:
+  release:
+    name: Build, verify, pack and release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Python
+        # The toolkit's generators and its template verifier are Python, dependency-free.
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test
+        # "0 tests passed" is green and proves nothing, so the totals are asserted.
+        run: |
+          set -euo pipefail
+          dotnet test --no-build --configuration Release \
+            --logger "trx;LogFileName=results.trx" \
+            --results-directory TestResults
+          grep -ho 'total="[0-9]*"' TestResults/*.trx | sort | uniq -c
+          if grep -q 'total="0"' TestResults/*.trx; then
+            echo "A test project ran no tests."
+            exit 1
+          fi
+
+      - name: Verify the template generates and builds
+        # A template is not compiled by the solution build, so a broken one would ship silently.
+        run: python3 tools/verify-template.py
+
+      - name: Check generated files have not drifted
+        run: python3 tools/check-drift.py
+
+      - name: Pack
+        run: dotnet pack --no-build --configuration Release --output artifacts
+
+      - name: Verify what the packages actually contain
+        # A library shipping JavaScript needs the Razor SDK. Get that wrong and the package builds,
+        # the file is in wwwroot, and the browser gets a 404 — which surfaces as components that
+        # render perfectly and do nothing. The package is the only thing that proves it shipped.
+        #
+        # Each package type has its own contract, and "no JavaScript" is only a failure for the two
+        # that are supposed to have some: the CLI is a tool package and the template ships content.
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, sys, zipfile
+
+          failed = False
+
+          for package in sorted(glob.glob("artifacts/*.nupkg")):
+              names = zipfile.ZipFile(package).namelist()
+
+              if "Templates" in package:
+                  manifests = [n for n in names if n.endswith(".template.config/template.json")]
+                  if not manifests:
+                      print(f"{package}: NO TEMPLATE MANIFEST")
+                      failed = True
+                  else:
+                      print(f"{package}: {manifests[0]}")
+                  continue
+
+              if "Cli" in package:
+                  settings = [n for n in names if n.endswith("DotnetToolSettings.xml")]
+                  if not settings:
+                      print(f"{package}: NO DOTNET TOOL SETTINGS — 'dotnet tool install' would fail")
+                      failed = True
+                  else:
+                      print(f"{package}: {settings[0]}")
+                  continue
+
+              javascript = [n for n in names if n.endswith(".js")]
+              if not javascript:
+                  print(f"{package}: NO JAVASCRIPT SHIPPED")
+                  failed = True
+              else:
+                  print(f"{package}: {javascript}")
+
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Publish to nuget.org
+        # Guarded so that a clone without the secret produces a GitHub release and no publish.
+        if: ${{ secrets.NUGET_API_KEY != '' }}
+        run: |
+          set -euo pipefail
+          for package in artifacts/*.nupkg; do
+            dotnet nuget push "$package" \
+              --api-key "${{ secrets.NUGET_API_KEY }}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          gh release create "$tag" \
+            --title "$tag" \
+            --generate-notes \
+            artifacts/*.nupkg
+
+      - name: Upload packages as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/*.nupkg
+          if-no-files-found: error

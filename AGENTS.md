@@ -24,17 +24,37 @@ Both directories are git-ignored. Without them `dotnet` fails before doing anyth
 ## Commands
 
 ```sh
-dotnet test                                    # both suites, 79 tests
+dotnet test                                    # every suite: components, toolkit, CLI
 dotnet build                                   # whole solution
 dotnet run --project samples/Shopify.Blazor.SampleApp   # http://localhost:3458
 ```
 
-Verification that needs a browser — no npm, no test framework, Node 24 only:
+Generated files and the tools that own them. Each generator writes a committed file, so each can
+drift; `check-drift.py` runs them and compares, without touching the working tree:
+
+```sh
+python3 tools/generate-component-reference.py       # docs/components.md
+python3 tools/generate-component-inventory.py       # docs/component-inventory.{json,md} + the CLI catalogue
+python3 tools/generate-component-inventory.py --check   # same, but exits 1 on drift and writes nothing
+python3 tools/check-drift.py                        # every generated file, plus the template's pinned version
+python3 tools/generate-component.py                 # emit a wrapper from the spec (golden-tested)
+python3 tools/tests/run.py                          # the generator tests (stdlib unittest only)
+```
+
+Verification that needs a browser — no npm, no test framework, Node 24 only. `--assert` turns the
+report into a test: it exits non-zero unless every element the gallery claims is defined, upgraded
+and present, the form values reach the request, a click reaches C#, and the static assets are served.
 
 ```sh
 dotnet run --project samples/Shopify.Blazor.SampleApp &
-node tools/verify-in-browser.mjs http://127.0.0.1:3459/components
-python3 tools/generate-component-reference.py    # regenerate docs/components.md
+node tools/verify-in-browser.mjs http://127.0.0.1:3459/components --assert
+```
+
+The template is not built by the solution, so it has its own end-to-end check — pack, install,
+generate and build every parameter combination:
+
+```sh
+python3 tools/verify-template.py
 ```
 
 ## The constraints that fail silently
@@ -125,7 +145,48 @@ Read these before changing anything in `src/`.
     pattern also matches any shell whose command line contains that text — a wrapper script, an
     editor task, or the very script doing the killing. `bin/shopify-dev` SIGTERMed itself this way,
     leaving the app running and the port looking permanently busy. Use a character class
-    (`Shopify[.]Blazor`) so the pattern matches the target text without containing it.
+    (`Shopify[.]Blazor`) so the pattern matches the target text without containing it. A character
+    class is not enough on its own: `pkill -f "Shopify[.]Blazor"` still matched this session's own
+    `dotnet run --project samples/Shopify.Blazor.SampleApp` command line and killed it before it
+    started. Kill a dev server by port (`fuser -k -n tcp 3459`) or by a recorded pid, not by name.
+
+19. **`clearProperties` must never set an array-valued property to `undefined`.** The interop layer
+    resets a property by assigning it, and for `s-choice-list.values` that is an uncaught
+    `TypeError: Cannot read properties of undefined (reading 'join')` thrown inside Polaris — six
+    times per page render, while the markup looks perfect. An array property is cleared to `[]`
+    instead. `PolarisChoiceList` sidesteps it entirely by always writing an array, even an empty one;
+    the JS fix is what protects the next component that declares `ClearedProperties`. Only the
+    browser verification can see this class of failure: bUnit asserts the interop *call*, not what
+    Shopify does with it.
+
+20. **A project template is not compiled by the solution build.** Nothing in `dotnet build` reads
+    `templates/**`, so a template can be broken in four ways that all ship silently:
+    - its content sits one level too deep and every generated project nests under a stray folder
+      (the directory holding `.template.config` **is** the template root);
+    - a conditional directive is written in the wrong syntax — a `.razor` file needs
+      `@*#if (symbol)` … `##endif*@`, and a bare `#if` is simply left in the output, where Razor then
+      fails to compile it;
+    - a file that a parameter excludes is still `@using`-ed or linked from a page that remains;
+    - `dotnet pack` fails with **NU5017** ("no dependencies nor content") even though the package was
+      written correctly, because a template has no assembly — set `<IncludeSymbols>false</IncludeSymbols>`.
+    `tools/verify-template.py` packs, installs, generates and builds every parameter combination,
+    which is the only thing that catches any of this.
+
+21. **Renaming a root namespace breaks implicit enclosing-namespace lookup.** The sample app's
+    `ProductsService` is in `Shopify.Blazor.SampleApp.Services`, so it found `IShopifyAdminApi` by
+    walking up to the enclosing `Shopify.Blazor` without a `using`. The template renames that root
+    namespace, the walk-up stops working, and the generated project fails to compile with "the type
+    or namespace name 'IShopifyAdminApi' could not be found" while this repository builds perfectly.
+    Consume the toolkit's namespaces with explicit `using` directives in anything a template copies.
+
+22. **Blazor inserts a parent element before its children, so Polaris sees an incomplete subtree.**
+    In plain HTML the parser upgrades an element once its whole subtree is present; under Interactive
+    Server the renderer patches the DOM node by node, so `s-table` arrives before its
+    `s-table-header-row` and `s-choice-list` before its `s-choice` children. Polaris logs a warning
+    about the missing child (`Table component is missing TableHeaderRow`, `ChoiceList should have at
+    least one choice`) on every interactive render. The warnings are noise, but the habit they
+    demand is real: never rely on a Polaris component reading its children at upgrade time, and read
+    them from C# (which knows the tree) rather than from the DOM.
 
 ## Resetting the build tree
 

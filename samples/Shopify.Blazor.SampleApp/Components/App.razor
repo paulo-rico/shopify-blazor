@@ -16,12 +16,26 @@
 
     <title>Shopify Blazor Toolkit — sample app</title>
 
+    @*
+        The reconnection dialog's styles. A plain static file rather than a scoped .razor.css, so it
+        carries no dependency on the assembly name and works identically in the sample and in a
+        generated project.
+    *@
+    <link rel="stylesheet" href="css/reconnect-modal.css" />
+
     <HeadOutlet />
 </head>
 <body>
     <Routes />
 
+    @*
+        Reports a lost SignalR circuit. Deliberately static markup: the dialog has to be shown by
+        JavaScript when no circuit exists to render anything.
+    *@
+    <ReconnectModal />
+
     <script src="_framework/blazor.web.js"></script>
+    <script type="module" src="js/reconnect-modal.js"></script>
     <script type="module" src="js/shopify-fetch.js"></script>
 </body>
 </html>

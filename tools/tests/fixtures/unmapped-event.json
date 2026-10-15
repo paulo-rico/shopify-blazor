@@ -1,0 +1,41 @@
+{
+  "minPolarisVersion": "1.1",
+  "elements": [
+    {
+      "element": "s-accordion",
+      "officialName": "Accordion",
+      "category": "layout-and-structure",
+      "slug": "accordion",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/accordion",
+      "wrapper": "PolarisAccordion",
+      "base": "PolarisElementComponentBase",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps a fixture element that raises an event with no constant.",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The panel content."
+        }
+      ],
+      "events": [
+        "toggle"
+      ],
+      "accessibility": [
+        "heading is the only accessible name the panel has."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "A fixture, not a real Polaris element.",
+      "parameters": [
+        {
+          "name": "OnToggle",
+          "type": "EventCallback<PolarisEventArgs>",
+          "kind": "event callback",
+          "doc": "Raised on toggle.",
+          "default": null
+        }
+      ]
+    }
+  ]
+}

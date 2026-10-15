@@ -1,0 +1,83 @@
+# Changelog
+
+Notable changes to the Shopify Blazor Toolkit, newest first.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project follows
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html), with the pre-1.0 caveat spelled out in
+[docs/versioning.md](docs/versioning.md).
+
+**Nothing has been published to NuGet yet and no version has been tagged**, so every entry below is
+unreleased. The first planned release is `0.1.0-preview.1`.
+
+## [Unreleased]
+
+### Added
+
+- **`Polaris.Blazor`** — C# wrappers for every documented Shopify Polaris web component: all 50
+  top-level elements plus the 10 composed sub-elements they need, in 59 classes (`s-text` and
+  `s-paragraph` share one wrapper). Each wrapper renders the element Shopify defined, with typed
+  parameters, named-slot support and forwarded events. Polaris booleans are rendered as presence
+  attributes, `value`/`checked`/`selected` and array-valued properties are assigned as DOM properties
+  after the element upgrades, and numbers are formatted with the invariant culture.
+- **`Polaris.Blazor`** — a dependency-free JavaScript interop module that attaches DOM listeners only
+  for the events a page subscribes to, waits for a custom element to be defined before assigning its
+  properties, and detaches everything on disposal.
+- **`Shopify.Blazor`** — embedded-app infrastructure: App Bridge 4 interop (session tokens, toasts,
+  modals, navigation, resource picker, scopes, save bar), session-token validation, RFC 8693 token
+  exchange with per-shop caching, an Admin API GraphQL client, the embedded-framing middleware, and
+  startup configuration diagnostics.
+- **`Shopify.Blazor.Templates`** — a `dotnet new shopify-blazor` template that generates a working
+  embedded app: Blazor Web App with Interactive Server, Polaris components, App Bridge, a verified
+  authentication path, one authenticated Admin API endpoint, and a README with the setup steps.
+  Parameters: `--framework`, `--include-sample-pages`, `--include-admin-api-example`,
+  `--toolkit-version`.
+- **`Shopify.Blazor.Cli`** — the `shopify-blazor` global tool: `new`, `add page`, `add component`,
+  `configure` and `doctor`. It is a convenience wrapper over `dotnet new` and the filesystem, never
+  the only way to do something, and it refuses to overwrite a file without `--force`.
+- **Reference application** — embedded shell, dashboard, products page that calls the Admin API
+  through an authenticated endpoint, and a gallery of every wrapped component.
+- **Tooling** — a component reference generator, a component inventory (JSON and Markdown) with a
+  drift check, a wrapper generator with golden-file tests, a template verification script that packs
+  and builds every parameter combination, and a headless-Chrome verification script.
+- **Documentation** — getting started, the component reference, authentication, troubleshooting, a CLI
+  reference, a versioning and compatibility policy, and ADR 0001 for the hosting model.
+
+### Fixed
+
+- **A stale `s-choice-list` selection could never be cleared.** The component base class documented
+  `ClearedProperties` and gated its property write on it, but never called
+  `IPolarisInterop.ClearPropertiesAsync`. Nothing used the collection until `PolarisChoiceList`
+  arrived, where a leftover `values` array keeps options selected that the server has deselected, with
+  nothing wrong in the markup.
+- **Session tokens were verified against an endpoint that can never validate them.** They are HS256
+  signed with the app's API secret; the shop's `/.well-known/jwks.json` belongs to the Storefront and
+  Customer Account APIs, so RS256 verification could never succeed on any store.
+- **`Shopify.Blazor` shipped without `app-bridge.js`.** The project used `Microsoft.NET.Sdk` instead
+  of `Microsoft.NET.Sdk.Razor`, so the file was present in `wwwroot`, absent from the package, and
+  every App Bridge call failed at runtime.
+- **The app could not be embedded in the Admin at all.** Blazor's required `UseAntiforgery()`
+  middleware sets `X-Frame-Options` and `frame-ancestors 'self'`, which refuse the Admin's iframe,
+  while the app looks perfect in a normal browser tab.
+- **A missing access scope was reported as a gateway fault.** Shopify answers an unauthorised field
+  with HTTP 200 and an `errors` array, so the failure now surfaces as a permission problem that a
+  retry cannot fix, and the granted scopes are visible in diagnostics.
+- **`expires_in` never bound**, because a source-generated JSON context had no naming policy, so every
+  access token looked non-expiring.
+- **A revoked access token could be reused indefinitely**, because a 401 cleared only one of the two
+  caches holding it.
+- **"No token arrived" and "the token was refused" were indistinguishable**, so the first question
+  asked about a 401 had no answer.
+
+### Security
+
+- Session tokens are validated server-side against the app's API secret with the algorithm pinned;
+  no query string, form field or cookie is ever treated as identity.
+- The `dest` claim is treated as attacker-supplied and validated before it is interpolated into the
+  token-exchange URL, which carries the API secret.
+- The API secret and every Admin API access token stay server-side; only the public API key is
+  rendered into the page.
+- Missing scopes are surfaced explicitly (`ShopifyAdminApiException.IsAccessDenied`) rather than being
+  retried as if they were transient.
+- The app can be framed by the Admin origins in the configured policy and by nothing else; cookie,
+  origin and frame protections are tightened rather than weakened to make embedding work.
+- Development-only diagnostics are mapped in Development only, and never in a deployed app.

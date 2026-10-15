@@ -1,0 +1,435 @@
+@page "/components"
+@using Shopify.Blazor.AppBridge
+@using Polaris.Blazor.Interop
+@inject IPolarisInterop Interop
+@inject IAppBridgeInterop Bridge
+
+@*
+    The element names this page claims to render, for tools/verify-in-browser.mjs to read.
+
+    It is a single source of truth on purpose: the browser verification checks that every name here
+    is defined by Polaris, upgraded, and present at least once. A component added to the gallery is
+    therefore verified without touching the verification script, and a component listed but never
+    rendered fails the check rather than passing vacuously.
+*@
+<span id="polaris-probe-elements" data-elements="@string.Join(",", ProbedElements)" hidden></span>
+
+<PolarisStack Gap="PolarisGap.Base">
+    <PolarisSection Heading="Component gallery">
+        <PolarisText Paragraph="true">
+            Every control on this page is a Shopify Polaris web component rendered by a Razor
+            component from <code>Polaris.Blazor</code>. There is no custom CSS and no reimplementation:
+            the elements are Shopify's, and their appearance follows the merchant's admin branding.
+        </PolarisText>
+    </PolarisSection>
+
+    <PolarisSection Heading="Actions and feedback">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisButton Variant="PolarisButtonVariant.Primary" OnClick="CountClickAsync">
+                    Primary (@_clicks)
+                </PolarisButton>
+                <PolarisButton Variant="PolarisButtonVariant.Secondary">Secondary</PolarisButton>
+                <PolarisButton Variant="PolarisButtonVariant.Tertiary">Tertiary</PolarisButton>
+                <PolarisButton Tone="PolarisTone.Critical" Icon="delete" AccessibilityLabel="Delete the product">
+                    Delete
+                </PolarisButton>
+                <PolarisButton Disabled="true">Disabled</PolarisButton>
+                <PolarisButton Loading="true">Loading</PolarisButton>
+            </PolarisStack>
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisBadge Tone="PolarisTone.Success">Success</PolarisBadge>
+                <PolarisBadge Tone="PolarisTone.Warning">Warning</PolarisBadge>
+                <PolarisBadge Tone="PolarisTone.Critical">Critical</PolarisBadge>
+                <PolarisBadge Tone="PolarisTone.Info">Info</PolarisBadge>
+                <PolarisBadge Tone="PolarisTone.Neutral">Neutral</PolarisBadge>
+            </PolarisStack>
+
+            <PolarisBanner Heading="Informational banner" Tone="PolarisTone.Info" Dismissible="true" OnDismiss="DismissedAsync">
+                Dismiss this to see the event reach C# and a toast appear.
+            </PolarisBanner>
+
+            <PolarisSpinner AccessibilityLabel="An example spinner" />
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Forms">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisTextField Label="Product title"
+                              Details="Shown to customers in the storefront."
+                              Value="_title"
+                              OnChange="TitleChangedAsync" />
+
+            <PolarisTextField Label="SKU with an error"
+                              Error="SKU must be unique."
+                              Value="DUPLICATE-1" />
+
+            <PolarisTextArea Label="Description"
+                             Rows="3"
+                             Value="_description"
+                             OnChange="DescriptionChangedAsync" />
+
+            <PolarisCheckbox Label="Charge tax on this product"
+                             Checked="_chargeTax"
+                             OnChange="TaxChangedAsync" />
+
+            <PolarisSwitch Label="Publish immediately"
+                           Details="Applies as soon as it is toggled."
+                           Checked="_published"
+                           OnChange="PublishedChangedAsync" />
+
+            <PolarisSelect Label="Status" Value="_selectedStatus" OnChange="StatusChangedAsync">
+                    <PolarisOption Value="active">Active</PolarisOption>
+                    <PolarisOption Value="draft">Draft</PolarisOption>
+                    <PolarisOption Value="archived">Archived</PolarisOption>
+            </PolarisSelect>
+
+            @if (_lastChange is not null)
+            {
+                <PolarisBanner Heading="Last change seen by C#" Tone="PolarisTone.Success">
+                    <PolarisText>@_lastChange</PolarisText>
+                </PolarisBanner>
+            }
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Overlays">
+        <PolarisStack Gap="PolarisGap.Base">
+            @*
+                Declarative: no JavaScript at all. The button carries commandFor and Polaris wires
+                it to the modal, which also keeps it inside Shopify's user-gesture requirement.
+            *@
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisButton CommandFor="gallery-modal" Command="PolarisCommand.Show" Variant="PolarisButtonVariant.Primary">
+                    Open modal
+                </PolarisButton>
+                <PolarisButton CommandFor="gallery-popover" Command="PolarisCommand.Toggle">
+                    Toggle popover
+                </PolarisButton>
+            </PolarisStack>
+
+            <PolarisModal Id="gallery-modal" Heading="Polaris modal">
+                    <PolarisText Paragraph="true">
+                        Opened with commandFor, closed by the same mechanism, with no hand-written
+                        JavaScript on either side.
+                    </PolarisText>
+                @* The slot attribute sits on the button itself: Polaris validates slot children and
+                   rejects anything else, including a div that merely wraps a button. *@
+                <PolarisButton Slot="primary-action"
+                               CommandFor="gallery-modal"
+                               Command="PolarisCommand.Hide"
+                               Variant="PolarisButtonVariant.Primary">
+                    Done
+                </PolarisButton>
+            </PolarisModal>
+
+            <PolarisPopover Id="gallery-popover">
+                    <PolarisStack Gap="PolarisGap.Base">
+                        <PolarisText>Popovers do not block the page.</PolarisText>
+                        <PolarisButton Variant="PolarisButtonVariant.Tertiary" CommandFor="gallery-popover" Command="PolarisCommand.Hide">
+                            Close
+                        </PolarisButton>
+                    </PolarisStack>
+            </PolarisPopover>
+        </PolarisStack>
+    </PolarisSection>
+
+    @*
+        Every remaining wrapper, rendered once each so the browser verification can prove the element
+        is defined, upgraded and present. This is deliberately broad rather than pretty: a component
+        that is never rendered is a component nobody has seen work.
+    *@
+    <PolarisSection Heading="Every component: layout and structure">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisQueryContainer ContainerName="gallery-query">
+                <PolarisGrid GridTemplateColumns="repeat(2, 1fr)" Gap="base">
+                    <PolarisGridItem GridColumn="span 2" Border="base" BorderStyle="dashed" Padding="base">
+                        <PolarisHeading>A grid item spanning both columns</PolarisHeading>
+                    </PolarisGridItem>
+                    <PolarisGridItem Padding="base" Background="subdued">Column one</PolarisGridItem>
+                    <PolarisGridItem Padding="base" Background="subdued">Column two</PolarisGridItem>
+                </PolarisGrid>
+            </PolarisQueryContainer>
+
+            <PolarisBox Padding="base" Border="base" BorderRadius="base" Background="subdued">
+                <PolarisText>An s-box: the generic container, for a design no other component expresses.</PolarisText>
+            </PolarisBox>
+
+            <PolarisButtonGroup>
+                <PolarisButton Slot="primary-action" Variant="PolarisButtonVariant.Primary">Save</PolarisButton>
+                <PolarisButton Slot="secondary-actions">Cancel</PolarisButton>
+            </PolarisButtonGroup>
+
+            <PolarisOrderedList>
+                <PolarisListItem>Ordered list item one</PolarisListItem>
+                <PolarisListItem>Ordered list item two</PolarisListItem>
+            </PolarisOrderedList>
+
+            <PolarisUnorderedList>
+                <PolarisListItem>Unordered list item</PolarisListItem>
+            </PolarisUnorderedList>
+
+            @*
+                A table, rendered unconditionally. The runtime check further down renders one too, but
+                only after a click — and an element that is never on the page cannot be verified. The
+                browser check counts instances for exactly this reason: the earlier version of this
+                page passed its table checks on an empty DOM because "all zero rows are upgraded" is
+                vacuously true.
+            *@
+            <PolarisSection Padding="PolarisSectionPadding.None">
+                <PolarisTable>
+                    <PolarisTableHeaderRow>
+                        <PolarisTableHeader ListSlot="PolarisTableListSlot.Primary">Element</PolarisTableHeader>
+                        <PolarisTableHeader Format="PolarisTableHeaderFormat.Numeric">Instances</PolarisTableHeader>
+                    </PolarisTableHeaderRow>
+                    <PolarisTableBody>
+                        <PolarisTableRow>
+                            <PolarisTableCell><PolarisText Type="PolarisTextType.Strong">s-table</PolarisText></PolarisTableCell>
+                            <PolarisTableCell><PolarisNumber>1</PolarisNumber></PolarisTableCell>
+                        </PolarisTableRow>
+                    </PolarisTableBody>
+                </PolarisTable>
+            </PolarisSection>
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Every component: forms">
+        <PolarisStack Gap="PolarisGap.Base">
+            @* A choice list is the only multi-select, and values is an array property. *@
+            <PolarisChoiceList Label="Company name" Name="gallery-company">
+                <PolarisChoice Value="hidden">Hidden</PolarisChoice>
+                <PolarisChoice Value="optional">Optional</PolarisChoice>
+            </PolarisChoiceList>
+
+            <PolarisSelect Label="Option groups">
+                <PolarisOptionGroup Label="Grouped options">
+                    <PolarisOption Value="first">First</PolarisOption>
+                    <PolarisOption Value="second">Second</PolarisOption>
+                </PolarisOptionGroup>
+            </PolarisSelect>
+
+            <PolarisEmailField Label="Email" Placeholder="you@example.com" />
+            <PolarisPasswordField Label="Password" MinLength="8" />
+            <PolarisUrlField Label="Website" Placeholder="https://example.com" />
+            <PolarisSearchField Label="Search" Placeholder="Search items" />
+            <PolarisNumberField Label="Quantity" Step="5" Min="0" Max="100" />
+            <PolarisMoneyField Label="Regional price" CurrencyCode="GBP" />
+            <PolarisColorField Label="Brand colour" Value="#FF0000" />
+            <PolarisColorPicker Value="#00FF00" />
+            <PolarisDateField Label="Order date" />
+            <PolarisDatePicker VisibleMonths="PolarisDatePickerVisibleMonths.Two" />
+            <PolarisDropZone Label="Upload" Accept=".jpg,.png" Multiple="true" />
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Every component: status, media and text">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisChip Color="PolarisColor.Strong">A chip</PolarisChip>
+                <PolarisClickableChip Removable="true">A removable chip</PolarisClickableChip>
+                <PolarisIcon Type="product" />
+                <PolarisAvatar Initials="SB" Alt="Shopify Blazor" Size="PolarisSize.Large" />
+                <PolarisThumbnail Src="@SampleImage" Alt="A one-pixel placeholder" />
+            </PolarisStack>
+
+            <PolarisProgress AccessibilityLabel="Gallery progress" Value="3" Max="5" />
+            <PolarisProgress AccessibilityLabel="Gallery progress, indeterminate" />
+
+            <PolarisImage Src="@SampleImage"
+                          Alt="A one-pixel placeholder"
+                          AspectRatio="16/9"
+                          ObjectFit="PolarisImageObjectFit.Cover"
+                          BorderRadius="base" />
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisNumber FontWeight="PolarisFontWeight.Bold">1,204</PolarisNumber>
+                <PolarisText Color="PolarisColor.Subdued">An inline text run with a subdued colour.</PolarisText>
+                <PolarisLink Href="/components" Target="PolarisLinkTarget.Self">A link</PolarisLink>
+            </PolarisStack>
+
+            @*
+                A clickable surface, a menu and a tooltip all need an id: Polaris addresses them by
+                id from the trigger, and a tooltip with no id can never be shown.
+            *@
+            <PolarisClickable Padding="base" Background="subdued" BorderRadius="base">
+                A custom interactive surface
+            </PolarisClickable>
+
+            <PolarisMenu Id="gallery-menu" AccessibilityLabel="Gallery actions">
+                <PolarisButton Tone="PolarisTone.Critical">Delete</PolarisButton>
+            </PolarisMenu>
+
+            <PolarisTooltip Id="gallery-tooltip">Shown on hover or focus</PolarisTooltip>
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisButton CommandFor="gallery-menu" Command="PolarisCommand.Show">Open menu</PolarisButton>
+                <PolarisButton InterestFor="gallery-tooltip" AccessibilityLabel="Hover for a tooltip">Hover me</PolarisButton>
+            </PolarisStack>
+
+            <PolarisEmptyState Heading="Nothing to show yet" />
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Runtime check">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisText>
+                A Polaris element that fails to upgrade renders as an empty box while the markup looks
+                entirely correct. This asks the browser directly.
+            </PolarisText>
+
+            <PolarisButton OnClick="CheckAsync" Loading="_checking">Check the custom elements</PolarisButton>
+
+            @if (_runtimeStatus is not null)
+            {
+                <PolarisSection Padding="PolarisSectionPadding.None">
+                    <PolarisTable>
+                                    <PolarisTableHeaderRow>
+                                <PolarisTableHeader ListSlot="PolarisTableListSlot.Primary">Element</PolarisTableHeader>
+                                <PolarisTableHeader>Registered</PolarisTableHeader>
+                                <PolarisTableHeader>Instances</PolarisTableHeader>
+                                <PolarisTableHeader>Upgraded</PolarisTableHeader>
+                            </PolarisTableHeaderRow>
+                            <PolarisTableBody>
+                                @foreach (var entry in _runtimeStatus)
+                                {
+                                    <PolarisTableRow>
+                                        <PolarisTableCell><PolarisText Type="PolarisTextType.Strong">@entry.Key</PolarisText></PolarisTableCell>
+                                        <PolarisTableCell>
+                                            <PolarisBadge Tone="@(entry.Value.Defined ? PolarisTone.Success : PolarisTone.Critical)">
+                                                @(entry.Value.Defined ? "yes" : "no")
+                                            </PolarisBadge>
+                                        </PolarisTableCell>
+                                        <PolarisTableCell>@entry.Value.Count</PolarisTableCell>
+                                        <PolarisTableCell>
+                                            <PolarisBadge Tone="@(entry.Value.Upgraded ? PolarisTone.Success : PolarisTone.Warning)">
+                                                @(entry.Value.Upgraded ? "yes" : "no")
+                                            </PolarisBadge>
+                                        </PolarisTableCell>
+                                    </PolarisTableRow>
+                                }
+                            </PolarisTableBody>
+                            </PolarisTable>
+                </PolarisSection>
+            }
+        </PolarisStack>
+    </PolarisSection>
+</PolarisStack>
+
+@code {
+    /// <summary>
+    /// Every element this page renders, and therefore the list the browser verification checks.
+    /// </summary>
+    /// <remarks>
+    /// All 50 documented top-level Polaris elements plus the 10 composed sub-elements, which is
+    /// every element the toolkit wraps. Keeping the list complete is what makes the claim "all of
+    /// them work in a real browser" checkable rather than aspirational.
+    /// </remarks>
+    private static readonly string[] ProbedElements =
+    [
+        // Top-level: actions, feedback, forms, layout, media, overlays, typography.
+        "s-avatar", "s-badge", "s-banner", "s-box", "s-button", "s-button-group", "s-checkbox",
+        "s-chip", "s-choice-list", "s-clickable", "s-clickable-chip", "s-color-field",
+        "s-color-picker", "s-date-field", "s-date-picker", "s-divider", "s-drop-zone",
+        "s-email-field", "s-empty-state", "s-grid", "s-heading", "s-icon", "s-image", "s-link",
+        "s-menu", "s-modal", "s-money-field", "s-number", "s-number-field", "s-ordered-list",
+        "s-page", "s-paragraph", "s-password-field", "s-popover", "s-progress", "s-query-container",
+        "s-search-field", "s-section", "s-select", "s-spinner", "s-stack", "s-switch", "s-table",
+        "s-text", "s-text-area", "s-text-field", "s-thumbnail", "s-tooltip", "s-unordered-list",
+        "s-url-field",
+
+        // Composed sub-elements, which are only valid inside their parent.
+        "s-choice", "s-grid-item", "s-list-item", "s-option", "s-option-group", "s-table-body",
+        "s-table-cell", "s-table-header", "s-table-header-row", "s-table-row",
+    ];
+
+    /// <summary>
+    /// A one-pixel PNG, so the media components have something to load without a network dependency.
+    /// </summary>
+    private const string SampleImage =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    private int _clicks;
+    private bool _checking;
+    private string _title = "Organic cotton t-shirt";
+    private string _description = "Soft, midweight cotton.";
+    private bool _chargeTax = true;
+    private bool _published;
+    private string _selectedStatus = "draft";
+    private string? _lastChange;
+    private IReadOnlyDictionary<string, PolarisComponentStatus>? _runtimeStatus;
+
+    private async Task CountClickAsync(PolarisEventArgs args)
+    {
+        _clicks++;
+
+        // Modifier keys arrive with the event, which is how a C# handler can tell a plain click
+        // from shift-click without any JavaScript of its own.
+        if (args.ShiftKey)
+        {
+            await Bridge.ShowToastAsync($"Shift-clicked; count is {_clicks}.");
+        }
+    }
+
+    private async Task DismissedAsync(PolarisEventArgs args)
+    {
+        await Bridge.ShowToastAsync("The banner told C# it was dismissed.", isError: false);
+    }
+
+    private Task TitleChangedAsync(PolarisEventArgs args)
+    {
+        _title = args.Value ?? string.Empty;
+        return RecordAsync($"title = \"{_title}\"");
+    }
+
+    private Task DescriptionChangedAsync(PolarisEventArgs args)
+    {
+        _description = args.Value ?? string.Empty;
+        return RecordAsync($"description = \"{_description}\"");
+    }
+
+    private Task TaxChangedAsync(PolarisEventArgs args)
+    {
+        _chargeTax = args.Checked ?? false;
+        return RecordAsync($"chargeTax = {_chargeTax}");
+    }
+
+    private Task PublishedChangedAsync(PolarisEventArgs args)
+    {
+        _published = args.Checked ?? false;
+        return RecordAsync($"published = {_published}");
+    }
+
+    private Task StatusChangedAsync(PolarisEventArgs args)
+    {
+        _selectedStatus = args.Value ?? string.Empty;
+        return RecordAsync($"status = \"{_selectedStatus}\"");
+    }
+
+    private Task RecordAsync(string change)
+    {
+        _lastChange = change;
+        return Task.CompletedTask;
+    }
+
+    private async Task CheckAsync(PolarisEventArgs args)
+    {
+        _checking = true;
+
+        try
+        {
+            // Through IPolarisInterop, not IJSRuntime. The module's componentStatus is an ES module
+            // export, so invoking it as a global function throws and the page would report a failure
+            // that says nothing about the elements.
+            _runtimeStatus = await Interop.GetComponentStatusAsync(ProbedElements);
+        }
+        catch (JSException ex)
+        {
+            _lastChange = $"The runtime check failed: {ex.Message}";
+        }
+        finally
+        {
+            _checking = false;
+        }
+    }
+}

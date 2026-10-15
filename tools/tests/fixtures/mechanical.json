@@ -1,0 +1,46 @@
+{
+  "minPolarisVersion": "1.1",
+  "elements": [
+    {
+      "element": "s-accordion",
+      "officialName": "Accordion",
+      "category": "layout-and-structure",
+      "slug": "accordion",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/accordion",
+      "wrapper": "PolarisAccordion",
+      "base": "PolarisElementComponentBase",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps the fixture's <c>&lt;s-accordion&gt;</c>.",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The panel content."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "heading is the only accessible name the panel has."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "A fixture, not a real Polaris element: the live docs have no accordion. It exists because the generator's mechanical path has to be reproducible byte for byte.",
+      "parameters": [
+        {
+          "name": "Heading",
+          "type": "string?",
+          "kind": "attribute",
+          "doc": "Panel heading.",
+          "default": null
+        },
+        {
+          "name": "Open",
+          "type": "bool",
+          "kind": "attribute",
+          "doc": "Whether the panel starts open.",
+          "default": null
+        }
+      ]
+    }
+  ]
+}

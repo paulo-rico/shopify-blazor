@@ -1,0 +1,50 @@
+{
+  "generatedBy": "generate-component-inventory.py",
+  "components": [
+    {
+      "officialName": "Accordion",
+      "element": "s-accordion",
+      "category": "layout-and-structure",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/accordion",
+      "wrapper": "PolarisAccordion",
+      "wrapperBase": "PolarisElementComponentBase",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps the fixture's <c>&lt;s-accordion&gt;</c>.",
+      "supportedProperties": [
+        {
+          "name": "Heading",
+          "type": "string?",
+          "kind": "attribute",
+          "doc": "Panel heading.",
+          "default": null
+        },
+        {
+          "name": "Open",
+          "type": "bool",
+          "kind": "attribute",
+          "doc": "Whether the panel starts open.",
+          "default": null
+        }
+      ],
+      "eventDefinitions": [],
+      "slotDefinitions": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "The panel content."
+        }
+      ],
+      "accessibilityRequirements": [
+        "heading is the only accessible name the panel has."
+      ],
+      "minimumSupportedVersion": "1.1",
+      "testCoverage": [],
+      "implementationStatus": "wrapped",
+      "verification": "unverified",
+      "verifiedInBrowser": false,
+      "clearedProperties": [],
+      "notes": "A fixture.",
+      "composedInside": null
+    }
+  ]
+}

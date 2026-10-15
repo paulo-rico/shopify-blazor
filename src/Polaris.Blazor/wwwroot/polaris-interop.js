@@ -89,17 +89,20 @@ export async function setProperties(element, tagName, values) {
 }
 
 /**
- * Removes array-valued properties that were set from a previous render.
+ * Clears properties that were set from a previous render.
  *
- * A stale `values` array on `s-choice-list` keeps options selected that the server has since
- * deselected, and nothing about the markup shows it.
+ * An array-valued property is reset to an empty array rather than to `undefined`, and that is not
+ * cosmetic: Polaris reads `s-choice-list.values` with array methods, so `undefined` produces an
+ * uncaught "Cannot read properties of undefined (reading 'join')" inside the component. The other
+ * failure is the stale array itself, which keeps options selected that the server has since
+ * deselected, with nothing in the markup to show it.
  */
 export async function clearProperties(element, tagName, names) {
     requireElement(element, "clearProperties");
     await whenDefined(tagName);
 
     for (const name of names ?? []) {
-        element[name] = undefined;
+        element[name] = Array.isArray(element[name]) ? [] : undefined;
     }
 }
 

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Shopify.Blazor.Cli</RootNamespace>
+    <AssemblyName>shopify-blazor</AssemblyName>
+
+    <!--
+      PackAsTool, so 'dotnet tool install' produces the `shopify-blazor` command. IsPackable is
+      deliberately left at its default (true): the tool has to pack into artifacts/ alongside the
+      two libraries, and setting IsPackable=false here would silently drop it from a release.
+    -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>shopify-blazor</ToolCommandName>
+    <Description>Command line convenience wrapper for the Shopify Blazor Toolkit: scaffold an app from the template, add pages and component usage, validate local configuration, and diagnose a project.</Description>
+    <PackageTags>shopify;blazor;polaris;embedded-app;cli;dotnet-tool</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Conditional on purpose. A parallel workstream generates this file from the Polaris.Blazor
+      sources; if it has not landed yet the build must still succeed. The command that needs the
+      catalogue fails at runtime with an actionable message instead.
+    -->
+    <EmbeddedResource Include="Catalogue/polaris-catalogue.json"
+                      Condition="Exists('Catalogue/polaris-catalogue.json')"
+                      LogicalName="Shopify.Blazor.Cli.Catalogue.polaris-catalogue.json" />
+  </ItemGroup>
+
+</Project>

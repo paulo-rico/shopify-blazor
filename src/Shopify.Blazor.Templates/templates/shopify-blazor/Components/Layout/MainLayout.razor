@@ -1,0 +1,53 @@
+@using Shopify.Blazor.AppBridge
+@inherits LayoutComponentBase
+
+@*
+    The embedded shell.
+
+    ShopifyApp reports whether the page is actually inside the Admin. The same URL serves both the
+    embedded app and a direct browser tab, and App Bridge exists only in the former — so the
+    standalone case is explained rather than left looking like a blank, broken page.
+*@
+<ShopifyApp @ref="_app">
+    <PolarisPage Heading="Shopify.Blazor.SampleApp">
+        <PolarisStack Gap="PolarisGap.Large">
+            @if (_app?.IsEmbedded == false)
+            {
+                <PolarisBanner Heading="Opened outside the Shopify Admin"
+                               Tone="PolarisTone.Warning">
+                    App Bridge is not available here, so session tokens, toasts and navigation are
+                    inert and the Admin API cannot be called. Open the app from the store's Admin for
+                    the full experience. The layout below is real either way: Polaris components
+                    render in an ordinary browser too.
+                </PolarisBanner>
+            }
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
+                <PolarisButton Href="/" Target="PolarisLinkTarget.Self" Variant="PolarisButtonVariant.Tertiary">
+                    Dashboard
+                </PolarisButton>
+                @*#if (include-sample-pages && include-admin-api-example)
+                <PolarisButton Href="/products" Target="PolarisLinkTarget.Self" Variant="PolarisButtonVariant.Tertiary">
+                    Products
+                </PolarisButton>
+                ##endif*@
+                @*#if (include-sample-pages)
+                <PolarisButton Href="/components" Target="PolarisLinkTarget.Self" Variant="PolarisButtonVariant.Tertiary">
+                    Components
+                </PolarisButton>
+                ##endif*@
+            </PolarisStack>
+
+            <PolarisDivider />
+
+            @Body
+        </PolarisStack>
+    </PolarisPage>
+</ShopifyApp>
+
+@code {
+    [Inject]
+    private IAppBridgeInterop Bridge { get; set; } = default!;
+
+    private ShopifyApp? _app;
+}

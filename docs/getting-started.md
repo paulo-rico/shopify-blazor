@@ -22,6 +22,34 @@ outside the Shopify Admin; that is correct and expected — App Bridge only exis
 This is the fastest way to prove the component library works on your machine. If the components
 render as unstyled text, see [Troubleshooting](#troubleshooting).
 
+### Or generate your own app
+
+To start from a clean project rather than the sample:
+
+```sh
+dotnet new install Shopify.Blazor.Templates
+dotnet new shopify-blazor -n MyShopifyApp
+cd MyShopifyApp && dotnet run
+```
+
+The generated project has the same shell as the sample — App Bridge, the embedded framing policy, a
+verified session-token path, one authenticated endpoint — plus a README with the setup steps, and no
+sample pages if you pass `--include-sample-pages false`.
+
+Two things help immediately afterwards:
+
+```sh
+shopify-blazor doctor          # checks for the failures that do not announce themselves
+shopify-blazor add page Orders # a page with loading, empty and error states already structured
+```
+
+`doctor` is the one worth running first: it fails on a missing `@rendermode InteractiveServer`, a
+non-empty `ApiSecret` in a committed `appsettings*.json`, and a project that does not reference the
+toolkit. [The CLI reference](cli-reference.md) covers the rest.
+
+> The packages are not published to nuget.org yet, so a generated project needs a local feed. The
+> README the template writes gives the two commands for that.
+
 ## 3. Create the Shopify app
 
 You need a Shopify Partner account and a development store.
@@ -204,5 +232,8 @@ That reports the API key the server is verifying against. It must equal the `con
 ## Next steps
 
 - [Component reference](components.md) — all 59 components
+- [Component inventory](component-inventory.md) — slots, events, accessibility notes and verification status per element
+- [CLI reference](cli-reference.md) — `doctor`, `add page`, `configure`
+- [Versioning](versioning.md) — what a version promises, and what it is pinned to
 - [Authentication](authentication.md) — why the flow is shaped this way
 - [ADR 0001](adr/0001-hosting-model-and-integration.md) — the architectural decisions

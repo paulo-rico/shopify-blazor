@@ -1,3 +1,11 @@
+// The using is kept even though this project does not strictly need it. This file's namespace nests
+// inside `Shopify.Blazor`, so enclosing-namespace lookup finds these types anyway — and that is
+// exactly the trap: the project template renames the root namespace, the implicit lookup disappears,
+// and the generated project fails to compile with "IShopifyAdminApi could not be found". The
+// dependency is stated rather than implied, and the "unnecessary using" warning is suppressed.
+#pragma warning disable IDE0005
+using Shopify.Blazor;
+#pragma warning restore IDE0005
 
 namespace Shopify.Blazor.SampleApp.Services;
 

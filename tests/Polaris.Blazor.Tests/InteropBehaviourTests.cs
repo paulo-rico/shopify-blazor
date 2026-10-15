@@ -34,6 +34,20 @@ public sealed class InteropBehaviourTests
     }
 
     [Fact]
+    public void Cleared_properties_reach_the_interop_layer()
+    {
+        using var context = new PolarisTestContext();
+
+        context.Render<TestClearableButton>();
+
+        // The base class documented ClearedProperties ("DOM properties cleared on every render") and
+        // even gated its property write on the collection, but never called ClearPropertiesAsync — so
+        // a component that declared one would have kept its stale value for ever.
+        Assert.True(context.Interop.ClearedProperties.TryGetValue("s-button", out var cleared));
+        Assert.Contains("values", cleared);
+    }
+
+    [Fact]
     public async Task Event_dispatcher_routes_an_event_to_the_registered_callback()
     {
         var dispatcher = new PolarisEventDispatcher();

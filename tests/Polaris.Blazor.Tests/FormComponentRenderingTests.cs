@@ -38,19 +38,23 @@ public sealed class FormComponentRenderingTests
     }
 
     [Fact]
-    public void ChoiceList_clears_a_stale_values_array_when_the_selection_is_dropped()
+    public void ChoiceList_writes_an_empty_array_rather_than_leaving_values_undefined()
     {
         using var context = new PolarisTestContext();
 
-        // Null means "no selection at all". Without an explicit clear the element keeps the array
-        // from the previous render, so options stay ticked that the server has deselected, and the
-        // markup shows nothing wrong.
+        // Polaris reads this property with array methods, so leaving it undefined throws an uncaught
+        // TypeError inside the component — invisible to a markup test and found only in a browser.
+        // An empty array is the correct way to say "nothing is selected".
         context.Render<PolarisChoiceList>(parameters => parameters
             .Add(p => p.Label, "Company name")
             .Add(p => p.Values, null));
 
-        Assert.True(context.Interop.ClearedProperties.TryGetValue("s-choice-list", out var cleared));
-        Assert.Contains("values", cleared);
+        Assert.True(context.Interop.SetProperties.TryGetValue("s-choice-list", out var calls));
+        Assert.Contains(calls, call =>
+            call["values"] is IReadOnlyList<string> values && values.Count == 0);
+
+        // And nothing is cleared: the property is written, not removed.
+        Assert.False(context.Interop.ClearedProperties.ContainsKey("s-choice-list"));
     }
 
     [Fact]

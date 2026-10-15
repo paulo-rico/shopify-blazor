@@ -165,3 +165,21 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <inheritdoc />
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
+
+/// <summary>
+/// A wrapper whose element has an array-valued property that must be cleared between renders.
+/// </summary>
+/// <remarks>
+/// Nothing in the library uses <see cref="PolarisElementComponentBase.ClearedProperties"/> yet, and
+/// the base class documented it for a long time without ever calling the interop to honour it. This
+/// double exists so that contract has a test: the next component that needs it will be relying on
+/// behaviour that was once silently absent.
+/// </remarks>
+public sealed class TestClearableButton : PolarisElementComponentBase
+{
+    /// <inheritdoc />
+    protected override string TagName => "s-button";
+
+    /// <inheritdoc />
+    protected override IEnumerable<string> ClearedProperties => ["values"];
+}

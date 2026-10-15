@@ -58,6 +58,109 @@ jobs:
           path: artifacts/*.nupkg
           if-no-files-found: error
 
+  generated-files:
+    name: Generated files are in sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # The component reference, the component inventory and the CLI's catalogue are committed so
+      # they can be read without running a tool, which means each can rot the moment somebody edits
+      # a component and forgets to regenerate. This is the only thing that catches that.
+      - name: Check for drift
+        run: python3 tools/check-drift.py
+
+      - name: Run the generator tests
+        run: python3 tools/tests/run.py
+
+  template:
+    name: Template generates and builds
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # A template is not compiled by the solution build: nothing in `dotnet build` reads
+      # templates/**, so a broken project file, an unreplaced token or a parameter combination that
+      # does not compile would ship silently. This packs the toolkit, installs the template from the
+      # package, generates a project for every combination the template offers, and builds each one.
+      - name: Verify every template combination
+        run: python3 tools/verify-template.py
+
+  browser:
+    name: Browser verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node
+        # Node 24 has a global WebSocket, which is all tools/verify-in-browser.mjs needs to speak the
+        # DevTools Protocol. There is deliberately no npm dependency and no test framework.
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Confirm Chrome is available
+        run: google-chrome --version
+
+      - name: Build the sample app
+        run: dotnet build samples/Shopify.Blazor.SampleApp/Shopify.Blazor.SampleApp.csproj --configuration Release
+
+      - name: Start the sample app
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:3459
+        run: |
+          set -euo pipefail
+          dotnet run --project samples/Shopify.Blazor.SampleApp \
+            --no-build --configuration Release --no-launch-profile > app.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:3459/components; then
+              echo "the app is up after ${attempt}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "the app never answered. Log:"
+          cat app.log
+          exit 1
+
+      # This is the only check that can tell whether Shopify's components really upgraded, whether a
+      # field's value really reaches the request, and whether a click really reaches C#. It asserts
+      # all of that and exits non-zero if any expectation fails.
+      - name: Verify in Chrome
+        run: node tools/verify-in-browser.mjs http://127.0.0.1:3459/components --assert
+
+      - name: Upload the app log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-app-log
+          path: app.log
+          if-no-files-found: ignore
+
   vulnerability-check:
     name: Vulnerable and deprecated packages
     runs-on: ubuntu-latest

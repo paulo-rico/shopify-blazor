@@ -1,0 +1,44 @@
+{
+  "minPolarisVersion": "1.1",
+  "elements": [
+    {
+      "element": "s-accordion",
+      "officialName": "Accordion",
+      "category": "layout-and-structure",
+      "slug": "accordion",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/accordion",
+      "wrapper": "PolarisAccordion",
+      "base": "PolarisElementComponentBase",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps a fixture element with a validated action slot.",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "HTMLElement",
+          "notes": "Body content."
+        },
+        {
+          "name": "primary-action",
+          "accepts": "one s-button with variant=\"primary\"",
+          "notes": "Polaris validates the child, so the slot belongs on the button."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "heading is the only accessible name the panel has."
+      ],
+      "minPolarisVersion": "1.1",
+      "verification": "unverified",
+      "notes": "A fixture, not a real Polaris element.",
+      "parameters": [
+        {
+          "name": "Heading",
+          "type": "string?",
+          "kind": "attribute",
+          "doc": "Panel heading.",
+          "default": null
+        }
+      ]
+    }
+  ]
+}
