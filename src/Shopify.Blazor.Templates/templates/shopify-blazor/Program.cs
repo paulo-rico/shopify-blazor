@@ -111,7 +111,7 @@ if (app.Environment.IsDevelopment())
 //#if (include-admin-api-example)
 
 // The authenticated backend endpoint. It never trusts a query string or a cookie: the App Bridge
-// session token in the Authorization header is verified against Shopify's published keys before
+// session token in the Authorization header is verified with the app's API secret before
 // the shop is believed, and the Admin API call happens server-side, where the access token lives.
 app.MapGet("/api/products", async (
         HttpContext context,

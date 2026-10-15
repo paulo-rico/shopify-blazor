@@ -9,8 +9,9 @@ Polaris and App Bridge both come from Shopify's CDN.
 - **App Bridge 4** loaded from the CDN, with the `shopify-api-key` meta tag rendered from
   configuration.
 - **Session-token authentication**: the App Bridge token in the `Authorization` header is verified
-  server-side against the shop's published keys, then exchanged for an Admin API access token that
-  never leaves the server.
+  server-side with the app's **API secret**, as HS256 — **not** against the store's published keys,
+  which belong to the Storefront API and are behind the storefront password — then exchanged for an
+  Admin API access token that never leaves the server.
 - **An authenticated backend endpoint** (`/api/products`) that calls the Admin API, with Shopify's
   three distinct failures — rejected token, missing scope, refused query — reported separately.
 - **Embedded framing**: the app can be framed by the Admin and by nothing else, which is not the
