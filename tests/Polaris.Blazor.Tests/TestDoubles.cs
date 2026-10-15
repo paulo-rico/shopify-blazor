@@ -84,6 +84,9 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <summary>Tag names whose events were detached.</summary>
     public List<string> Detached { get; } = [];
 
+    /// <summary>Element methods invoked through interop, in the order they were called.</summary>
+    public List<string> Methods { get; } = [];
+
     /// <summary>How many times the module was initialized.</summary>
     public int InitializeCount { get; private set; }
 
@@ -124,7 +127,9 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <inheritdoc />
     public ValueTask InvokeElementMethodAsync(ElementReference element, string methodName, params object?[] arguments)
     {
-        Detached.Add($"{methodName}");
+        // Recorded separately from Detached: a method call and an event detach are different things, and
+        // a component that calls show() is saying something a teardown does not.
+        Methods.Add(methodName);
         return ValueTask.CompletedTask;
     }
 

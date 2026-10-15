@@ -833,6 +833,11 @@
           "notes": "The page body, normally sections."
         },
         {
+          "name": "accessory",
+          "accepts": "s-badge",
+          "notes": "A status badge beside the page heading, for state such as \"Draft\" or \"Published\". Set slot=\"accessory\" on the badge."
+        },
+        {
           "name": "aside",
           "accepts": "HTMLElement",
           "notes": "A side column, rendered only when inlineSize=\"base\". Not type-checked, so a fragment is safe."
@@ -1418,6 +1423,49 @@
       "minPolarisVersion": "1.1",
       "verification": "unverified",
       "notes": "HTML5 URL validation is weak and vendor-specific, and special characters are not auto-encoded. It does not prepend https://. value is not reflected, so it is a DOM property."
+    },
+    {
+      "element": "s-app-nav",
+      "officialName": "App nav",
+      "category": "app-bridge",
+      "slug": "app-nav",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/app-bridge-web-components/app-nav",
+      "slots": [
+        {
+          "name": "children",
+          "accepts": "s-link",
+          "notes": "One link per navigation item. href must be a relative path inside the app. Exactly one link may carry rel=\"home\", which designates the landing route and is HIDDEN from the rendered menu."
+        }
+      ],
+      "events": [],
+      "accessibility": [
+        "Labels should be one or two nouns naming the destination (\"Products\", \"Settings\"), not verbs such as \"Manage\" — this matches how the rest of the admin reads.",
+        "Order the items by importance: the most frequently used section first."
+      ],
+      "minPolarisVersion": "app-bridge",
+      "verification": "unit-tested",
+      "notes": "An App Bridge component, delivered by app-bridge.js rather than polaris-1.js and therefore NOT versioned with Polaris. It configures the admin's own navigation for the app — the left sidebar on desktop, a dropdown from the title bar on mobile — so it draws nothing inside the app's own frame, and nothing at all outside the admin. Exactly one per document, and it must be in the body. Navigation cannot be nested: one level only, so a submenu silently does nothing. The app name in the sidebar already links to the home route, so rel=\"home\" is only needed when the home page is not at \"/\". Not browser-probed, and that is a measured fact rather than an omission: the sample gallery was opened in a real headless Chrome and app-bridge.js does NOT define this element outside the Shopify Admin, so the probe reports it as undefined. It is only defined once App Bridge has connected to the admin host.",
+      "browserProbe": false
+    },
+    {
+      "element": "s-app-window",
+      "officialName": "App window",
+      "category": "app-bridge",
+      "slug": "app-window",
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/app-bridge-web-components/app-window",
+      "slots": [],
+      "events": [
+        "show",
+        "hide"
+      ],
+      "accessibility": [
+        "Open it only from an explicit user action that says a fullscreen experience will follow — never automatically on page load.",
+        "Set a descriptive heading inside the window's own content (a page component with heading), or the merchant cannot tell what the fullscreen view is for."
+      ],
+      "minPolarisVersion": "app-bridge",
+      "verification": "unit-tested",
+      "notes": "An App Bridge component, delivered by app-bridge.js rather than polaris-1.js and therefore NOT versioned with Polaris. It loads src in an iframe that covers the screen, with a top bar the admin controls so the merchant can always leave. Drive it declaratively (a button with command=\"--show|--hide|--toggle\" and commandFor=\"<id>\") or with its show()/hide()/toggle() methods. Prefer s-modal for an ordinary dialog: it decides for itself whether to render inside the app or as a fullscreen overlay. A form inside the window takes data-save-bar on the FORM — a save bar on the parent page renders behind the window and cannot be clicked. Not browser-probed, and that is a measured fact rather than an omission: the sample gallery was opened in a real headless Chrome and app-bridge.js does NOT define this element outside the Shopify Admin, so the probe reports it as undefined. It is only defined once App Bridge has connected to the admin host.",
+      "browserProbe": false
     }
   ]
 }

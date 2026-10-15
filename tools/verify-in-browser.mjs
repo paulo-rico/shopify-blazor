@@ -441,9 +441,13 @@ function evaluateAssertions(result) {
 
     // Reported rather than asserted: an element may legitimately be light-DOM, so the absence of a
     // shadow root is information, not a failure.
+    // The denominator is the elements that ARE defined, not everything listed: an element the CDN did
+    // not define has no shadow root either, and counting it would report a shortfall that is really a
+    // missing definition — already reported as a failure of its own above.
+    const defined = (counts.listed ?? 0) - (counts.notDefined ?? []).length;
     console.log(
-        `  note  shadow roots: ${(counts.listed ?? 0) - (counts.withoutShadowRoot ?? []).length}/${counts.listed ?? 0} ` +
-        `of the listed elements have one` +
+        `  note  shadow roots: ${defined - (counts.withoutShadowRoot ?? []).length}/${defined} ` +
+        `of the defined elements have one` +
         ((counts.withoutShadowRoot ?? []).length > 0 ? ` (light DOM: ${counts.withoutShadowRoot.join(", ")})` : ""),
     );
 

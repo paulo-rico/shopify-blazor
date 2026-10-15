@@ -6,6 +6,7 @@
       "accessibilityRequirements": [
         "alt carries the person's name; without it the avatar is announced as a decorative image and the name is lost."
       ],
+      "browserProbeExempt": false,
       "category": "media-and-visuals",
       "clearedProperties": [],
       "composedInside": null,
@@ -89,6 +90,7 @@
         "The badge is a status indicator, not an interactive control: put the meaning in text, because tone alone is not announced.",
         "tone must not be the only signal — critical and success read identically to a screen reader unless the label says so."
       ],
+      "browserProbeExempt": false,
       "category": "feedback-and-status-indicators",
       "clearedProperties": [],
       "composedInside": null,
@@ -151,6 +153,7 @@
         "A dismissible banner needs a heading or body text that says what is being dismissed; the close button is icon-only and its accessible name comes from Polaris.",
         "critical tone is a visual signal only — state the problem in the text as well."
       ],
+      "browserProbeExempt": false,
       "category": "feedback-and-status-indicators",
       "clearedProperties": [],
       "composedInside": null,
@@ -246,6 +249,7 @@
         "A generic container carries no semantics; set accessibilityRole when the box is a landmark such as main, navigation or aside.",
         "accessibilityLabel is only meaningful together with a role — a label on a generic box is ignored by assistive technology."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -365,6 +369,7 @@
         "A disabled button leaves the tab order and cannot receive focus, so it needs visible text explaining why it is disabled.",
         "loading communicates that an action is in progress; prefer it to disabled for an async operation."
       ],
+      "browserProbeExempt": false,
       "category": "actions",
       "clearedProperties": [],
       "composedInside": null,
@@ -529,6 +534,7 @@
       "accessibilityRequirements": [
         "accessibilityLabel is the only accessible name the group has, so set it when the surrounding heading does not already describe the actions."
       ],
+      "browserProbeExempt": false,
       "category": "actions",
       "clearedProperties": [],
       "composedInside": null,
@@ -582,6 +588,7 @@
         "label is the accessible name; without it the box is announced as an unlabelled checkbox.",
         "labelAccessibilityVisibility=\"exclusive\" hides the label visually but keeps it for screen readers, which is the correct way to label a checkbox inside a table."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -725,6 +732,7 @@
       "accessibilityRequirements": [
         "accessibilityLabel gives a chip whose visible text is ambiguous — or removed by removable — a name of its own."
       ],
+      "browserProbeExempt": false,
       "category": "typography-and-content",
       "clearedProperties": [],
       "composedInside": null,
@@ -779,6 +787,7 @@
         "label is the accessible name of the whole group; without it the radio or checkbox group has none.",
         "labelAccessibilityVisibility=\"exclusive\" keeps the label for screen readers while hiding it visually."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -896,6 +905,7 @@
       "accessibilityRequirements": [
         "accessibilityLabel gives a choice whose visible label is not self-describing a name of its own."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": "s-choice-list",
@@ -971,6 +981,7 @@
         "accessibilityRole defaults to generic, which is not an interactive role — set button, link or another appropriate role so keyboard and screen-reader users can identify the control.",
         "accessibilityVisibility=\"exclusive\" provides screen-reader-only content."
       ],
+      "browserProbeExempt": false,
       "category": "actions",
       "clearedProperties": [],
       "composedInside": null,
@@ -1270,6 +1281,7 @@
         "An interactive chip needs accessibilityLabel when its visible text does not say what activating it does.",
         "The remove affordance is icon-only; accessibilityLabel should name the thing being removed."
       ],
+      "browserProbeExempt": false,
       "category": "actions",
       "clearedProperties": [],
       "composedInside": null,
@@ -1406,6 +1418,7 @@
         "label is the accessible name and is required in practice, because the field renders a swatch rather than readable text.",
         "alpha changes the value to eight-digit hex, so validation messages must quote the same format the field emits."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -1578,6 +1591,7 @@
         "The picker has no label of its own, so it must be paired with a visible label or an accessibilityLabel on the surrounding control.",
         "The two-dimensional gradient area needs pointer input and is poor for keyboard and touch users; provide a text or field alternative."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -1661,6 +1675,7 @@
         "label is the accessible name; a date field with no label is announced as an unlabelled text input.",
         "error is announced as part of the field's description, so it must say what is wrong with the entered date."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -1894,6 +1909,7 @@
         "The picker has no label of its own, so the surrounding control must carry one.",
         "type=\"range\" emits a two-date value; a screen reader hears it as one string, so the visible summary should restate it."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -2064,6 +2080,7 @@
       "accessibilityRequirements": [
         "A divider is presentational. Do not rely on it to convey grouping to assistive technology — use section headings or accessibilityRole on the container."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -2105,6 +2122,7 @@
         "label names the drop zone; without it the drop target is not identifiable.",
         "error must explain a rejected file, because droprejected is a developer event a screen-reader user never hears."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -2235,6 +2253,7 @@
         "label is the accessible name.",
         "inputMode is set by the element for the optimised keyboard; do not override it from the wrapper."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -2414,6 +2433,7 @@
         "heading is plain text and cannot contain markup, so it must read as a complete sentence for a screen reader.",
         "The action buttons carry the only interactive names; label them with verbs that match the guidance."
       ],
+      "browserProbeExempt": false,
       "category": "feedback-and-status-indicators",
       "clearedProperties": [],
       "composedInside": null,
@@ -2480,6 +2500,7 @@
         "A grid is a generic container; set accessibilityRole when it is a landmark.",
         "Visual order is not reading order — keep the DOM order meaningful, because grid placement can differ from it."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -2752,6 +2773,7 @@
       "accessibilityRequirements": [
         "A grid item is presentational; a label only takes effect with a role, so set accessibilityRole alongside accessibilityLabel."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": "s-grid",
@@ -2962,6 +2984,7 @@
         "accessibilityRole=\"none\" strips the heading semantics while keeping the appearance — the correct choice for a visual label that is not a section heading.",
         "accessibilityVisibility=\"exclusive\" keeps a heading available to screen readers while hiding it visually."
       ],
+      "browserProbeExempt": false,
       "category": "typography-and-content",
       "clearedProperties": [],
       "composedInside": null,
@@ -3024,6 +3047,7 @@
         "An icon that carries meaning needs accessibilityLabel; a decorative one should be given tone/color only, because the icon is otherwise announced by its name.",
         "An icon inside a labelled control is decorative and must not add a second accessible name."
       ],
+      "browserProbeExempt": false,
       "category": "media-and-visuals",
       "clearedProperties": [],
       "composedInside": null,
@@ -3086,6 +3110,7 @@
         "alt is the accessible name: describe the image, or set alt=\"\" deliberately for a decorative one.",
         "accessibilityRole defaults to img; use presentation or none only when the image is genuinely decorative."
       ],
+      "browserProbeExempt": false,
       "category": "media-and-visuals",
       "clearedProperties": [],
       "composedInside": null,
@@ -3239,6 +3264,7 @@
         "lang makes a screen reader pronounce text in another language correctly.",
         "target=\"_blank\" adds rel=\"noopener noreferrer\" automatically, but the destination should still be announced as a new window."
       ],
+      "browserProbeExempt": false,
       "category": "actions",
       "clearedProperties": [],
       "composedInside": null,
@@ -3332,6 +3358,7 @@
         }
       ],
       "testCoverage": [
+        "AppNav_renders_its_links_and_passes_the_home_rel_through",
         "Link_omits_target_when_there_is_no_href",
         "Link_renders_href_tone_and_target"
       ],
@@ -3343,6 +3370,7 @@
       "accessibilityRequirements": [
         "The marker is supplied by the parent list, so the item text does not need to restate the number or bullet."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": "s-ordered-list",
@@ -3376,6 +3404,7 @@
       "accessibilityRequirements": [
         "accessibilityLabel names the menu; the trigger button carries the visible name, and without a label the popover layer is unlabelled."
       ],
+      "browserProbeExempt": false,
       "category": "actions",
       "clearedProperties": [],
       "composedInside": null,
@@ -3410,6 +3439,7 @@
         "The modal traps focus while it is open, so the first focusable element should be meaningful.",
         "The primary action button's label must say what it does — \"OK\" is not enough for a destructive confirmation."
       ],
+      "browserProbeExempt": false,
       "category": "overlays",
       "clearedProperties": [],
       "composedInside": null,
@@ -3516,6 +3546,7 @@
         "label is the accessible name; it should name the currency as well as the value when currencyCode is automatic.",
         "The displayed value is locale-formatted, while the submitted value is a string — error text must quote the format the merchant sees."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -3701,6 +3732,7 @@
       "accessibilityRequirements": [
         "Inline element with no spacing of its own; its meaning comes from the surrounding text, so a bare figure needs a label nearby."
       ],
+      "browserProbeExempt": false,
       "category": "typography-and-content",
       "clearedProperties": [],
       "composedInside": null,
@@ -3771,6 +3803,7 @@
         "label is the accessible name; the prefix and suffix are decorative and are not announced, so the label must carry the unit.",
         "inputMode is a mobile keyboard hint only and does not restrict input, so validation is still required."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -3977,6 +4010,7 @@
       "accessibilityRequirements": [
         "The label text is what a screen reader reads for the option; it must match the value's meaning."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": "s-select",
@@ -4038,6 +4072,7 @@
       "accessibilityRequirements": [
         "label is the accessible group name; without it a screen reader announces the options with no context."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": "s-select",
@@ -4085,6 +4120,7 @@
       "accessibilityRequirements": [
         "The list role and item count come from the element, so items must be real s-list-item children rather than styled text."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -4118,6 +4154,7 @@
         "heading provides the page's accessible name and its heading semantics — do not add a competing h1.",
         "The aside column is invisible at other widths, so anything essential must not live only there."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -4135,6 +4172,12 @@
           "name": "children",
           "notes": "The page body, normally sections.",
           "wrapperSupport": "ChildContent"
+        },
+        {
+          "accepts": "s-badge",
+          "name": "accessory",
+          "notes": "A status badge beside the page heading, for state such as \"Draft\" or \"Published\". Set slot=\"accessory\" on the badge.",
+          "wrapperSupport": "child Slot parameter"
         },
         {
           "accepts": "HTMLElement",
@@ -4197,6 +4240,7 @@
         "Block-level text with built-in vertical spacing; use it for prose, not for layout.",
         "fontVariantNumeric is deprecated — use the Number component, which also gives tabular numerals."
       ],
+      "browserProbeExempt": false,
       "category": "typography-and-content",
       "clearedProperties": [],
       "composedInside": null,
@@ -4287,6 +4331,7 @@
         "label is the accessible name.",
         "There is no built-in show/hide toggle; if one is added it needs its own accessible name and must not be the only way to check the entry."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -4466,6 +4511,7 @@
         "A popover does not block the page, so focus is not trapped — the trigger must have an accessible name that explains what it opens.",
         "Content does not scroll automatically; an overflowing popover needs a scrollable wrapper."
       ],
+      "browserProbeExempt": false,
       "category": "overlays",
       "clearedProperties": [],
       "composedInside": null,
@@ -4565,6 +4611,7 @@
         "The bar renders no text and no percentage, so accessibilityLabel is the only thing that describes it.",
         "Use it only for measurable progress; an unmeasurable wait belongs in s-spinner."
       ],
+      "browserProbeExempt": false,
       "category": "feedback-and-status-indicators",
       "clearedProperties": [],
       "composedInside": null,
@@ -4612,6 +4659,7 @@
       "accessibilityRequirements": [
         "It is a layout primitive with no semantics, and it changes presentation only — never hide information that assistive technology needs."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -4652,6 +4700,7 @@
       "accessibilityRequirements": [
         "label is the accessible name; labelAccessibilityVisibility=\"exclusive\" is the usual choice when the placeholder already says \"Search\"."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -4832,6 +4881,7 @@
         "accessibilityLabel names the region when there is no visible heading.",
         "The action slots are visually distinct from supplemental, which must stay non-interactive."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -4917,6 +4967,7 @@
         "label is the accessible name; a select with only a placeholder has none.",
         "The native dropdown is rendered by the browser, so its styling and screen-reader behaviour vary by platform."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -5047,6 +5098,7 @@
       "accessibilityRequirements": [
         "accessibilityLabel is the only description a screen reader gets, so an unlabelled spinner is announced as nothing at all."
       ],
+      "browserProbeExempt": false,
       "category": "feedback-and-status-indicators",
       "clearedProperties": [],
       "composedInside": null,
@@ -5081,6 +5133,7 @@
         "A stack is presentational; set accessibilityRole when it is a landmark.",
         "direction=\"inline\" changes visual order only, so the DOM order must still read correctly."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -5165,6 +5218,7 @@
         "labelAccessibilityVisibility=\"exclusive\" is the documented way to keep the name for screen readers while hiding it visually.",
         "accessibilityLabel adds context beyond the visible label."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -5288,6 +5342,7 @@
         "The number of cells in a row should match the number of headers, or the column association is wrong for screen readers.",
         "clickDelegate is a click-only affordance and adds no keyboard or screen-reader behaviour; the row must still contain an interactive element such as s-link that keyboard users can reach."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -5404,6 +5459,7 @@
         "The header text is the column's accessible name, so it must identify the column rather than repeat a unit.",
         "format controls alignment as well as presentation, which matters for numeric columns."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": "s-table",
@@ -5452,6 +5508,7 @@
       "accessibilityRequirements": [
         "The row has no props; all of its meaning comes from the s-table-header children, so an empty header row is invisible to assistive technology."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": "s-table",
@@ -5484,6 +5541,7 @@
       "accessibilityRequirements": [
         "Rows must be s-table-row children so the table exposes the correct row and cell structure to assistive technology."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": "s-table",
@@ -5516,6 +5574,7 @@
       "accessibilityRequirements": [
         "clickDelegate is click-only and adds no keyboard or screen-reader affordance; the row must still contain a reachable interactive element."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": "s-table",
@@ -5557,6 +5616,7 @@
       "accessibilityRequirements": [
         "Alignment and format are inherited from the column's header, so a numeric value in an unformatted column reads correctly but looks wrong."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": "s-table",
@@ -5591,6 +5651,7 @@
         "fontVariantNumeric is deprecated — use the Number component for figures.",
         "accessibilityVisibility=\"exclusive\" provides screen-reader-only text."
       ],
+      "browserProbeExempt": false,
       "category": "typography-and-content",
       "clearedProperties": [],
       "composedInside": null,
@@ -5680,6 +5741,7 @@
       "accessibilityRequirements": [
         "label is the accessible name; a text area without one is announced as an unlabelled multiline input."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -5858,6 +5920,7 @@
         "label is the accessible name; placeholder is not a substitute for it.",
         "The accessory control needs its own accessible name, because it is a separate interactive element inside the field."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -6065,6 +6128,7 @@
       "accessibilityRequirements": [
         "alt is the accessible name; a thumbnail that only repeats the adjacent product name should use alt=\"\" instead."
       ],
+      "browserProbeExempt": false,
       "category": "media-and-visuals",
       "clearedProperties": [],
       "composedInside": null,
@@ -6140,6 +6204,7 @@
         "A tooltip supplements a name, it does not provide one: the trigger must still be identifiable without it.",
         "Mouse and trackpad only — there is no touch equivalent, so a tooltip must never be the only place information appears."
       ],
+      "browserProbeExempt": false,
       "category": "typography-and-content",
       "clearedProperties": [],
       "composedInside": null,
@@ -6172,6 +6237,7 @@
       "accessibilityRequirements": [
         "The list role and item count come from the element, so items must be real s-list-item children."
       ],
+      "browserProbeExempt": false,
       "category": "layout-and-structure",
       "clearedProperties": [],
       "composedInside": null,
@@ -6204,6 +6270,7 @@
       "accessibilityRequirements": [
         "label is the accessible name; the field does not add a scheme, so the label should say whether one is expected."
       ],
+      "browserProbeExempt": false,
       "category": "forms",
       "clearedProperties": [],
       "composedInside": null,
@@ -6377,11 +6444,109 @@
       "verification": "browser-verified",
       "verifiedInBrowser": true,
       "wrapper": "PolarisUrlField"
+    },
+    {
+      "accessibilityRequirements": [
+        "Labels should be one or two nouns naming the destination (\"Products\", \"Settings\"), not verbs such as \"Manage\" — this matches how the rest of the admin reads.",
+        "Order the items by importance: the most frequently used section first."
+      ],
+      "browserProbeExempt": true,
+      "category": "app-bridge",
+      "clearedProperties": [],
+      "composedInside": null,
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/app-bridge-web-components/app-nav",
+      "element": "s-app-nav",
+      "eventDefinitions": [],
+      "implementationStatus": "wrapped",
+      "minimumSupportedVersion": "app-bridge",
+      "namespace": "Polaris.Blazor.Components",
+      "notes": "An App Bridge component, delivered by app-bridge.js rather than polaris-1.js and therefore NOT versioned with Polaris. It configures the admin's own navigation for the app — the left sidebar on desktop, a dropdown from the title bar on mobile — so it draws nothing inside the app's own frame, and nothing at all outside the admin. Exactly one per document, and it must be in the body. Navigation cannot be nested: one level only, so a submenu silently does nothing. The app name in the sidebar already links to the home route, so rel=\"home\" is only needed when the home page is not at \"/\". Not browser-probed, and that is a measured fact rather than an omission: the sample gallery was opened in a real headless Chrome and app-bridge.js does NOT define this element outside the Shopify Admin, so the probe reports it as undefined. It is only defined once App Bridge has connected to the admin host.",
+      "officialName": "App nav",
+      "slotDefinitions": [
+        {
+          "accepts": "s-link",
+          "name": "children",
+          "notes": "One link per navigation item. href must be a relative path inside the app. Exactly one link may carry rel=\"home\", which designates the landing route and is HIDDEN from the rendered menu.",
+          "wrapperSupport": "ChildContent"
+        }
+      ],
+      "summary": "Wraps `<s-app-nav>`: the navigation menu for your app inside the Shopify admin.",
+      "supportedProperties": [],
+      "testCoverage": [
+        "AppNav_renders_its_links_and_passes_the_home_rel_through"
+      ],
+      "verification": "unit-tested",
+      "verifiedInBrowser": false,
+      "wrapper": "PolarisAppNav"
+    },
+    {
+      "accessibilityRequirements": [
+        "Open it only from an explicit user action that says a fullscreen experience will follow — never automatically on page load.",
+        "Set a descriptive heading inside the window's own content (a page component with heading), or the merchant cannot tell what the fullscreen view is for."
+      ],
+      "browserProbeExempt": true,
+      "category": "app-bridge",
+      "clearedProperties": [],
+      "composedInside": null,
+      "docsUrl": "https://shopify.dev/docs/api/app-home/latest/app-bridge-web-components/app-window",
+      "element": "s-app-window",
+      "eventDefinitions": [
+        {
+          "documented": true,
+          "event": "hide",
+          "handler": "OnHide",
+          "wrapped": true
+        },
+        {
+          "documented": true,
+          "event": "show",
+          "handler": "OnShow",
+          "wrapped": true
+        }
+      ],
+      "implementationStatus": "wrapped",
+      "minimumSupportedVersion": "app-bridge",
+      "namespace": "Polaris.Blazor.Components",
+      "notes": "An App Bridge component, delivered by app-bridge.js rather than polaris-1.js and therefore NOT versioned with Polaris. It loads src in an iframe that covers the screen, with a top bar the admin controls so the merchant can always leave. Drive it declaratively (a button with command=\"--show|--hide|--toggle\" and commandFor=\"<id>\") or with its show()/hide()/toggle() methods. Prefer s-modal for an ordinary dialog: it decides for itself whether to render inside the app or as a fullscreen overlay. A form inside the window takes data-save-bar on the FORM — a save bar on the parent page renders behind the window and cannot be clicked. Not browser-probed, and that is a measured fact rather than an omission: the sample gallery was opened in a real headless Chrome and app-bridge.js does NOT define this element outside the Shopify Admin, so the probe reports it as undefined. It is only defined once App Bridge has connected to the admin host.",
+      "officialName": "App window",
+      "slotDefinitions": [],
+      "summary": "Wraps `<s-app-window>`: a fullscreen window, hosted by the admin, that loads one of the app's own routes.",
+      "supportedProperties": [
+        {
+          "default": null,
+          "doc": "The route inside this app whose content the window displays. Required. A relative path such as /products/select. It is loaded in an iframe, so it must be a route this app serves rather than an external URL.",
+          "kind": "attribute",
+          "name": "Src",
+          "type": "string?"
+        },
+        {
+          "default": null,
+          "doc": "Raised when the window opens.",
+          "kind": "event callback",
+          "name": "OnShow",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "default": null,
+          "doc": "Raised when the window closes.",
+          "kind": "event callback",
+          "name": "OnHide",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "testCoverage": [
+        "AppWindow_renders_its_src_and_calls_the_elements_own_methods"
+      ],
+      "verification": "unit-tested",
+      "verifiedInBrowser": false,
+      "wrapper": "PolarisAppWindow"
     }
   ],
   "counts": {
+    "appBridge": 2,
     "byCategory": {
       "actions": 6,
+      "app-bridge": 2,
       "feedback-and-status-indicators": 5,
       "forms": 20,
       "layout-and-structure": 17,
@@ -6391,14 +6556,14 @@
     },
     "byVerification": {
       "browser-verified": 60,
-      "unit-tested": 0,
+      "unit-tested": 2,
       "unverified": 0
     },
-    "elements": 60,
+    "elements": 62,
     "subElements": 10,
     "topLevel": 50,
     "unwrapped": 0,
-    "wrapped": 60
+    "wrapped": 62
   },
   "generatedBy": "generate-component-inventory.py",
   "minPolarisVersion": "1.1",
@@ -6416,7 +6581,9 @@
     "accessibilityRequirements",
     "minimumSupportedVersion",
     "testCoverage",
-    "implementationStatus"
+    "implementationStatus",
+    "verifiedInBrowser",
+    "browserProbeExempt"
   ],
   "spec": "tools/polaris-elements.json",
   "specProvenance": "Slots, events and accessibility notes hand-maintained from https://shopify.dev/docs/api/app-home/latest/web-components/<category>/<slug>.md (Polaris 1.1), cross-checked against the polaris-web-components DSH skill."

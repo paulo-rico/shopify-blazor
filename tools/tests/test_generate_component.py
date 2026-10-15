@@ -234,7 +234,7 @@ class InventoryRoundTripTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("s-button", result.stdout)
         self.assertIn("PolarisBadge", result.stdout)
-        self.assertEqual(len(result.stdout.strip().splitlines()), 60)
+        self.assertEqual(len(result.stdout.strip().splitlines()), 62)
 
 
 class LibraryTypeTest(unittest.TestCase):

@@ -152,12 +152,15 @@ class CommittedCatalogueTest(unittest.TestCase):
         cls.by_element = {record["element"]: record for record in cls.records}
 
     def test_it_holds_a_record_for_every_documented_element(self):
-        # 50 top-level elements plus the 10 composed sub-elements. A shorter list means the spec
-        # lost an entry, which is the drift no source-derived check can catch.
-        self.assertEqual(len(self.records), 60)
+        # Three families, counted separately because they come from different scripts and are
+        # versioned differently: 50 Polaris top-level elements, 10 composed sub-elements, and the 2 App
+        # Bridge components that configure the admin around the app. A shorter list means the spec lost
+        # an entry, which is the drift no source-derived check can catch.
+        self.assertEqual(len(self.records), 62)
         self.assertEqual(self.inventory["counts"]["topLevel"], 50)
         self.assertEqual(self.inventory["counts"]["subElements"], 10)
-        self.assertEqual(len(self.by_element), 60)
+        self.assertEqual(self.inventory["counts"]["appBridge"], 2)
+        self.assertEqual(len(self.by_element), 62)
 
     def test_every_record_carries_every_required_field(self):
         for record in self.records:
@@ -176,7 +179,11 @@ class CommittedCatalogueTest(unittest.TestCase):
         for record in self.records:
             with self.subTest(element=record["element"]):
                 self.assertTrue(record["accessibilityRequirements"], "no accessibility requirement")
-                self.assertEqual(record["minimumSupportedVersion"], "1.1")
+                # A Polaris component is versioned with the Polaris release that provides it. An
+                # App Bridge component is not versioned with Polaris at all — Shopify says so on every
+                # App Bridge page — so it carries a marker instead of a number that would imply a
+                # release providing it. Both are checked, so neither can be forgotten.
+                self.assertIn(record["minimumSupportedVersion"], {"1.1", "app-bridge"})
 
     def test_verification_follows_the_sample_gallerys_probe_list(self):
         # The browser claim is derived from the gallery's `ProbedElements`, which the probe script
@@ -200,8 +207,19 @@ class CommittedCatalogueTest(unittest.TestCase):
         probe = modules.load_tool("generate-component-inventory.py").parse_browser_verified_elements()
         documented = {record["element"] for record in self.records}
 
+        # An App Bridge component is not defined outside the Shopify Admin — app-bridge.js defines those
+        # elements only once it has connected to the admin host, which the probe confirmed by reporting
+        # them as undefined in the standalone gallery. The spec marks them exempt, and an exemption has
+        # to say why in its notes, so a future "unverified" claim cannot be made by adding a flag.
+        exempt = {record["element"] for record in self.records if record["browserProbeExempt"]}
+
+        for record in self.records:
+            if record["browserProbeExempt"]:
+                with self.subTest(element=record["element"]):
+                    self.assertTrue(record["notes"], "an exemption must explain itself in the notes")
+
         self.assertEqual(probe - documented, set(), "the gallery probes an element the spec does not document")
-        self.assertEqual(documented - probe, set(), "the gallery does not probe every documented element")
+        self.assertEqual(documented - probe, exempt, "the gallery does not probe every documented element")
 
     def test_dom_properties_are_reported_as_properties_not_attributes(self):
         # The four values Polaris does not reflect, plus the array properties. Getting one of these
@@ -301,7 +319,7 @@ class CliCatalogueSchemaTest(unittest.TestCase):
         self.assertEqual(self.catalogue["generatedBy"], "generate-component-inventory.py")
 
     def test_one_entry_per_element_with_exactly_the_agreed_keys(self):
-        self.assertEqual(len(self.catalogue["components"]), 60)
+        self.assertEqual(len(self.catalogue["components"]), 62)
         for component in self.catalogue["components"]:
             with self.subTest(element=component["element"]):
                 self.assertEqual(

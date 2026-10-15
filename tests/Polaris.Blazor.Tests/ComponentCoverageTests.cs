@@ -263,4 +263,60 @@ public sealed class ComponentCoverageTests
 
         Assert.Equal("John Smith", component.Find("s-table-cell").TextContent);
     }
+
+    [Fact]
+    public void AppNav_renders_its_links_and_passes_the_home_rel_through()
+    {
+        // s-app-nav configures the ADMIN's own navigation, so it is App Bridge rather than Polaris and
+        // draws nothing when the app is opened outside the admin. What can be asserted here is the
+        // markup the admin is handed: one link per item, in order, with rel="home" — which designates
+        // the landing route and is then hidden from the rendered menu — carried through the unmatched
+        // attribute capture rather than a parameter of its own.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAppNav>(parameters => parameters
+            .AddChildContent(builder =>
+            {
+                builder.OpenComponent<PolarisLink>(0);
+                builder.AddAttribute(1, nameof(PolarisLink.Href), "/");
+                builder.AddAttribute(2, "rel", "home");
+                builder.CloseComponent();
+
+                builder.OpenComponent<PolarisLink>(3);
+                builder.AddAttribute(4, nameof(PolarisLink.Href), "/products");
+                builder.AddAttribute(5, nameof(PolarisLink.ChildContent), (RenderFragment)(b => b.AddContent(0, "Products")));
+                builder.CloseComponent();
+            }));
+
+        Assert.NotNull(component.Find("s-app-nav"));
+
+        var links = component.FindAll("s-link");
+        Assert.Equal(2, links.Count);
+        Assert.Equal("home", links[0].GetAttribute("rel"));
+        Assert.Equal("/products", links[1].GetAttribute("href"));
+        Assert.Equal("Products", links[1].TextContent);
+    }
+
+    [Fact]
+    public async Task AppWindow_renders_its_src_and_calls_the_elements_own_methods()
+    {
+        // The window is opened either declaratively (commandFor from a button) or through the element's
+        // show/hide/toggle methods. The method names are the part that fails silently — a wrong one is a
+        // call that resolves to nothing — so they are asserted as they were sent.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAppWindow>(parameters => parameters
+            .Add(p => p.Id, "product-editor")
+            .Add(p => p.Src, "/products/select"));
+
+        var element = component.Find("s-app-window");
+        Assert.Equal("/products/select", element.GetAttribute("src"));
+        Assert.Equal("product-editor", element.GetAttribute("id"));
+
+        await component.Instance.ShowAsync();
+        await component.Instance.ToggleAsync();
+        await component.Instance.HideAsync();
+
+        Assert.Equal(["show", "toggle", "hide"], context.Interop.Methods);
+    }
 }

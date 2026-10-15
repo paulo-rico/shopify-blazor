@@ -194,6 +194,28 @@
         </PolarisStack>
     </PolarisSection>
 
+    <PolarisSection Heading="App Bridge: the admin around the app">
+        <PolarisStack Gap="PolarisGap.Base">
+            @*
+                These two are NOT Polaris components and are deliberately absent from ProbedElements:
+                they configure the admin that surrounds the app, and app-bridge.js only defines them
+                once it has connected to the admin host. Measured in a real browser: outside the Admin
+                they are undefined, so probing them here would report a failure that says nothing about
+                this toolkit. The markup is kept so the shape is documented and inspectable.
+            *@
+            <PolarisAppNav>
+                <PolarisLink Href="/" rel="home">Home</PolarisLink>
+                <PolarisLink Href="/components">Components</PolarisLink>
+            </PolarisAppNav>
+
+            <PolarisAppWindow Id="gallery-window" Src="/components" />
+
+            <PolarisButton CommandFor="gallery-window" Command="PolarisCommand.Show">
+                Open the app window
+            </PolarisButton>
+        </PolarisStack>
+    </PolarisSection>
+
     <PolarisSection Heading="Every component: forms">
         <PolarisStack Gap="PolarisGap.Base">
             @* A choice list is the only multi-select, and values is an array property. *@

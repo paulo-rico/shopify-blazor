@@ -1965,6 +1965,7 @@
       "events": [],
       "slots": [
         "children",
+        "accessory",
         "aside",
         "breadcrumb-actions",
         "primary-action",
@@ -2951,6 +2952,42 @@
         "change",
         "focus",
         "input"
+      ],
+      "slots": []
+    },
+    {
+      "wrapper": "PolarisAppNav",
+      "element": "s-app-nav",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-app-nav>`: the navigation menu for your app inside the Shopify admin.",
+      "parameters": [],
+      "events": [],
+      "slots": [
+        "children"
+      ]
+    },
+    {
+      "wrapper": "PolarisAppWindow",
+      "element": "s-app-window",
+      "namespace": "Polaris.Blazor.Components",
+      "summary": "Wraps `<s-app-window>`: a fullscreen window, hosted by the admin, that loads one of the app's own routes.",
+      "parameters": [
+        {
+          "name": "Src",
+          "type": "string?"
+        },
+        {
+          "name": "OnShow",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnHide",
+          "type": "EventCallback<PolarisEventArgs>"
+        }
+      ],
+      "events": [
+        "hide",
+        "show"
       ],
       "slots": []
     }

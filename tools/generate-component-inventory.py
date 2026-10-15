@@ -35,6 +35,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 COMPONENTS = ROOT / "src" / "Polaris.Blazor" / "Components"
 SPEC = ROOT / "tools" / "polaris-elements.json"
+
+# The spec category for components that come from App Bridge rather than Polaris. They are documented
+# separately by Shopify because they configure the admin around the app instead of drawing inside it,
+# and the inventory keeps them apart for the same reason. See the `counts` block.
+APP_BRIDGE_CATEGORY = "app-bridge"
 TEST_DIR = ROOT / "tests" / "Polaris.Blazor.Tests"
 GALLERY = ROOT / "samples" / "Shopify.Blazor.SampleApp" / "Components" / "Pages" / "Components.razor"
 OUTPUTS = {
@@ -475,6 +480,10 @@ def join_records() -> list[dict]:
                 "namespace": "Polaris.Blazor.Components" if wrapper else None,
                 "summary": wrapper["summary"] if wrapper else "",
                 "minPolarisVersion": entry["minPolarisVersion"],
+                # A component that cannot be probed in a standalone page says so in the spec, and the
+                # exemption is carried here so a test can hold the two sets against each other. An
+                # exemption without a stated reason is refused by the test.
+                "browserProbeExempt": entry.get("browserProbe", True) is False,
                 "verification": verification,
                 "implementationStatus": "wrapped" if wrapper else "unwrapped",
                 "parameters": [
@@ -519,6 +528,8 @@ REQUIRED_FIELDS = (
     "minimumSupportedVersion",
     "testCoverage",
     "implementationStatus",
+    "verifiedInBrowser",
+    "browserProbeExempt",
 )
 
 
@@ -550,6 +561,10 @@ def build_record(record: dict) -> dict:
         # The element types tools/verify-in-browser.mjs probes in a real Polaris runtime. Kept as a
         # field of its own so a reader can see the claim's basis without opening the probe script.
         "verifiedInBrowser": record["element"] in browser_verified_elements(),
+        # True when the component cannot be probed in a standalone page at all — which today means the
+        # App Bridge components, because app-bridge.js defines them only once it has connected to the
+        # admin host. The spec states the exemption and requires a reason in the notes.
+        "browserProbeExempt": record["browserProbeExempt"],
         "clearedProperties": record["clearedProperties"],
         "notes": record["notes"],
         "composedInside": record["componentOf"],
@@ -576,8 +591,15 @@ def build_inventory(records: list[dict]) -> dict:
         "requiredFields": list(REQUIRED_FIELDS),
         "counts": {
             "elements": len(records),
-            "topLevel": sum(1 for r in records if r["composedInside"] is None),
+            # Polaris and App Bridge are two different sources. A Polaris component comes from
+            # polaris-1.js and is versioned with that release; an App Bridge component configures the
+            # admin that surrounds the app, comes from app-bridge.js, and is not versioned with Polaris
+            # at all. Counting them together would make "top-level components" mean two things at once.
+            "topLevel": sum(
+                1 for r in records if r["composedInside"] is None and r["category"] != APP_BRIDGE_CATEGORY
+            ),
             "subElements": sum(1 for r in records if r["composedInside"] is not None),
+            "appBridge": sum(1 for r in records if r["category"] == APP_BRIDGE_CATEGORY),
             "wrapped": sum(1 for r in records if r["wrapper"]),
             "unwrapped": sum(1 for r in records if not r["wrapper"]),
             "byCategory": dict(sorted(categories.items())),

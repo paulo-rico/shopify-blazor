@@ -188,6 +188,26 @@ Read these before changing anything in `src/`.
     demand is real: never rely on a Polaris component reading its children at upgrade time, and read
     them from C# (which knows the tree) rather than from the DOM.
 
+23. **An App Bridge web component is not defined outside the Shopify Admin.** `s-app-nav` and
+    `s-app-window` come from `app-bridge.js`, which defines them only once it has connected to the
+    admin host — so on a standalone page they are not custom elements at all. This was **measured, not
+    assumed**: adding them to the sample gallery's probe list made the browser check report
+    `not defined: s-app-nav, s-app-window` while every other assertion passed. They are therefore
+    `unit-tested` rather than `browser-verified`, `tools/polaris-elements.json` marks them
+    `"browserProbe": false`, and a test holds the exemption set against the gallery's shortfall *and*
+    requires each exemption to state its reason in the spec notes. Do not "fix" this by adding them back
+    to `ProbedElements`: that list's claim is that Polaris defines the element, and for these two it
+    does not.
+
+24. **`IAppBridgeInterop` has no resource picker, and a screen needs one.** Nothing in
+    `src/Shopify.Blazor` calls `shopify.resourcePicker`, so the "pick products from Shopify" button has
+    no way to work. Adding it has three traps worth knowing before writing it: the picker resolves
+    `undefined` when the merchant cancels (so `Array.isArray` is the only honest test, and a bare
+    truthiness check treats a cancel as a selection), `window.shopify` is undefined outside the Admin
+    (so the button must be disabled with a reason rather than throwing), and the action is `"select"` —
+    the `add` default means the merchant can create products from inside the picker, which is not what
+    this button is for.
+
 ## Resetting the build tree
 
 To force a from-scratch build, remove **only** .NET build output. Do not reach for
