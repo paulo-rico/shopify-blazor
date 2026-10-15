@@ -265,6 +265,26 @@ public sealed class ComponentCoverageTests
     }
 
     [Fact]
+    public void EmptyState_puts_its_subheading_in_the_slot_rather_than_dropping_it()
+    {
+        // The parameter was declared and never rendered, so the supporting text vanished silently — an empty
+        // state with a heading and no explanation. The slot attribute has to be on an element, which is why
+        // the wrapper wraps the fragment in an s-text rather than passing the fragment through.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisEmptyState>(parameters => parameters
+            .Add(p => p.Heading, "No quotes yet")
+            .Add(p => p.Subheading, builder => builder.AddContent(0, "Start one from a piece.")));
+
+        var element = component.Find("s-empty-state");
+        Assert.Equal("No quotes yet", element.GetAttribute("heading"));
+
+        var subheading = component.Find("s-text");
+        Assert.Equal("subheading", subheading.GetAttribute("slot"));
+        Assert.Equal("Start one from a piece.", subheading.TextContent);
+    }
+
+    [Fact]
     public void AppNav_renders_its_links_and_passes_the_home_rel_through()
     {
         // s-app-nav configures the ADMIN's own navigation, so it is App Bridge rather than Polaris and

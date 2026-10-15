@@ -2489,7 +2489,8 @@
         }
       ],
       "testCoverage": [
-        "EmptyState_accepts_its_subheading_slot"
+        "EmptyState_accepts_its_subheading_slot",
+        "EmptyState_puts_its_subheading_in_the_slot_rather_than_dropping_it"
       ],
       "verification": "browser-verified",
       "verifiedInBrowser": true,

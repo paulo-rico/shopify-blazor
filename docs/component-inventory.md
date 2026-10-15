@@ -42,7 +42,7 @@ The record for each element joins two sources that cannot drift apart: the wrapp
 | `<s-divider>` | Divider | `PolarisDivider` | layout-and-structure | 1.1 | browser-verified | 1 |
 | `<s-drop-zone>` | Drop zone | `PolarisDropZone` | forms | 1.1 | browser-verified | 1 |
 | `<s-email-field>` | Email field | `PolarisEmailField` | forms | 1.1 | browser-verified | 2 |
-| `<s-empty-state>` | Empty state | `PolarisEmptyState` | feedback-and-status-indicators | 1.1 | browser-verified | 1 |
+| `<s-empty-state>` | Empty state | `PolarisEmptyState` | feedback-and-status-indicators | 1.1 | browser-verified | 2 |
 | `<s-grid>` | Grid | `PolarisGrid` | layout-and-structure | 1.1 | browser-verified | 2 |
 | `<s-grid-item>` | Grid item | `PolarisGridItem` | layout-and-structure | 1.1 | browser-verified | 1 |
 | `<s-heading>` | Heading | `PolarisHeading` | typography-and-content | 1.1 | browser-verified | 1 |
@@ -982,6 +982,7 @@ Accessibility requirements:
 Exercised by:
 
 - `EmptyState_accepts_its_subheading_slot`
+- `EmptyState_puts_its_subheading_in_the_slot_rather_than_dropping_it`
 
 Notes: Outside a table it does not detect emptiness, so render it conditionally. The action slots accept exactly one button each — a second button in primary-action is ignored silently. heading cannot contain markup.
 
