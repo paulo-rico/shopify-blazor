@@ -33,7 +33,7 @@ public sealed class ConfigureCommandTests
         project.Environment
             .With("SHOPIFY_API_KEY", "key")
             .With("SHOPIFY_API_SECRET", SecretValue)
-            .With("SHOPIFY_APP_URL", "https://example.ngrok.app");
+            .With("SHOPIFY_APP_URL", "https://shop.example.com");
 
         var exitCode = Run(project, "--check");
 
@@ -51,7 +51,7 @@ public sealed class ConfigureCommandTests
         project.Environment
             .With("SHOPIFY_API_KEY", "key-value-visible")
             .With("SHOPIFY_API_SECRET", SecretValue)
-            .With("SHOPIFY_APP_URL", "https://example.ngrok.app");
+            .With("SHOPIFY_APP_URL", "https://shop.example.com");
 
         Run(project, "--check");
 
@@ -80,7 +80,7 @@ public sealed class ConfigureCommandTests
         // configure --check and doctor agree on this: a committed secret is a failure, not a pass
         // with a note.
         using var project = new TempProject().WithHealthyProjectFile()
-            .WithAppSettings(apiKey: "key", apiSecret: SecretValue, appUrl: "https://example.ngrok.app");
+            .WithAppSettings(apiKey: "key", apiSecret: SecretValue, appUrl: "https://shop.example.com");
 
         var exitCode = Run(project, "--check");
 

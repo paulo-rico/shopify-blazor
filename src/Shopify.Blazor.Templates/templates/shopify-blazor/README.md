@@ -23,8 +23,8 @@ In the [Partner Dashboard](https://partners.shopify.com) create an app, then set
 
 | Setting | Value |
 |---|---|
-| App URL | `https://<your-tunnel>/` |
-| Allowed redirection URL(s) | `https://<your-tunnel>/` |
+| App URL | `https://<your-server-hostname>/` |
+| Allowed redirection URL(s) | `https://<your-server-hostname>/` |
 | Embedded | **Yes** |
 | Scopes | `read_products,write_products` (at minimum `read_products` for the products page) |
 
@@ -37,7 +37,7 @@ User secrets keep them out of the repository. `UserSecretsId` is already set, so
 ```sh
 dotnet user-secrets set "Shopify:ApiKey"    "<client id>"
 dotnet user-secrets set "Shopify:ApiSecret" "<client secret>"
-dotnet user-secrets set "Shopify:AppUrl"    "https://<your-tunnel>"
+dotnet user-secrets set "Shopify:AppUrl"    "https://<your-server-hostname>"
 ```
 
 Environment variables work too, and are what a deployed app should use:
@@ -45,7 +45,7 @@ Environment variables work too, and are what a deployed app should use:
 ```sh
 export SHOPIFY_API_KEY=<client id>
 export SHOPIFY_API_SECRET=<client secret>
-export SHOPIFY_APP_URL=https://<your-tunnel>
+export SHOPIFY_APP_URL=https://<your-server-hostname>
 ```
 
 > An environment variable **silently overrides** user secrets. If a key from a different Shopify app
@@ -64,16 +64,42 @@ dotnet run
 It starts on <http://localhost:3458>. Without credentials the app still renders — it says on the
 Dashboard that Shopify is not configured rather than failing at boot.
 
-## 4. Open it inside the Shopify Admin
+## 4. Run it on your web server
 
-The Admin only frames an **HTTPS** URL, so expose the local server with a tunnel:
+The Admin only frames a public **HTTPS** URL, so the app has to run somewhere Shopify can reach. Any
+web server that can host ASP.NET Core and terminate HTTPS will do — running the app there and
+copying changes to it is a simpler loop than fronting a laptop with a tunnel, and it is the setup
+this project is built for.
 
 ```sh
-ngrok http 3458
+dotnet publish -c Release -o publish
 ```
 
-Put the tunnel hostname in `Shopify:AppUrl` and in the Partner Dashboard, then open the app from
-your development store's **Apps** menu.
+Copy the contents of `publish/` to the server with whatever you already use — FTP/SFTP, `rsync`, the
+host's own deploy — and start it there with the credentials from step 2 in its environment. Behind an
+HTTPS reverse proxy, which is what usually terminates TLS on a server:
+
+```sh
+SHOPIFY_API_KEY=<client id> \
+SHOPIFY_API_SECRET=<client secret> \
+SHOPIFY_APP_URL=https://<your-server-hostname> \
+ASPNETCORE_URLS=http://127.0.0.1:5000 \
+dotnet Shopify.Blazor.SampleApp.dll
+```
+
+Put `https://<your-server-hostname>` in `Shopify:AppUrl` and in the Partner Dashboard's App URL and
+redirect URL, then open the app from your development store's **Apps** menu.
+
+Three things that save time on a server:
+
+- **If the server has no .NET runtime, publish self-contained** —
+  `dotnet publish -c Release -r linux-x64 --self-contained -o publish` — and copy that. The folder is
+  much larger and needs no runtime installed.
+- **Upload the whole `publish/` folder, or keep it consistent.** Replacing one assembly and not its
+  dependencies is the classic half-deployed app: it starts, and then fails somewhere unrelated.
+- **Only set `ASPNETCORE_ENVIRONMENT=Development` if you want the diagnostics on the server.** They
+  are off by default in a deployment, which is correct: `/api/diagnostics/session-token` decodes a
+  session token *without* verifying it, so it belongs on a private development host.
 
 ## Where things live
 

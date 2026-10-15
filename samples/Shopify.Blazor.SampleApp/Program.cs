@@ -65,10 +65,6 @@ app.UseMiddleware<RequestObservationMiddleware>();
 
 app.UseShopifyEmbeddedFraming(options =>
 {
-    // The tunnel hostname is how a developer opens the embedded app during setup. It is not a
-    // production origin, so it is only allowed while running in Development.
-    options.AllowDevelopmentTunnels = app.Environment.IsDevelopment();
-
     // Lets a locally served page frame the app during development, which is how the framing policy
     // is verified without a development store. Set EMBED_PROBE_ORIGIN to an origin such as
     // http://localhost:3479. Never set in a deployed app.

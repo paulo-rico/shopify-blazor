@@ -85,14 +85,9 @@ public sealed class ShopifyEmbeddedFramingOptions
     /// </summary>
     /// <remarks>
     /// Add an entry only when the app genuinely must be embedded somewhere else — a custom admin
-    /// host, for example. Each entry is an origin, not a path.
+    /// host, or a locally served probe page. Each entry is an origin, not a path.
     /// </remarks>
     public IReadOnlyList<string> FrameAncestors => _frameAncestors;
-
-    /// <summary>
-    /// Also allows the common development tunnel hosts, for testing the embedded app from a tunnel.
-    /// </summary>
-    public bool AllowDevelopmentTunnels { get; set; }
 
     /// <summary>Allows one more origin to frame the app.</summary>
     /// <param name="origin">An origin such as <c>https://admin.shopify.com</c>.</param>
@@ -108,17 +103,16 @@ public sealed class ShopifyEmbeddedFramingOptions
         return this;
     }
 
-    /// <summary>Applies <see cref="AllowDevelopmentTunnels"/>.</summary>
+    /// <summary>The Admin origins, plus any the application added.</summary>
+    /// <remarks>
+    /// Deliberately a short fixed list rather than a wildcard: the app is frameable by the Admin and
+    /// by any origin the application names, and by nothing else. An origin that fronts the app during
+    /// development — a tunnel, or another machine on the network — is an ordinary HTTPS origin and is
+    /// added with <see cref="AllowFrameAncestor"/>.
+    /// </remarks>
     internal IEnumerable<string> Resolve()
     {
         var origins = new List<string> { "https://admin.shopify.com", "https://*.myshopify.com" };
-
-        if (AllowDevelopmentTunnels)
-        {
-            origins.Add("https://*.ngrok-free.app");
-            origins.Add("https://*.ngrok-free.dev");
-            origins.Add("https://*.trycloudflare.com");
-        }
 
         foreach (var origin in _frameAncestors)
         {

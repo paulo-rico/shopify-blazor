@@ -164,7 +164,7 @@ public static class SessionTokenDiagnostics
             return $"The aud claim is '{report.ClaimAudience}' but this app's API key is " +
                    $"'{report.ConfiguredApiKey}'. The token was minted for a different app. Check that the " +
                    "App URL in the Partner Dashboard is this app, and that its Client ID is what you put in " +
-                   "SHOPIFY_API_KEY — a stale ngrok hostname on an older app entry produces exactly this.";
+                   "SHOPIFY_API_KEY — a stale App URL on an older app entry produces exactly this.";
         }
 
         if (report.ExpiresInSeconds is < 0 || failure == ShopifySessionTokenValidationFailure.Expired)

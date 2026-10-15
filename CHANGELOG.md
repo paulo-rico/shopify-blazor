@@ -42,6 +42,26 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 - **Documentation** — getting started, the component reference, authentication, troubleshooting, a CLI
   reference, a versioning and compatibility policy, and ADR 0001 for the hosting model.
 
+### Changed
+
+- **Development happens on a web server.** A tunnel is no longer part of the workflow: point Shopify
+  at a server that can terminate HTTPS, publish with `bin/shopify-publish` (which replaces
+  `bin/shopify-dev`) and copy the output there. The documentation, the generated project's README and
+  the `shopify-blazor doctor`/`configure` guidance all describe that path, and the tunnel-specific
+  request header the sample used to send is gone from its JavaScript.
+
+### Removed
+
+- **`ShopifyEmbeddedFramingOptions.AllowDevelopmentTunnels`.** It existed to add wildcard tunnel hosts
+  to the `frame-ancestors` policy, which the web-server workflow does not need. The policy is now the
+  Admin origins plus whatever you name with `AllowFrameAncestor(origin)` — a development origin is an
+  ordinary HTTPS origin. Dropping it removes two wildcard entries from every app's framing policy,
+  which is a tightening rather than a loss.
+- **`bin/shopify-dev`**, replaced by `bin/shopify-publish`. The old script started the app locally and
+  raised a public tunnel to it, which is no longer how the app is developed or deployed.
+- The troubleshooting entry about a tunnel provider's browser-warning page, which cannot occur when
+  the URL being loaded is the app's own server.
+
 ### Fixed
 
 - **A stale `s-choice-list` selection could never be cleared.** The component base class documented

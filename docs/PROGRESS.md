@@ -17,7 +17,7 @@ exist and are verified, and the release machinery is prepared but unused.
 | `Shopify.Blazor.Cli` | `new`, `add page`, `add component`, `configure`, `doctor`. 115 tests; `doctor` fails on a committed secret and on a missing render mode. |
 | Component inventory | `docs/component-inventory.{json,md}` generated from a hand-maintained element spec joined with the C# sources, with a drift check. All 60 wrappers are named in a test. |
 | Release machinery | `CHANGELOG.md`, `docs/versioning.md`, and a tag-triggered `release.yml` that packs, verifies each package's contents and publishes only if `NUGET_API_KEY` is set. **Nothing is tagged or published.** |
-| Real development store | **Not done.** Needs credentials and a tunnel. The app embeds in the Admin; a rejected token is diagnosed rather than guessed at. |
+| Real development store | **Not done.** Needs credentials and a public HTTPS server. The app embeds in the Admin; a rejected token is diagnosed rather than guessed at. |
 
 ## Verified, with how
 
@@ -45,9 +45,9 @@ exist and are verified, and the release machinery is prepared but unused.
 ## Next task, in order
 
 1. **Install in a real development store.** Still the one unverified step. Needs `SHOPIFY_API_KEY`,
-   `SHOPIFY_API_SECRET` and a tunnel; the steps are in `docs/getting-started.md`. Expect to find what
-   a test cannot: the Admin's iframe sandbox, CSP behaviour, and the App Bridge handshake in a real
-   host.
+   `SHOPIFY_API_SECRET` and a server Shopify can reach over HTTPS; the steps are in
+   `docs/getting-started.md`. Expect to find what a test cannot: the Admin's iframe sandbox, CSP
+   behaviour, and the App Bridge handshake in a real host.
 2. **Induce a circuit loss.** The reconnection dialog is present and its assets are served, but
    nothing has actually killed a circuit and watched the merchant get back. Stop the server mid-page
    and confirm the dialog appears, `Retry` recovers, and a rejected circuit reloads.

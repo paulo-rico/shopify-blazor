@@ -86,7 +86,7 @@ To use it against a development store you need three things — see
 ```sh
 export SHOPIFY_API_KEY=...      # Partner Dashboard
 export SHOPIFY_API_SECRET=...   # Partner Dashboard — server-side only
-export SHOPIFY_APP_URL=https://your-tunnel.ngrok-free.app
+export SHOPIFY_APP_URL=https://<your-server-hostname>
 ```
 
 ## What is actually verified
@@ -108,7 +108,7 @@ Everything below was run on this machine, not asserted from documentation.
 | Embeddable by the Admin (the framing policy) | **allowed origin frames it; any other is refused** |
 
 **Not verified:** installation in a real Shopify development store. That needs Partner Dashboard
-credentials and a public HTTPS tunnel, so it is the one step a human has to do. The app is built for
+credentials and a public HTTPS server, so it is the one step a human has to do. The app is built for
 it and the authentication path is covered by tests against a real signed-key path, but the last
 mile is untested. Treat it as the next task, not as done.
 
@@ -189,7 +189,7 @@ errors.
 
 | Document | Contents |
 |---|---|
-| [Getting started](docs/getting-started.md) | Shopify app, tunnel, configuration, first authenticated call |
+| [Getting started](docs/getting-started.md) | Shopify app, web server, configuration, first authenticated call |
 | [Troubleshooting](docs/troubleshooting.md) | Diagnosing a rejected session token, and the framing trap |
 | [Component reference](docs/components.md) | All 59 components — every documented Polaris element — generated from source |
 | [Component inventory](docs/component-inventory.md) | Every element with its slots, events, accessibility notes, version and verification status |

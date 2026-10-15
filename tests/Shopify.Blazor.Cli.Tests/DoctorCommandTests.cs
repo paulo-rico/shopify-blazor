@@ -35,14 +35,14 @@ public sealed class DoctorCommandTests
         var project = new TempProject()
             .WithHealthyProjectFile()
             .WithGlobalJson()
-            .WithAppSettings(apiKey: "key", apiSecret: string.Empty, appUrl: "https://example.ngrok.app", adminApiVersion: "2026-10")
+            .WithAppSettings(apiKey: "key", apiSecret: string.Empty, appUrl: "https://shop.example.com", adminApiVersion: "2026-10")
             .WithRenderMode()
             .WithFramework(".NET 10.0.1");
 
         project.Environment
             .With("SHOPIFY_API_KEY", "env-key")
             .With("SHOPIFY_API_SECRET", "env-secret")
-            .With("SHOPIFY_APP_URL", "https://example.ngrok.app");
+            .With("SHOPIFY_APP_URL", "https://shop.example.com");
 
         // The Polaris project reference has to resolve to something with the interop script in its
         // wwwroot, because that is the strongest offline proof the asset will be published.
@@ -112,7 +112,7 @@ public sealed class DoctorCommandTests
         // A credential in a committed file has to be rotated, and nothing else in the toolkit says
         // so. This is the check that catches it before it reaches a public repository.
         using var project = HealthyProject();
-        project.WithAppSettings(apiKey: "key", apiSecret: "shpss_a_real_looking_secret", appUrl: "https://example.ngrok.app");
+        project.WithAppSettings(apiKey: "key", apiSecret: "shpss_a_real_looking_secret", appUrl: "https://shop.example.com");
 
         var check = Check(project, "configuration");
 

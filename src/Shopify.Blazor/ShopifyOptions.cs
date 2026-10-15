@@ -41,8 +41,8 @@ public sealed class ShopifyOptions
     public string ApiSecret { get; set; } = string.Empty;
 
     /// <summary>
-    /// The public HTTPS URL the app is served from (for example an ngrok hostname in
-    /// development). Used for diagnostics and for building redirect URLs.
+    /// The public HTTPS URL the app is served from — the address Shopify loads it at. Used for
+    /// diagnostics and for building redirect URLs.
     /// </summary>
     public string? AppUrl { get; set; }
 

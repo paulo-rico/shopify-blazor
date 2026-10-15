@@ -62,8 +62,8 @@ public sealed partial class ConfigureCommand
         _console.WriteLine("1. Create the app in the Partner Dashboard (https://partners.shopify.com):");
         _console.WriteLine("     Apps  ->  Create app  ->  Create app manually");
         _console.WriteLine("   Then, on the app's page:");
-        _console.WriteLine("     - Configuration -> App URL:      https://<your tunnel hostname>");
-        _console.WriteLine("     - Configuration -> Redirect URL: https://<your tunnel hostname>/signin-oidc");
+        _console.WriteLine("     - Configuration -> App URL:      https://<your-server-hostname>");
+        _console.WriteLine("     - Configuration -> Redirect URL: https://<your-server-hostname>/signin-oidc");
         _console.WriteLine($"     - Configuration -> Access scopes: at minimum {ExampleScopes}");
         _console.WriteLine("     - Overview      -> Client ID and Client secret: copy both.");
         _console.WriteLine("   The app must be served over public HTTPS; the Admin will not frame a localhost URL.");
@@ -81,7 +81,7 @@ public sealed partial class ConfigureCommand
         _console.WriteLine("   Environment variables (these override user secrets and appsettings):");
         _console.WriteLine("     export SHOPIFY_API_KEY=<client id>");
         _console.WriteLine("     export SHOPIFY_API_SECRET=<client secret>");
-        _console.WriteLine("     export SHOPIFY_APP_URL=https://<your tunnel hostname>");
+        _console.WriteLine("     export SHOPIFY_APP_URL=https://<your-server-hostname>");
         _console.WriteLine();
         _console.WriteLine("   A key from a different Shopify app rejects every session token as \"another app\",");
         _console.WriteLine("   and startup logs which layer won. Check that before debugging anything else.");
@@ -167,7 +167,7 @@ public sealed partial class ConfigureCommand
             $"dotnet user-secrets init{idSuffix}",
             $"dotnet user-secrets set \"Shopify:ApiKey\" <client id>{idSuffix}",
             $"dotnet user-secrets set \"Shopify:ApiSecret\" <client secret>{idSuffix}",
-            $"dotnet user-secrets set \"Shopify:AppUrl\" https://<your tunnel hostname>{idSuffix}",
+            $"dotnet user-secrets set \"Shopify:AppUrl\" https://<your-server-hostname>{idSuffix}",
         ];
     }
 

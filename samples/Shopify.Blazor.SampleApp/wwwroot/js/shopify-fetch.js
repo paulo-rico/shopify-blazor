@@ -37,16 +37,6 @@ export async function call(url, method = "GET", body = null) {
     const headers = {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
-
-        // ngrok's free plan serves a browser-warning interstitial (ERR_NGROK_6024) instead of your
-        // app to requests that look like browser navigations. It answers with HTTP 200 and an HTML
-        // body, so without this header JSON.parse gets the warning page and the call fails with a
-        // confusing parse error rather than anything that names the cause.
-        //
-        // The interstitial is shown once per browser and endpoint — clicking "Visit Site" once
-        // clears it for the Admin's iframe too — so this header is belt-and-braces for the API
-        // calls as well as a convenience when testing with a fresh profile.
-        "ngrok-skip-browser-warning": "true",
     };
 
     let payload;

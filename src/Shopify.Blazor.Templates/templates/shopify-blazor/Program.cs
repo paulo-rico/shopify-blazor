@@ -65,12 +65,12 @@ if (!app.Environment.IsDevelopment())
 //
 // Registered before UseAntiforgery, on purpose: its OnStarting callback has to run *after*
 // antiforgery has written its own headers, and OnStarting callbacks run last-registered-first.
-app.UseShopifyEmbeddedFraming(options =>
-{
-    // A tunnel hostname is how a developer opens the embedded app during setup. It is not a
-    // production origin, so it is only allowed while running in Development.
-    options.AllowDevelopmentTunnels = app.Environment.IsDevelopment();
-});
+//
+// No configuration is needed: the Admin origins are allowed and nothing else. To embed the app
+// somewhere else as well — a custom admin host, or a locally served probe page — add that origin:
+//
+//     options.AllowFrameAncestor("https://admin.example.com");
+app.UseShopifyEmbeddedFraming();
 
 app.UseStatusCodePages();
 app.UseStaticFiles();

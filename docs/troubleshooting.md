@@ -9,7 +9,7 @@ Two tools answer most questions without guessing.
 ```sh
 # Is the app installable at all? Checks the page, the framing policy, the API key match, and
 # whether the server agrees with the page about which app this is.
-node tools/check-admin-install.mjs https://your-tunnel.ngrok-free.app
+node tools/check-admin-install.mjs https://<your-server-hostname>
 
 # What does a session token actually contain, and why was it rejected?
 # Development only. Copy the token out of the browser (see below) or send it as a bearer token.
@@ -87,52 +87,18 @@ attached a token — look at the browser console, not the server log.
 | `kid` not among the shop's keys | The token was signed by a different app's store | Same as the `aud` mismatch above |
 
 The most common real cause is the **audience mismatch**. It happens when the Partner Dashboard App
-URL still points at an older app entry — for example a previous ngrok hostname that has since been
-reused — so the Admin loads *that* app's frontend while your server holds a different app's
-credentials. Both halves are individually valid; they are just not the same app.
+URL still points at an older app entry — a previous hostname that has since been reused, or a second
+app created for the same project — so the Admin loads *that* app's frontend while your server holds a
+different app's credentials. Both halves are individually valid; they are just not the same app.
 
 Confirm the two halves:
 
 ```sh
-curl -s https://your-tunnel/ | grep -o 'shopify-api-key[^>]*'
-curl -s https://your-tunnel/api/diagnostics/session-token | python3 -m json.tool | grep configuredApiKey
+curl -s https://<your-server-hostname>/ | grep -o 'shopify-api-key[^>]*'
+curl -s https://<your-server-hostname>/api/diagnostics/session-token | python3 -m json.tool | grep configuredApiKey
 ```
 
 They must be the same key. `check-admin-install.mjs` compares them for you.
-
-## The public URL shows ngrok's "You are about to visit…" page
-
-`http://localhost:3458/` works but `https://<your-tunnel>.ngrok-free.dev/` shows an
-`ERR_NGROK_6024` warning page. That page is ngrok's, not your app's, and it is a free-plan
-behaviour.
-
-**It is shown once per browser, per endpoint.** Click **Visit Site** once and it stops appearing for
-that browser — including inside the Shopify Admin's iframe, which uses the same browser. Verified:
-first load shows the interstitial, one click loads the app, and the same endpoint then works
-normally.
-
-So this is a single click, not a blocker. Two things are still worth knowing:
-
-- **It answers HTTP 200 with an HTML body**, so a `fetch` can mistake it for a successful response
-  and fail later with a JSON parse error rather than naming the cause. Anything scripted should send
-  `ngrok-skip-browser-warning: true`; the app's own calls do (see
-  `samples/Shopify.Blazor.SampleApp/wwwroot/js/shopify-fetch.js`).
-- **A browser you have not clicked through in will show it again.** A fresh profile, a private
-  window, or the merchant's browser on first visit each see it once.
-
-If you want it gone entirely, it is removed by a paid ngrok plan, or by a tunnel that injects
-nothing such as Cloudflare Tunnel.
-
-Diagnose which you are getting:
-
-```sh
-# browser-like request without the exemption header: interstitial on a fresh client
-curl -s -A "Mozilla/5.0 (X11; Linux x86_64) Chrome/140" https://your-tunnel.ngrok-free.dev/ | head -3
-
-# same request plus the exemption header: your app, always
-curl -s -A "Mozilla/5.0 (X11; Linux x86_64) Chrome/140" \
-     -H "ngrok-skip-browser-warning: true" https://your-tunnel.ngrok-free.dev/ | head -3
-```
 
 ## The app shows an empty frame in the Admin
 
@@ -162,7 +128,7 @@ headers, and `OnStarting` callbacks run last-registered-first.
 Check the result:
 
 ```sh
-curl -s -D - -o /dev/null https://your-tunnel/ | grep -i "frame"
+curl -s -D - -o /dev/null https://<your-server-hostname>/ | grep -i "frame"
 # Content-Security-Policy: frame-ancestors https://admin.shopify.com https://*.myshopify.com
 # (no X-Frame-Options at all — that is correct)
 ```

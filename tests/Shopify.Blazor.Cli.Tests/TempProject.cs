@@ -141,7 +141,7 @@ public sealed class TempProject : IDisposable
     public TempProject WithAppSettings(
         string? apiKey = "test-key",
         string? apiSecret = "",
-        string? appUrl = "https://example.ngrok.app",
+        string? appUrl = "https://shop.example.com",
         string? adminApiVersion = null,
         string fileName = "appsettings.json")
     {

@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+#
+# shopify-publish — build the folder to upload to the web server.
+#
+# The app runs on a real HTTPS server, so the loop is: change something here, publish, copy the
+# output there. This script does the publish step and prints exactly what to copy.
+#
+# It deliberately does NOT talk to the server. Your deploy tool already knows how to reach it
+# (FTP/SFTP, rsync, the host's control panel), and putting credentials or a protocol choice in here
+# would mean maintaining a second, worse deploy mechanism.
+#
+# Usage:
+#   bin/shopify-publish [options]
+#
+#   --project <path>          project to publish (default: the sample app)
+#   --output <dir>            where to publish (default: artifacts/publish/<project>)
+#   --configuration <name>    Release (default) or Debug
+#   --self-contained <rid>    publish with the runtime included, e.g. linux-x64. Use this when the
+#                             server has no .NET runtime installed.
+#
+# Examples:
+#   bin/shopify-publish                            # the sample app, needs the runtime on the server
+#   bin/shopify-publish --self-contained linux-x64 # nothing to install on the server
+#
+set -euo pipefail
+
+log()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m!!\033[0m %s\n' "$*"; }
+die()  { printf '\033[1;31m!!\033[0m %s\n' "$*" >&2; exit 1; }
+
+# ── repository ───────────────────────────────────────────────────────────────
+# Resolve the script's own directory so the script works from anywhere, and so the paths it prints
+# are absolute — a relative path in the output would be wrong the moment you cd to upload it.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+[[ -f "$ROOT/Shopify.Blazor.slnx" ]] || die "$ROOT does not look like the toolkit repository."
+
+# ── configuration ────────────────────────────────────────────────────────────
+# .env is optional and read without sourcing it: Shopify secrets are not shell-quoted, and an
+# unquoted `#` or space would corrupt them. Only SHOPIFY_APP_URL is used here, to print the URLs the
+# deployment has to match.
+env_value() {
+    local key="$1"
+    [[ -f "$ROOT/.env" ]] || return 0
+    sed -n "s/^${key}=//p" "$ROOT/.env" | tail -n 1
+}
+
+# The default target is the sample app's project file. --project accepts a .csproj or a directory
+# containing one, absolute or relative to the repository root.
+PROJECT="$ROOT/samples/Shopify.Blazor.SampleApp/Shopify.Blazor.SampleApp.csproj"
+CONFIGURATION="Release"
+OUTPUT=""
+SELF_CONTAINED=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --project)       PROJECT="$2"; shift 2 ;;
+        --output)        OUTPUT="$2"; shift 2 ;;
+        --configuration) CONFIGURATION="$2"; shift 2 ;;
+        --self-contained) SELF_CONTAINED="$2"; shift 2 ;;
+        # The header comment is the help: everything from line 2 up to the first non-comment line.
+        -h|--help)       awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}"; exit 0 ;;
+        *)               die "unknown option: $1 (try --help)" ;;
+    esac
+done
+
+[[ "$PROJECT" = /* ]] || PROJECT="$ROOT/$PROJECT"
+
+if [[ -d "$PROJECT" ]]; then
+    FOUND="$(find "$PROJECT" -maxdepth 1 -name '*.csproj' | head -n 1)"
+    [[ -n "$FOUND" ]] || die "no .csproj in $PROJECT"
+    PROJECT="$FOUND"
+fi
+
+[[ -f "$PROJECT" ]] || die "no project file at $PROJECT"
+
+PROJECT_NAME="$(basename "$PROJECT" .csproj)"
+[[ -n "$OUTPUT" ]] || OUTPUT="$ROOT/artifacts/publish/$PROJECT_NAME"
+
+# ── toolchain ────────────────────────────────────────────────────────────────
+command -v dotnet >/dev/null 2>&1 || die "dotnet is not on PATH."
+
+# The .NET CLI writes to ~/.dotnet and ~/.nuget. Where that is not writable (a sandbox, a read-only
+# home) it fails with a bare "Read-only file system" that reads like a build error and is not one.
+export DOTNET_CLI_HOME="${DOTNET_CLI_HOME:-$ROOT/.dotnet}"
+export NUGET_PACKAGES="${NUGET_PACKAGES:-$ROOT/.nuget/packages}"
+export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+
+# ── publish ──────────────────────────────────────────────────────────────────
+PUBLISH_ARGS=("$PROJECT" -c "$CONFIGURATION" -o "$OUTPUT" --nologo)
+
+if [[ -n "$SELF_CONTAINED" ]]; then
+    PUBLISH_ARGS+=(-r "$SELF_CONTAINED" --self-contained true)
+fi
+
+log "publishing $PROJECT_NAME ($CONFIGURATION${SELF_CONTAINED:+, self-contained $SELF_CONTAINED})"
+rm -rf "$OUTPUT"
+dotnet publish "${PUBLISH_ARGS[@]}"
+
+[[ -d "$OUTPUT" ]] || die "publish reported success but $OUTPUT does not exist."
+
+# ── what to upload ───────────────────────────────────────────────────────────
+# The entry assembly is named after the project. Picking "the first .dll" instead would print a
+# dependency (Microsoft.IdentityModel.Abstractions, alphabetically) as the thing to run.
+ENTRY="$PROJECT_NAME.dll"
+[[ -f "$OUTPUT/$ENTRY" ]] || die "published output has no $ENTRY; is $PROJECT_NAME an executable project?"
+
+FILE_COUNT="$(find "$OUTPUT" -type f | wc -l | tr -d ' ')"
+SIZE="$(du -sh "$OUTPUT" | cut -f1)"
+
+APP_URL="$(env_value SHOPIFY_APP_URL)"
+[[ -n "$APP_URL" ]] || APP_URL="https://<your-server-hostname>"
+
+cat <<EOF
+
+$(log "published to $OUTPUT")
+  files:  $FILE_COUNT ($SIZE)
+  run:    dotnet $OUTPUT/$ENTRY
+
+Upload the whole folder — all $FILE_COUNT files, not just the assembly that changed. Replacing one
+dll without the rest is the classic half-deployed app: it starts and then fails somewhere unrelated.
+
+  # rsync, if the server has ssh (adjust user and path):
+  rsync -av --delete "$OUTPUT/" user@server:/var/www/shopify-blazor/
+
+  # scp, when it does not:
+  scp -r "$OUTPUT/." user@server:/var/www/shopify-blazor/
+
+Or use whatever you already deploy with — FTP/SFTP, the host's file manager, its git integration.
+
+On the server, the app needs these in its environment (NOT in appsettings.json, and never committed):
+
+  SHOPIFY_API_KEY=<client id>
+  SHOPIFY_API_SECRET=<client secret>
+  SHOPIFY_APP_URL=$APP_URL
+
+And these must match it:
+  - Partner Dashboard -> App URL:            $APP_URL/
+  - Partner Dashboard -> Allowed redirects:  $APP_URL/auth/callback
+  - Shopify:AdminApiVersion in appsettings.json (see docs/versioning.md)
+
+$(warn "The app runs in Production there, so /api/diagnostics/* is off. Set")
+$(warn "ASPNETCORE_ENVIRONMENT=Development on the server only if you want them: they")
+$(warn "decode a session token without verifying it.")
+
+After uploading, restart the app and check the deployment from outside:
+
+  node tools/check-admin-install.mjs $APP_URL
+EOF

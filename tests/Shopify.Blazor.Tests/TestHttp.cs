@@ -150,7 +150,7 @@ public static class TestServices
         {
             options.ApiKey = "test-api-key";
             options.ApiSecret = "0123456789abcdef0123456789abcdef";
-            options.AppUrl = "https://test.ngrok-free.app";
+            options.AppUrl = "https://test.example.com";
 
             configure?.Invoke(options);
         }, validateOnStart: false);

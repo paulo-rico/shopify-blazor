@@ -106,7 +106,7 @@ The generated project needs three values before it will run:
 | `Shopify:ApiSecret` | `SHOPIFY_API_SECRET` |
 | `Shopify:AppUrl` | `SHOPIFY_APP_URL` |
 
-and its README (in the generated project) covers the tunnel and install steps.
+and its README (in the generated project) covers the deployment and install steps.
 
 ## `add page`
 
@@ -333,7 +333,7 @@ jq '.components[] | select(.wrapper == "PolarisButton")' src/Shopify.Blazor.Cli/
 # configure
 dotnet user-secrets set "Shopify:ApiKey" <client id>
 dotnet user-secrets set "Shopify:ApiSecret" <client secret>
-dotnet user-secrets set "Shopify:AppUrl" https://<your tunnel hostname>
+dotnet user-secrets set "Shopify:AppUrl" https://<your-server-hostname>
 
 # doctor — the same checks, read from the project
 grep -n "Razor" src/Shopify.Blazor/Shopify.Blazor.csproj          # Sdk must be Microsoft.NET.Sdk.Razor

@@ -56,33 +56,57 @@ You need a Shopify Partner account and a development store.
 
 1. In the Partner Dashboard, **Apps → Create app → Create app manually**.
 2. Note the **Client ID** (this is the API key) and the **Client secret** (the API secret).
-3. You will fill in the URLs in step 5, once you have a tunnel.
+3. You will fill in the URLs in step 5, once the app is reachable on your server.
 
-## 4. Start a tunnel
+## 4. Put the app on your web server
 
-The app must be reachable over public HTTPS, because Shopify loads it inside the Admin:
+Shopify loads the app inside the Admin, so it has to be reachable at a public **HTTPS** URL. Any
+server that can host ASP.NET Core and terminate HTTPS will do. Running the app there — and copying
+changes to it — is the setup this project assumes, and it is a shorter path than fronting a laptop
+with a tunnel.
 
 ```sh
-ngrok http 3458
+dotnet publish samples/Shopify.Blazor.SampleApp -c Release -o publish
 ```
 
-Note the `https://….ngrok-free.app` hostname it prints. The port must match the sample app's
-(default `3458`).
+Copy the contents of `publish/` to the server with whatever you already use — FTP/SFTP, `rsync`, the
+host's own deploy — then start it there with the credentials from step 5 in its environment. Behind
+the HTTPS reverse proxy that usually terminates TLS on a server:
 
-> **Using a free ngrok domain?** Read
-> [the interstitial section](troubleshooting.md#the-public-url-shows-ngroks-you-are-about-to-visit-page)
-> first. ngrok's free plan serves a warning page to browsers, which means the Admin cannot embed the
-> app no matter what the app does. This is worth knowing before you spend an evening debugging
-> authentication.
+```sh
+SHOPIFY_API_KEY=<client id> \
+SHOPIFY_API_SECRET=<client secret> \
+SHOPIFY_APP_URL=https://<your-server-hostname> \
+ASPNETCORE_URLS=http://127.0.0.1:5000 \
+dotnet Shopify.Blazor.SampleApp.dll
+```
+
+`bin/shopify-publish` does the publish step and prints exactly what to upload:
+
+```sh
+bin/shopify-publish                     # the sample app
+bin/shopify-publish --project <path>    # any other project
+```
+
+Two things worth knowing before the first upload:
+
+- **No .NET runtime on the server?** Publish self-contained and copy that instead:
+  `dotnet publish ... -r linux-x64 --self-contained -o publish`. Larger folder, nothing to install.
+- **Upload the whole `publish/` folder, or keep it consistent.** Replacing one assembly without its
+  dependencies is the classic half-deployed app: it starts, and then fails somewhere unrelated.
+
+> The server runs the app in **Production** by default, which switches the `/api/diagnostics/...`
+> endpoints off. That is correct: they decode a session token *without* verifying it. Set
+> `ASPNETCORE_ENVIRONMENT=Development` there only if you want them.
 
 ## 5. Configure the app and the Dashboard
 
-Point the Partner Dashboard at your tunnel:
+Point the Partner Dashboard at your server:
 
 | Setting | Value |
 |---|---|
-| App URL | `https://<your-tunnel>/` |
-| Allowed redirection URL(s) | `https://<your-tunnel>/auth/callback` |
+| App URL | `https://<your-server-hostname>/` |
+| Allowed redirection URL(s) | `https://<your-server-hostname>/auth/callback` |
 | Embedded | Yes |
 
 Then give the app its credentials. **Never commit these.** The sample reads configuration in this
@@ -91,22 +115,21 @@ order, later wins:
 1. `appsettings.json` (committed, empty)
 2. `appsettings.Development.json` (committed, non-secret)
 3. user secrets
-4. **environment variables** — use these
+4. **environment variables** — use these on the server
 
 ```sh
 export SHOPIFY_API_KEY=your_client_id
 export SHOPIFY_API_SECRET=your_client_secret
-export SHOPIFY_APP_URL=https://<your-tunnel>
-dotnet run --project samples/Shopify.Blazor.SampleApp
+export SHOPIFY_APP_URL=https://<your-server-hostname>
 ```
 
-Or, for a shell-independent setup:
+Or, for a shell-independent setup on a machine where you also run it locally:
 
 ```sh
 cd samples/Shopify.Blazor.SampleApp
 dotnet user-secrets set "Shopify:ApiKey" "your_client_id"
 dotnet user-secrets set "Shopify:ApiSecret" "your_client_secret"
-dotnet user-secrets set "Shopify:AppUrl" "https://<your-tunnel>"
+dotnet user-secrets set "Shopify:AppUrl" "https://<your-server-hostname>"
 ```
 
 The API key is public — it goes into the `shopify-api-key` meta tag so App Bridge can identify the
@@ -115,9 +138,9 @@ if it is missing, rather than at the first merchant request.
 
 ## 6. Install the app in the store
 
-Open `https://<your-tunnel>/` and choose a development store when Shopify prompts. Because the app
-is embedded and uses App Bridge, Shopify's own install and authorisation flow handles the grant; the
-app never builds an OAuth redirect of its own.
+Open `https://<your-server-hostname>/` and choose a development store when Shopify prompts. Because
+the app is embedded and uses App Bridge, Shopify's own install and authorisation flow handles the
+grant; the app never builds an OAuth redirect of its own.
 
 ## 6b. Check which credentials actually won
 
@@ -178,7 +201,7 @@ curl -i -H 'Authorization: Bearer not-a-jwt' http://localhost:3458/api/products
 |---|---|
 | Page renders as unstyled text | Polaris did not load. Check the two CDN `<script>` tags and the `shopify-api-key` meta tag are in the page head, and that the browser can reach `cdn.shopify.com`. |
 | Buttons look right and do nothing | Almost always the JavaScript module failed to load. Look for `Polaris interop module … could not be loaded` in the server log. That message exists because this failure is otherwise completely silent. |
-| A banner says "Opened outside the Shopify Admin" | Expected unless you are loading the app *inside* the Admin. Being on the ngrok URL in a normal tab is not enough. |
+| A banner says "Opened outside the Shopify Admin" | Expected unless you are loading the app *inside* the Admin. Being on the app's public URL in a normal tab is not enough. |
 | `Shopify:ApiSecret is not configured` at startup | The environment variables are not visible to the process. |
 | `/api/products` returns 502 | The session token was accepted but Shopify refused the query. The response body carries Shopify's message. Usually a missing scope or a retired API version. |
 | A modal never opens | Shopify only opens a modal in response to a user gesture. Use a `PolarisButton` with `CommandFor` rather than calling `ShowAsync()` from `OnInitialized`. |
@@ -189,26 +212,21 @@ curl -i -H 'Authorization: Bearer not-a-jwt' http://localhost:3458/api/products
 
 ## After a reboot
 
-Nothing here is a service, so a reboot leaves everything stopped and the app simply needs starting
-again. In order:
+The app lives on your web server, so a reboot of this machine does not touch it — nothing here is a
+service the deployment depends on. To look at the UI locally:
 
 ```sh
-# 1. Docker Desktop is a user service that starts with the graphical session. The dev-stack
-#    containers are NOT needed by this app, but if Docker is running they publish port 3459, which
-#    is fine — this app uses 3458. If Docker is up, the Ruby container comes back automatically.
-
-# 2. Start the app and its tunnel together.
 cd /home/paul/aiprojects/shopify-blazor
-./bin/shopify-dev
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project samples/Shopify.Blazor.SampleApp
 ```
 
-`bin/shopify-dev` reads `PORT`, `TUNNEL` and `SHOPIFY_APP_URL` from `.env` (git-ignored), frees the
-port, starts the tunnel, starts the app in Development, and prints the URLs. Ctrl+C stops what it
-started.
+It listens on <http://localhost:3458>, which is **not** the address the Admin loads — your server is.
+Nothing local needs a public URL or a certificate; the local copy exists to render the UI quickly and
+to run the browser verification.
 
-**In the browser you use for the Shopify Admin,** visit the public URL once and click **Visit Site**
-on ngrok's warning page — it appears once per browser per endpoint, and the Admin's iframe shares
-the browser. Then open the app from the Admin.
+> Docker Desktop is a user service that starts with the graphical session, so after a headless boot
+> it is `inactive`. The dev-stack containers next door are not needed by this app; when Docker does
+> run they publish port 3459, and this app uses 3458, so the two do not collide.
 
 ### Things that are easy to trip over
 
@@ -216,8 +234,8 @@ the browser. Then open the app from the Admin.
 |---|---|
 | `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET` exported in your shell | They **override** user secrets. If they hold another app's values, every session token is rejected as belonging to a different app. The app logs which layer won at startup — check that line first. |
 | The public URL must match the Partner Dashboard | The Admin loads whatever App URL the Dashboard holds. If that is a *different* app, App Bridge mints tokens for that app and this server refuses them. |
-| Only one ngrok tunnel per reserved domain | ngrok is a single-tunnel agent. The Rails app next door (`shopify-jewellery-costing`) is configured with the **same** reserved domain and now uses port 3459, so the two cannot both be tunnelled at once. Whichever app you are working on owns the domain. |
-| The app must run in Development for the diagnostics | `dotnet run` with no `ASPNETCORE_ENVIRONMENT` is Production: HSTS on, and `/api/diagnostics/*` not mapped. `bin/shopify-dev` sets Development for you. |
+| A half-uploaded deployment | Copying one assembly without its dependencies produces an app that starts and then fails somewhere unrelated. Upload the whole `publish/` folder. |
+| The diagnostics need Development | A deployed app runs in Production: HSTS on, and `/api/diagnostics/*` not mapped. Set `ASPNETCORE_ENVIRONMENT=Development` on the server if you want them — and remember they decode tokens without verifying them. |
 | A password-protected store is fine | Every dev store is password-locked and it does **not** affect session-token validation, which is local. (An earlier version of this toolkit wrongly depended on a storefront URL, which is what made this look like a problem.) |
 
 ### Verify it came up correctly

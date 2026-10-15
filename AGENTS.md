@@ -115,19 +115,18 @@ Read these before changing anything in `src/`.
     registered **first** — its `OnStarting` callback has to run after antiforgery's, and
     `OnStarting` callbacks run last-registered-first. Verify with a real browser:
     `Framing '…' violates … "frame-ancestors 'self'"` in the console is this bug.
-14. **ngrok's free plan shows a browser-warning interstitial, once per browser per endpoint.**
-    `ERR_NGROK_6024`, "You are about to visit…" — it is ngrok's page, not the app's. It is **not** a
-    blocker: click **Visit Site** once and it stops for that browser, including inside the Admin's
-    iframe, which shares the browser. Two consequences: it answers HTTP 200 with an HTML body, so a
-    `fetch` can mistake it for success and fail later with a JSON parse error — anything scripted
-    should send `ngrok-skip-browser-warning: true`, which the app's own calls do; and a fresh
-    profile or private window sees it once again. Removing it entirely needs a paid plan or a tunnel
-    that injects nothing.
+14. **Development happens on a web server, not through a tunnel.** A tunnel-based setup was tried here
+    and abandoned: free tunnel services inject their own browser-warning page into navigations, and the
+    arrangement never held up. The app now runs on an ordinary HTTPS server and changes are published
+    and copied there — `bin/shopify-publish` builds the folder to upload. Do not reintroduce a tunnel,
+    and in particular do not read a browser-warning page as an app bug: if the served HTML is not the
+    app's, the URL is not the app's.
 15. **An environment variable silently overrides user secrets.** If `SHOPIFY_API_KEY` is set in the
     shell, it wins over `Shopify:ApiKey` in user secrets, and a key belonging to a *different*
     Shopify app makes every session token fail as "another app". Startup logs which layer won. The
     app also runs in **Production** with no `ASPNETCORE_ENVIRONMENT` set, which disables the
-    diagnostics endpoints and the rejection hints — `bin/shopify-dev` sets Development for you.
+    diagnostics endpoints and the rejection hints — set `ASPNETCORE_ENVIRONMENT=Development` locally,
+    or on the server if you want them there.
 16. **A retired Admin API version does not error.** Shopify falls forward to an older stable release
     and answers normally; only the `X-Shopify-API-Version` header reveals it. Check the version table
     at <https://shopify.dev/docs/api/usage/versioning> before changing `AdminApiVersion`.
@@ -143,7 +142,7 @@ Read these before changing anything in `src/`.
     because that route is the only one that calls Shopify.
 18. **`pgrep -f <pattern>` matches its own caller.** `pgrep -f` searches full command lines, so a
     pattern also matches any shell whose command line contains that text — a wrapper script, an
-    editor task, or the very script doing the killing. `bin/shopify-dev` SIGTERMed itself this way,
+    editor task, or the very script doing the killing. A dev script here SIGTERMed itself this way,
     leaving the app running and the port looking permanently busy. Use a character class
     (`Shopify[.]Blazor`) so the pattern matches the target text without containing it. A character
     class is not enough on its own: `pkill -f "Shopify[.]Blazor"` still matched this session's own
@@ -194,7 +193,7 @@ To force a from-scratch build, remove **only** .NET build output. Do not reach f
 `find -name bin`:
 
 ```sh
-# WRONG: also deletes bin/, and bin/shopify-dev lives there. It has been lost this way once, and
+# WRONG: also deletes bin/, and bin/shopify-publish lives there. It has been lost this way once, and
 # silently kept out of a commit another time by a blanket `bin/` in .gitignore.
 find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
 
@@ -202,7 +201,7 @@ find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
 rm -rf ./**/bin/Debug ./**/bin/Release ./**/obj
 ```
 
-`bin/shopify-dev` is a tracked file in a directory named `bin`, which is exactly the kind of
+`bin/shopify-publish` is a tracked file in a directory named `bin`, which is exactly the kind of
 collision a broad pattern does not warn about.
 
 ## Conventions
@@ -229,4 +228,4 @@ collision a broad pattern does not warn about.
 ## Not verified
 
 Installation in a real Shopify development store. It needs Partner Dashboard credentials and a public
-HTTPS tunnel, so it is a human step. See `docs/PROGRESS.md`.
+HTTPS server, so it is a human step. See `docs/PROGRESS.md`.

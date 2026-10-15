@@ -2,20 +2,20 @@
 /*
  * Checks the two things that break an embedded Shopify install, from outside the app.
  *
- *   node tools/check-admin-install.mjs https://your-tunnel.ngrok-free.app
+ *   node tools/check-admin-install.mjs https://<your-server-hostname>
  *
  * 1. Does the served page carry the shopify-api-key meta tag, and does that key match the one the
  *    server has (via /api/diagnostics/session-token)? A mismatch means App Bridge mints tokens for
  *    one app and the server rejects them as another — the single most common cause of
  *    "ShopifySessionToken was not authenticated".
- * 2. Does the ngrok URL answer with X-Frame-Options or a CSP frame-ancestors that would stop
- *    Shopify embedding the app at all.
+ * 2. Does the URL answer with X-Frame-Options or a CSP frame-ancestors that would stop Shopify
+ *    embedding the app at all.
  */
 
 const url = process.argv[2];
 
 if (!url || !/^https?:\/\//.test(url)) {
-    console.error("Usage: node tools/check-admin-install.mjs https://your-tunnel.ngrok-free.app");
+    console.error("Usage: node tools/check-admin-install.mjs https://<your-server-hostname>");
     process.exit(2);
 }
 

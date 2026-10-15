@@ -160,10 +160,10 @@ public sealed class NewCommand
         _console.WriteLine("  3. Give the credentials to the app — either environment variables:");
         _console.WriteLine($"       {EnvironmentVariables[0]}=<client id>");
         _console.WriteLine($"       {EnvironmentVariables[1]}=<client secret>");
-        _console.WriteLine($"       {EnvironmentVariables[2]}=https://<your tunnel hostname>");
+        _console.WriteLine($"       {EnvironmentVariables[2]}=https://<your-server-hostname>");
         _console.WriteLine("     or user secrets (see 'shopify-blazor configure'):");
         _console.WriteLine("       dotnet user-secrets set \"Shopify:ApiKey\" <client id>");
-        _console.WriteLine("  4. Read the README in the generated project for the tunnel and install steps.");
+        _console.WriteLine("  4. Read the README in the generated project for the deployment and install steps.");
         _console.WriteLine("  5. Run 'shopify-blazor doctor' to check the project, then 'dotnet run'.");
     }
 

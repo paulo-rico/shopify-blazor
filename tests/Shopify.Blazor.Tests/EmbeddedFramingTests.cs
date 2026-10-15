@@ -97,14 +97,24 @@ public sealed class EmbeddedFramingTests
     }
 
     [Fact]
-    public async Task Development_tunnels_are_only_allowed_when_asked_for()
+    public async Task The_default_policy_names_only_the_admin_origins()
     {
-        var strict = (await RunAsync())["Content-Security-Policy"].ToString();
-        var permissive = (await RunAsync(options => options.AllowDevelopmentTunnels = true))["Content-Security-Policy"].ToString();
+        // The app is frameable by the Admin and by nothing else. A wildcard for the common
+        // development tunnel hosts used to be added here behind a flag; the flag is gone, and this
+        // test keeps the policy from growing wildcards again. An origin that fronts the app during
+        // development is an ordinary HTTPS origin, added explicitly with AllowFrameAncestor — see
+        // the test below.
+        var policy = (await RunAsync())["Content-Security-Policy"].ToString();
 
-        Assert.DoesNotContain("ngrok", strict, StringComparison.Ordinal);
-        Assert.Contains("https://*.ngrok-free.app", permissive, StringComparison.Ordinal);
-        Assert.Contains("https://*.ngrok-free.dev", permissive, StringComparison.Ordinal);
+        Assert.Contains("https://admin.shopify.com", policy, StringComparison.Ordinal);
+
+        // Exactly one wildcard is permitted, and it is Shopify's own.
+        var wildcards = policy
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(token => token.Contains('*', StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Equal(["https://*.myshopify.com"], wildcards);
     }
 
     [Fact]
