@@ -92,4 +92,25 @@ public static class PolarisEvents
 
     /// <summary><c>previouspage</c> — raised by a paginated <c>s-table</c>.</summary>
     public const string PreviousPage = "previouspage";
+
+    /// <summary><c>afterhide</c> — raised once an overlay or a dismissible element has finished hiding.</summary>
+    public const string AfterHide = "afterhide";
+
+    /// <summary><c>load</c> — raised by <c>s-image</c>, <c>s-avatar</c> and <c>s-thumbnail</c> when the resource loads.</summary>
+    public const string Load = "load";
+
+    /// <summary>
+    /// <c>error</c> — raised by <c>s-image</c>, <c>s-avatar</c> and <c>s-thumbnail</c> when the
+    /// resource fails to load.
+    /// </summary>
+    public const string Error = "error";
+
+    /// <summary><c>invalid</c> — raised by <c>s-date-field</c> when the entered value is not a valid date.</summary>
+    public const string Invalid = "invalid";
+
+    /// <summary><c>viewchange</c> — raised by the date components when the visible month changes.</summary>
+    public const string ViewChange = "viewchange";
+
+    /// <summary><c>droprejected</c> — raised by <c>s-drop-zone</c> when files do not match <c>accept</c>.</summary>
+    public const string DropRejected = "droprejected";
 }

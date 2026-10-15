@@ -78,6 +78,9 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <summary>Properties set, keyed by tag name.</summary>
     public Dictionary<string, List<IReadOnlyDictionary<string, object?>>> SetProperties { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>Property names cleared, keyed by tag name.</summary>
+    public Dictionary<string, List<string>> ClearedProperties { get; } = new(StringComparer.Ordinal);
+
     /// <summary>Tag names whose events were detached.</summary>
     public List<string> Detached { get; } = [];
 
@@ -139,7 +142,17 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     }
 
     /// <inheritdoc />
-    public ValueTask ClearPropertiesAsync(ElementReference element, string tagName, IEnumerable<string> names) => ValueTask.CompletedTask;
+    public ValueTask ClearPropertiesAsync(ElementReference element, string tagName, IEnumerable<string> names)
+    {
+        if (!ClearedProperties.TryGetValue(tagName, out var list))
+        {
+            list = [];
+            ClearedProperties[tagName] = list;
+        }
+
+        list.AddRange(names);
+        return ValueTask.CompletedTask;
+    }
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyDictionary<string, PolarisComponentStatus>> GetComponentStatusAsync(IEnumerable<string> tagNames)

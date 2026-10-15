@@ -182,7 +182,17 @@ public abstract class PolarisElementComponentBase : ComponentBase, IAsyncDisposa
             return;
         }
 
-        if (Properties.Count > 0 || ClearedProperties.Any())
+        // Array-valued properties have to be cleared before they are set: a `values` array left over
+        // from an earlier render keeps options selected that the server has since dropped, and
+        // nothing in the markup shows it.
+        var cleared = ClearedProperties as IReadOnlyCollection<string> ?? ClearedProperties.ToList();
+
+        if (cleared.Count > 0)
+        {
+            await Interop.ClearPropertiesAsync(_element, TagName, cleared).ConfigureAwait(false);
+        }
+
+        if (Properties.Count > 0)
         {
             await Interop.SetPropertiesAsync(_element, TagName, Properties).ConfigureAwait(false);
         }

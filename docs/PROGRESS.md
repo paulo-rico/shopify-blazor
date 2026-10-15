@@ -2,14 +2,14 @@
 
 What is true **now**. `AGENTS.md` is what is always true; this file changes every session.
 
-Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
+Last updated: 2026-10-15 — phases 1–3 complete; the Polaris component inventory is now complete.
 
 ## State
 
 | Area | State |
 |---|---|
-| Solution, CI, docs | Done. `dotnet test` = 79 passed, 0 failed. |
-| `Polaris.Blazor` | 29 components + interop module. Verified in a real browser. |
+| Solution, CI, docs | Done. `dotnet test` = 115 passed, 0 failed. |
+| `Polaris.Blazor` | 59 components — every documented Polaris element — plus the interop module. The first 19 element types are browser-verified; the second pass is covered by unit tests only. |
 | `Shopify.Blazor` | Session token validation, token exchange, Admin API client, App Bridge interop. |
 | Reference app | Embedded shell, dashboard, products, component gallery. Authenticated `/api/products`. |
 | Templates and CLI | **Not started.** Plan in `docs/templates-plan.md`. |
@@ -19,11 +19,11 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
 
 | Check | Method | Result |
 |---|---|---|
-| Component rendering, defaults, booleans, slots, attribute forwarding | bUnit, 29 tests | pass |
+| Component rendering, defaults, booleans, slots, attribute forwarding | bUnit, 65 tests | pass |
 | Session token validation (signature, audience, expiry, cross-shop, hostile `dest`) | Real RS256 keys + scripted JWKS, 15 tests | pass |
 | Token exchange (RFC 8693 parameters, caching, per-merchant keys, errors) | Scripted HTTP, 11 tests | pass |
 | Admin API (GraphQL errors on 200, throttling code, version fall-forward, 401 recovery) | Scripted HTTP, 7 tests | pass |
-| Polaris elements upgrade with a shadow root | Headless Chrome, DevTools Protocol | 19 element types, 0 failures |
+| Polaris elements upgrade with a shadow root | Headless Chrome, DevTools Protocol | 19 element types from the first pass, 0 failures |
 | Custom event → C# round trip | Real click in headless Chrome | counter 0 → 1 |
 | Polaris form submits its values | Real form submission | `{"q":"signet","status":"draft"}` |
 | `commandFor` declarative modal wiring | Headless Chrome | present, no JavaScript |
@@ -41,8 +41,10 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
    Verify, then handle.
 3. **Phase 4, the `dotnet new` template.** Plan in `docs/templates-plan.md`. Build `doctor` from
    phase 5 alongside it: it is the cheapest way to stop the silent failures recurring.
-4. **More components.** `PolarisChoiceList` first — it is the only multi-select and exercises the
-   array-property path.
+4. **Browser-verify the second component pass.** The 30 wrappers added on 2026-10-15 are
+   unit-tested against their rendered markup, but no browser has upgraded `s-grid`, `s-choice-list`
+   or `s-drop-zone` yet. Extend `tools/verify-in-browser.mjs`'s element list and the component
+   gallery, then run it.
 
 ## Resolved since the first push
 
@@ -53,12 +55,21 @@ Last updated: 2026-10-14 — phases 1–3 (immediate deliverables) complete.
 - **Every page request logged an authentication warning**, because the session token scheme is the
   default and reported a failure even when no token was presented. It now returns `NoResult` and logs
   at debug, so a real rejection stands out.
+- **`ClearedProperties` never reached the interop layer.** The base class documented "DOM properties
+  cleared on every render" and gated its property write on that collection, but only ever called
+  `SetPropertiesAsync`. Nothing used it until `PolarisChoiceList` arrived, where a stale `values`
+  array keeps options selected that the server has deselected. The base now calls
+  `ClearPropertiesAsync` before the write.
 
 ## Known gaps
 
 - **Reconnection** is untested and unhandled.
-- **Component coverage** is 29 of ~48. The generated `docs/components.md` marks which components are
-  named in a test; the rest have no test.
+- **Component coverage** is complete: all 50 documented top-level elements, plus 10 composed
+  sub-elements, in 59 wrappers (`s-text` and `s-paragraph` share `PolarisText`). Every wrapper is
+  named in a test. What is *not* done is browser verification of the second pass — see above.
+- **`s-drop-zone`'s `files` property is not modelled.** It is a read-only array of browser `File`
+  objects, which cannot cross the interop boundary, so the upload path belongs in JavaScript. The
+  wrapper exposes the label, `accept`, `multiple` and the events, and can only reset the zone.
 - **`PolarisTable` pagination events** (`nextpage`/`previouspage`) are wired but not exercised,
   because the products page does not paginate.
 - **No integration test project.** `tests/Shopify.Blazor.IntegrationTests` was in the plan and was

@@ -96,17 +96,18 @@ contract. Those are the parts that need a human, and generating them produces pl
 that silently does the wrong thing.
 
 **A generator is only worth building when adding a component by hand becomes the bottleneck.** With
-29 components and a uniform pattern, that has not happened yet.
+the inventory complete and the pattern uniform, that has not happened yet.
 
 ## Current component coverage
 
-29 components. The generated [reference](components.md) marks which are named in tests; the gaps
-there are the honest list of what is unwrapped and unverified. Notable absences worth adding next:
+Complete: all 50 documented top-level elements are wrapped, in 49 classes (`s-text` and `s-paragraph`
+share `PolarisText`), plus the 10 composed sub-elements — `s-choice`, `s-option`, `s-option-group`,
+`s-grid-item`, `s-list-item`, `s-table-header-row`, `s-table-header`, `s-table-body`, `s-table-row`,
+`s-table-cell`. The generated [reference](components.md) marks which are named in tests; all of them
+are.
 
-`PolarisChoiceList` + `PolarisChoice` (multi-select), `PolarisGrid` + `PolarisGridItem`,
-`PolarisImage`, `PolarisThumbnail`, `PolarisAvatar`, `PolarisChip` + `PolarisClickableChip`,
-`PolarisLink`, `PolarisMenu`, `PolarisTooltip`, `PolarisProgress`, `PolarisNumber`,
-`PolarisQueryContainer`, `PolarisDropZone`, `PolarisColorField`, `PolarisDateField`.
-
-`PolarisChoiceList` is the most valuable: it is the only multi-select, and `values` is an array
-property, which exercises the property path rather than the attribute path.
+`PolarisChoiceList` was the last notable absence, and it earned its reputation: it is the only
+multi-select, and `values` is an array property, which is the path that exposed a latent bug —
+`ClearedProperties` was documented and never passed to `IPolarisInterop.ClearPropertiesAsync`, so a
+stale selection could never be dropped. That is exactly the kind of silent gap a by-hand wrapper still
+catches and a generator would not.

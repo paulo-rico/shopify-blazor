@@ -14,7 +14,7 @@ Status: **proof of concept**, working end to end against the real runtime. See
 | `src/Polaris.Blazor` | Razor components wrapping Shopify's Polaris web components |
 | `src/Shopify.Blazor` | Embedded-app authentication, App Bridge 4 interop, Admin API client |
 | `samples/Shopify.Blazor.SampleApp` | Reference app: embedded shell, authenticated Admin API call |
-| `tests/` | 79 tests: component rendering, session token validation, token exchange, Admin API, embedded framing |
+| `tests/` | 115 tests: component rendering, session token validation, token exchange, Admin API, embedded framing |
 
 The split is deliberate: `Polaris.Blazor` has **no dependency** on `Shopify.Blazor`, so the
 component library can be used on its own.
@@ -83,8 +83,8 @@ Everything below was run on this machine, not asserted from documentation.
 
 | Check | Result |
 |---|---|
-| `dotnet test` — both suites | **79 passed, 0 failed** |
-| Polaris components upgrade with a shadow root in Chrome | **19 element types, 0 failures** |
+| `dotnet test` — both suites | **115 passed, 0 failed** |
+| Polaris components upgrade with a shadow root in Chrome | **19 element types from the first pass, 0 failures** |
 | Custom-event → C# round trip in a live browser | **counter 0 → 1 after a real click** |
 | Polaris form submits its values | **`{"q":"signet","status":"draft"}`** |
 | `commandFor` declarative modal wiring | **present, no JavaScript** |
@@ -170,7 +170,7 @@ perfectly and did nothing.
 |---|---|
 | [Getting started](docs/getting-started.md) | Shopify app, tunnel, configuration, first authenticated call |
 | [Troubleshooting](docs/troubleshooting.md) | Diagnosing a rejected session token, and the framing trap |
-| [Component reference](docs/components.md) | All 29 components, generated from source |
+| [Component reference](docs/components.md) | All 59 components — every documented Polaris element — generated from source |
 | [Authentication](docs/authentication.md) | Session tokens, token exchange, what not to do |
 | [ADR 0001](docs/adr/0001-hosting-model-and-integration.md) | Hosting model, integration and interop decisions |
 | [Templates plan](docs/templates-plan.md) | Phase 4–6: `dotnet new`, CLI, generation |

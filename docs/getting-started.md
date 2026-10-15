@@ -203,6 +203,6 @@ That reports the API key the server is verifying against. It must equal the `con
 
 ## Next steps
 
-- [Component reference](components.md) — all 29 components
+- [Component reference](components.md) — all 59 components
 - [Authentication](authentication.md) — why the flow is shaped this way
 - [ADR 0001](adr/0001-hosting-model-and-integration.md) — the architectural decisions
