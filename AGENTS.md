@@ -112,6 +112,21 @@ Read these before changing anything in `src/`.
     and answers normally; only the `X-Shopify-API-Version` header reveals it. Check the version table
     at <https://shopify.dev/docs/api/usage/versioning> before changing `AdminApiVersion`.
 
+17. **A missing scope arrives as HTTP 200 with an `errors` array, not a 403.** Shopify answers an
+    unauthorised field with `200 OK` and `extensions.code = "ACCESS_DENIED"`, so nothing about the
+    status code says "permission". It looks exactly like a gateway fault, and it is the reason a
+    page can report "Shopify request failed" while the server log shows the Admin API returning
+    200. Retrying cannot fix it — re-exchanging the session token yields the same scopes — so it is
+    reported separately (`ShopifyAdminApiException.IsAccessDenied`), and the granted scopes are
+    visible in `/api/diagnostics/session-token` as `grantedScopes`. `read_products` is required by
+    the sample app's Products page; a session token that grants less fails there and nowhere else,
+    because that route is the only one that calls Shopify.
+18. **`pgrep -f <pattern>` matches its own caller.** `pgrep -f` searches full command lines, so a
+    pattern also matches any shell whose command line contains that text — a wrapper script, an
+    editor task, or the very script doing the killing. `bin/shopify-dev` SIGTERMed itself this way,
+    leaving the app running and the port looking permanently busy. Use a character class
+    (`Shopify[.]Blazor`) so the pattern matches the target text without containing it.
+
 ## Resetting the build tree
 
 To force a from-scratch build, remove **only** .NET build output. Do not reach for

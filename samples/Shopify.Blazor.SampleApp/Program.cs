@@ -165,14 +165,35 @@ app.MapGet("/api/products", async (
         }
         catch (ShopifyAdminApiException ex)
         {
-            // Distinguish "your token was rejected" from "Shopify said no" so the page can tell the
-            // merchant something actionable.
-            var status = ex.IsTokenRejected ? StatusCodes.Status401Unauthorized : StatusCodes.Status502BadGateway;
+            // Three outcomes, and they need different actions from the person reading the page:
+            //   token rejected  -> fetch a fresh token and retry (401)
+            //   access denied   -> a scope was never granted; retrying cannot help (403)
+            //   anything else   -> Shopify refused the query (502)
+            var status = ex switch
+            {
+                { IsTokenRejected: true } => StatusCodes.Status401Unauthorized,
+                { IsAccessDenied: true } => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status502BadGateway,
+            };
 
-            return Results.Problem(
-                title: ex.IsTokenRejected ? "Session rejected" : "Shopify request failed",
-                detail: ex.Message,
-                statusCode: status);
+            var title = ex switch
+            {
+                { IsTokenRejected: true } => "Session rejected",
+                { IsAccessDenied: true } => "Missing permission",
+                _ => "Shopify request failed",
+            };
+
+            // A scope error is the one failure a retry cannot fix, so point at the cause directly.
+            // The scope list is the session token's own claim, which is what Shopify actually
+            // granted, so a missing read_products is visible rather than inferred.
+            var detail = ex.IsAccessDenied
+                ? $"{ex.Message} The app is asking Shopify for data it has not been granted access " +
+                  "to. Add the scope to the app's configuration in the Partner Dashboard " +
+                  "(read_products for this page), then reopen the app so the merchant approves the " +
+                  "new permissions."
+                : ex.Message;
+
+            return Results.Problem(title: title, detail: detail, statusCode: status);
         }
     })
     .RequireAuthorization();

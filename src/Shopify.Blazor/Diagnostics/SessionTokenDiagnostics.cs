@@ -135,6 +135,8 @@ public static class SessionTokenDiagnostics
 
         // The real verdict, from the real validator.
         var validation = await validator.ValidateAsync(token).ConfigureAwait(false);
+        report.GrantedScopes = validation.SessionToken?.Scopes ?? [];
+
         report.Validated = validation.Succeeded;
         report.ValidationFailure = validation.Failure?.ToString();
         report.ValidationReason = validation.Reason;
@@ -319,6 +321,16 @@ public sealed class TokenDiagnosticReport
 
     /// <summary>True when the API secret is configured, so a signature can be checked.</summary>
     public bool SignatureCheckPossible { get; set; }
+
+    /// <summary>
+    /// The scopes the session token carries, straight from its <c>scp</c> claim.
+    /// </summary>
+    /// <remarks>
+    /// These are what Shopify actually granted. A query needing a scope that is absent here fails
+    /// with an access-denied GraphQL error at HTTP 200, which reads like a gateway fault and is not
+    /// one — so having the list beside the verdict saves chasing the wrong problem.
+    /// </remarks>
+    public IReadOnlyList<string> GrantedScopes { get; set; } = [];
 
     /// <summary>True when the real validator accepted the token.</summary>
     public bool Validated { get; set; }

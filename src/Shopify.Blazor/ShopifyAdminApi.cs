@@ -29,6 +29,20 @@ public sealed class ShopifyAdminApiException : Exception
 
     /// <summary>True when the token was rejected, so the caller may retry after a fresh exchange.</summary>
     public bool IsTokenRejected => Response?.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden;
+
+    /// <summary>
+    /// True when Shopify answered with an access-denied GraphQL error.
+    /// </summary>
+    /// <remarks>
+    /// This is the shape a missing scope takes, and it is easy to misread: Shopify returns
+    /// <c>200 OK</c> with an <c>errors</c> entry rather than a 403, so the status code says nothing
+    /// is wrong. Retrying cannot fix it either — re-exchanging the token produces the same scopes.
+    /// The merchant (or the app's configuration) has to grant the scope, so the caller should say so
+    /// rather than invite a retry.
+    /// </remarks>
+    public bool IsAccessDenied => Response?.Errors.Any(e =>
+        e.Message.Contains("access denied", StringComparison.OrdinalIgnoreCase)
+        || e.Extensions?.ToString()?.Contains("ACCESS_DENIED", StringComparison.OrdinalIgnoreCase) == true) == true;
 }
 
 /// <summary>

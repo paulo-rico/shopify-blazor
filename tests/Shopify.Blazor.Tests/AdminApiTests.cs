@@ -93,6 +93,44 @@ public sealed class AdminApiTests
     }
 
     [Fact]
+    public async Task A_missing_scope_is_reported_as_access_denied()
+    {
+        // What a scope the merchant never granted looks like: HTTP 200, an errors array, and
+        // ACCESS_DENIED in extensions. It is indistinguishable from a gateway fault by status code,
+        // and retrying cannot fix it, so the exception has to say which kind of failure this is.
+        var handler = HappyHandler(
+            """{"errors":[{"message":"Access denied for products field.","extensions":{"code":"ACCESS_DENIED"}}]}""");
+
+        await using var provider = TestServices.Create(handler);
+        var api = provider.GetRequiredService<IShopifyAdminApi>();
+
+        var error = await Assert.ThrowsAsync<ShopifyAdminApiException>(
+            () => api.QueryAsync(SessionTokenFactory.Create(), "{ products { nodes { id } } }"));
+
+        Assert.True(error.IsAccessDenied);
+
+        // A 200 means the token was fine, so this must not be mistaken for a token rejection: a
+        // caller that retried on IsTokenRejected would loop for ever without changing the scopes.
+        Assert.False(error.IsTokenRejected);
+        Assert.Contains("Access denied", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_ordinary_graphql_error_is_not_reported_as_access_denied()
+    {
+        // Guards the guard: if IsAccessDenied were true for every GraphQL error, the route would
+        // tell merchants to change scopes for a typo in a query.
+        var handler = HappyHandler("""{"errors":[{"message":"Field 'nope' doesn't exist","extensions":{"code":"undefinedField"}}]}""");
+
+        await using var provider = TestServices.Create(handler);
+        var api = provider.GetRequiredService<IShopifyAdminApi>();
+
+        var error = await Assert.ThrowsAsync<ShopifyAdminApiException>(() => api.QueryAsync(SessionTokenFactory.Create(), "{ nope }"));
+
+        Assert.False(error.IsAccessDenied);
+    }
+
+    [Fact]
     public async Task Throttling_is_reported_with_shopifys_error_code()
     {
         var handler = HappyHandler("""{"errors":[{"message":"Throttled","extensions":{"code":"THROTTLED"}}]}""");
