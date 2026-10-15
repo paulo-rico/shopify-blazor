@@ -27,6 +27,7 @@ Both directories are git-ignored. Without them `dotnet` fails before doing anyth
 dotnet test                                    # every suite: components, toolkit, CLI
 dotnet build                                   # whole solution
 dotnet run --project samples/Shopify.Blazor.SampleApp   # http://localhost:3458
+bin/shopify-publish                            # publish the folder to upload to the web server
 ```
 
 Generated files and the tools that own them. Each generator writes a committed file, so each can
