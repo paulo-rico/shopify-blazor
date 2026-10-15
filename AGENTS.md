@@ -199,14 +199,20 @@ Read these before changing anything in `src/`.
     to `ProbedElements`: that list's claim is that Polaris defines the element, and for these two it
     does not.
 
-24. **`IAppBridgeInterop` has no resource picker, and a screen needs one.** Nothing in
-    `src/Shopify.Blazor` calls `shopify.resourcePicker`, so the "pick products from Shopify" button has
-    no way to work. Adding it has three traps worth knowing before writing it: the picker resolves
-    `undefined` when the merchant cancels (so `Array.isArray` is the only honest test, and a bare
-    truthiness check treats a cancel as a selection), `window.shopify` is undefined outside the Admin
-    (so the button must be disabled with a reason rather than throwing), and the action is `"select"` —
-    the `add` default means the merchant can create products from inside the picker, which is not what
-    this button is for.
+24. **The resource picker is `IAppBridgeInterop.PickProductsAsync`, and its three traps are the reason it
+    is shaped the way it is.** It was added for the products-selection and quote-piece screens, and the
+    traps are worth keeping in mind before changing it:
+    - **A cancelled picker resolves `undefined`, not an empty array.** So the method returns `null` for
+      "cancelled or unavailable" and an empty list for "chose none and meant it" — and those must stay
+      distinguishable, because a screen that treats them alike clears a selection the merchant never
+      touched. The JS side tests `Array.isArray`, which is the only honest check.
+    - **`window.shopify` is undefined outside the Admin**, so the JS returns `null` rather than throwing
+      and the screen disables the button with a reason. Verified in a browser: the picker cannot be
+      exercised outside the Admin by definition, so no browser assertion covers it.
+    - **The action is `select`, not App Bridge's default `add`**, so the merchant cannot create products
+      from inside the picker. It is for choosing what the shop costs, not for editing the catalogue.
+    `variant.price` arrives as a **string** (that is how Shopify states money), so the DTO carries it as one
+    and the caller parses it — binding it to a decimal would fail at runtime rather than at compile time.
 
 ## Resetting the build tree
 

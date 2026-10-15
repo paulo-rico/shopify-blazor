@@ -82,7 +82,58 @@ public interface IAppBridgeInterop
 
     /// <summary>The scopes currently granted, or <c>null</c> outside the Admin.</summary>
     ValueTask<IReadOnlyList<string>?> GetGrantedScopesAsync();
+
+    /// <summary>
+    /// Opens Shopify's product picker and returns what the merchant chose.
+    /// </summary>
+    /// <param name="multipleLimit">The most products the picker will allow.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// The picked products, an empty list when the merchant chose none, or <c>null</c> when the picker is
+    /// not available at all — a standalone page rather than the Admin.
+    /// </returns>
+    /// <remarks>
+    /// <strong>Null and empty mean different things here, and the difference is the merchant's.</strong> A
+    /// cancelled picker resolves <c>undefined</c> rather than an empty array, so "cancelled" arrives as
+    /// <c>null</c>: a screen that treated the two as one would clear a selection the merchant never touched.
+    /// The action is <c>select</c> rather than App Bridge's default <c>add</c>, so a merchant cannot create
+    /// products from inside the picker — this is for choosing what the shop costs, not for editing the
+    /// catalogue.
+    /// </remarks>
+    ValueTask<IReadOnlyList<ShopifyPickedProduct>?> PickProductsAsync(
+        int? multipleLimit = null,
+        CancellationToken cancellationToken = default);
 }
+
+/// <summary>A product the merchant picked out of Shopify's catalogue.</summary>
+/// <param name="Id">Its global id.</param>
+/// <param name="Title">Its title.</param>
+/// <param name="Handle">Its handle.</param>
+/// <param name="ImageUrl">Its first image, when it has one.</param>
+/// <param name="Variants">How many variants they selected, and which.</param>
+/// <remarks>
+/// The variant list matters: a shop costs pieces, not products, so a product whose variants were not
+/// selected has nothing to price.
+/// </remarks>
+public sealed record ShopifyPickedProduct(
+    string? Id,
+    string? Title,
+    string? Handle,
+    string? ImageUrl,
+    IReadOnlyList<ShopifyPickedVariant> Variants);
+
+/// <summary>A variant of a picked product.</summary>
+/// <param name="Id">Its global id.</param>
+/// <param name="Title">Its title, which is Shopify's own variant label.</param>
+/// <param name="Price">Its price as Shopify states it, as a string because that is how it arrives.</param>
+/// <param name="Sku">Its SKU, when it has one.</param>
+/// <param name="Options">The chosen options, as name/value pairs.</param>
+public sealed record ShopifyPickedVariant(
+    string? Id,
+    string? Title,
+    string? Price,
+    string? Sku,
+    IReadOnlyDictionary<string, string> Options);
 
 /// <summary>The merchant using the app, as App Bridge reports them.</summary>
 /// <param name="Id">Shopify's user id.</param>
@@ -335,6 +386,45 @@ public sealed class AppBridgeInterop : IAppBridgeInterop, IAsyncDisposable
     }
 
     /// <inheritdoc />
+    public async ValueTask<IReadOnlyList<ShopifyPickedProduct>?> PickProductsAsync(
+        int? multipleLimit = null,
+        CancellationToken cancellationToken = default)
+    {
+        var module = await ModuleAsync().ConfigureAwait(false);
+        if (module is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var picked = await module
+                .InvokeAsync<PickedProductDto[]?>("pickProducts", cancellationToken, multipleLimit)
+                .ConfigureAwait(false);
+
+            return picked?
+                .Select(product => new ShopifyPickedProduct(
+                    product.Id,
+                    product.Title,
+                    product.Handle,
+                    product.ImageUrl,
+                    (product.Variants ?? [])
+                        .Select(variant => new ShopifyPickedVariant(
+                            variant.Id,
+                            variant.Title,
+                            variant.Price,
+                            variant.Sku,
+                            variant.Options ?? new Dictionary<string, string>()))
+                        .ToArray()))
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException)
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
     public async ValueTask<IReadOnlyList<string>?> GetGrantedScopesAsync()
     {
         var module = await ModuleAsync().ConfigureAwait(false);
@@ -382,4 +472,18 @@ public sealed class AppBridgeInterop : IAppBridgeInterop, IAsyncDisposable
     private sealed record FetchEnvelope(bool Ok, int Status, JsonElement Data, string? Error);
 
     private sealed record UserDto(string? Id, string? FirstName, string? LastName, string? Email, string? Locale);
+
+    private sealed record PickedProductDto(
+        string? Id,
+        string? Title,
+        string? Handle,
+        string? ImageUrl,
+        PickedVariantDto[]? Variants);
+
+    private sealed record PickedVariantDto(
+        string? Id,
+        string? Title,
+        string? Price,
+        string? Sku,
+        Dictionary<string, string>? Options);
 }

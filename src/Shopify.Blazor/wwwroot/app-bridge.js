@@ -195,3 +195,47 @@ export function context() {
         apiKey: shopify.config?.apiKey ?? null,
     };
 }
+
+/**
+ * Opens Shopify's product picker and returns what the merchant chose.
+ *
+ * Returns null when there is no picker at all — a standalone page, where `window.shopify` is undefined —
+ * so the caller can disable the button with a reason rather than throwing at the merchant. It also
+ * returns null when the merchant CANCELS, because a cancelled picker resolves `undefined` rather than an
+ * empty array: a truthiness check would treat "cancelled" as "chose nothing and meant it".
+ *
+ * `action: "select"` rather than App Bridge's default `add`, so the merchant cannot create a product from
+ * inside the picker. `variants: true` because a shop costs pieces, not products.
+ */
+export async function pickProducts(multipleLimit = null) {
+  const shopify = bridge();
+  if (!shopify || typeof shopify.resourcePicker !== "function") {
+    return null;
+  }
+
+  const selected = await shopify.resourcePicker({
+    type: "product",
+    action: "select",
+    multiple: true,
+    variants: true,
+    ...(multipleLimit ? { multipleLimit } : {}),
+  });
+
+  if (!Array.isArray(selected)) {
+    return null;
+  }
+
+  return selected.map((product) => ({
+    id: product.id ?? null,
+    title: product.title ?? null,
+    handle: product.handle ?? null,
+    imageUrl: product.images?.[0]?.originalSrc ?? null,
+    variants: (product.variants ?? []).map((variant) => ({
+      id: variant.id ?? null,
+      title: variant.title ?? null,
+      price: variant.price ?? null,
+      sku: variant.sku ?? null,
+      options: Object.fromEntries((variant.selectedOptions ?? []).map((option) => [option.name, option.value])),
+    })),
+  }));
+}
