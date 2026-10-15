@@ -92,7 +92,12 @@ app_responding() { curl -fsS --max-time 5 -o /dev/null "http://127.0.0.1:$1/" 2>
 
 stop_app_on_port() {
   local pids
-  pids="$(pgrep -f "dotnet.*Shopify\.Blazor\.SampleApp" 2>/dev/null || true)"
+  # The brackets in 'Shopify[.]Blazor' are load-bearing. `pgrep -f` matches against full command
+  # lines, and a plain pattern also matches any shell whose command line happens to contain it —
+  # including this script, and including an agent or editor invocation that names the pattern. The
+  # script then SIGTERMs itself: the app survives, the script dies, and the port looks "still in
+  # use" for no visible reason. A character class matches the same text without containing it.
+  pids="$(pgrep -f "dotnet run --project .*Shopify[.]Blazor[.]SampleApp" 2>/dev/null || true)"
   [[ -n "$pids" ]] || return 1
 
   log "stopping the app already running (pid ${pids//$'\n'/ })"
@@ -169,12 +174,52 @@ EOF
   exit 1
 fi
 
-if app_responding "$PORT"; then
+# Whatever answers here has to be gone before the app starts, because the app cannot bind a port
+# that is still held. If it is not gone, this script must NOT continue: it would otherwise start an
+# app that dies on "address already in use" while the stale listener answers the readiness check, so
+# the script would report success and leave you testing a build you believe you just replaced. That
+# failure is silent and has cost real time. Giving up loudly is strictly better than a false pass.
+if port_in_use "$PORT"; then
+  if app_responding "$PORT"; then
+    log "port $PORT is answering — stopping the app that holds it"
+  else
+    warn "port $PORT is LISTENing but does not answer / — stopping whatever holds it"
+  fi
+
   stop_app_on_port "$PORT" || true
-elif port_in_use "$PORT"; then
-  warn "port $PORT is LISTENing but does not answer / — stopping whatever holds it"
-  stop_app_on_port "$PORT" || true
-  port_in_use "$PORT" && die "port $PORT is still in use. Find it with: ss -ltnp | grep :$PORT"
+
+  # Give the socket time to be released; TIME_WAIT and a slow shutdown both need a moment.
+  for _ in $(seq 1 20); do
+    port_in_use "$PORT" || break
+    sleep 0.25
+  done
+
+  if port_in_use "$PORT"; then
+    cat >&2 <<EOF
+
+!! port $PORT is still held, so the app cannot start.
+
+   Whatever holds it either belongs to another user or a different session, and this
+   script cannot stop it. Starting the app anyway would fail to bind while the old
+   listener answered the readiness check, and you would be testing a stale build.
+
+   The holder is:
+
+$(port_listeners "$PORT" | sed 's/^/     /')
+
+   ss -ltnp shows its pid only when the process is yours. To clear it:
+
+     kill <pid>          # from the session that started it
+     # or, if it is a stray app from an earlier run:
+     pkill -f 'dotnet run --project .*Shopify[.]Blazor[.]SampleApp'
+
+   Re-run this script once the port is free.
+
+EOF
+    exit 1
+  fi
+
+  log "port $PORT is now free"
 else
   log "port $PORT is free"
 fi
