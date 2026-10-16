@@ -1,3 +1,5 @@
+# CURRENTLY IN DEVELOPMENT - SUBJECT TO CHANGE 16-Oct-2026
+
 # Shopify Blazor Toolkit
 
 Build embedded Shopify admin apps in C#, Razor and Shopify's own Polaris web components — with no
