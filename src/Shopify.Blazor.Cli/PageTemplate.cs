@@ -74,7 +74,7 @@ public static class PageTemplate
                         @* Error: the message a person can act on, not just "something went wrong". *@
                         <PolarisSection>
                             <PolarisBanner Heading="Could not load {{className}}" Tone="PolarisTone.Critical">
-                                <PolarisText Paragraph="true">@_error</PolarisText>
+                                <PolarisParagraph>@_error</PolarisParagraph>
                             </PolarisBanner>
                         </PolarisSection>
                     }

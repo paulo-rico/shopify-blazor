@@ -294,13 +294,11 @@ def parse_wrapper(path: Path) -> dict:
     """One wrapper class, as the catalogue needs it."""
     text = read(path)
 
+    # One class wraps one element, so one literal tag is the whole mapping. A wrapper that switched
+    # element on a parameter would yield no tag, and the element it renders would then be reported as
+    # unwrapped rather than joined — which is why `s-text` and `s-paragraph` have a class each.
     tag = re.search(r'TagName\s*=>\s*"([^"]+)"', text)
-    if tag:
-        tags = [tag.group(1)]
-    else:
-        # PolarisText switches element on its Paragraph parameter.
-        conditional = re.search(r'TagName\s*=>\s*Paragraph\s*\?\s*"([^"]+)"\s*:\s*"([^"]+)"', text)
-        tags = [conditional.group(1), conditional.group(2)] if conditional else []
+    tags = [tag.group(1)] if tag else []
 
     # The class's own summary is the comment block directly above the type declaration. The first
     # `<summary>` in the file belongs to a parameter when the class has no doc comment of its own.
@@ -328,8 +326,9 @@ def parse_wrapper(path: Path) -> dict:
         elif key in nulled_attributes:
             kind = "dom property"
         else:
-            # Declared but never written: a flag that only selects which markup to emit, such as
-            # PolarisText.Paragraph. It is still part of the public API.
+            # Declared but never written: content that reaches the DOM through a render fragment, such
+            # as PolarisEmptyState.Subheading, or a flag that only selects which markup to emit. It is
+            # still part of the public API.
             kind = "render flag"
         parameters.append({**parameter, "kind": kind})
 

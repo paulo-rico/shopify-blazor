@@ -372,14 +372,55 @@ class ParserTest(unittest.TestCase):
             self.tool.GALLERY = original
 
     def test_a_wrapper_is_found_by_its_tag_not_by_its_file_name(self):
+        # PolarisParagraph's file name is not its element name, so the tag has to be read from the
+        # source rather than derived from the class.
         wrapper = self.tool.parse_wrapper(
-            modules.ROOT / "src" / "Polaris.Blazor" / "Components" / "PolarisText.cs"
+            modules.ROOT / "src" / "Polaris.Blazor" / "Components" / "PolarisParagraph.cs"
         )
 
-        # PolarisText renders two elements, so it has to be indexed under both or one of them would
-        # look unwrapped in the catalogue.
-        self.assertEqual(sorted(wrapper["tags"]), ["s-paragraph", "s-text"])
+        self.assertEqual(wrapper["tags"], ["s-paragraph"])
         self.assertEqual(wrapper["base"], "PolarisContentComponentBase")
+
+    def test_the_two_typography_wrappers_stay_separate(self):
+        # s-text and s-paragraph were once one class whose TagName switched on a Paragraph flag, which
+        # the catalogue can only index under one tag. The elements do not share a property set, so a
+        # merged wrapper cannot model both: `lineClamp` is paragraph-only and `type`/`interestFor` are
+        # text-only. This asserts the split, because a re-merge would silently drop one element's
+        # parameters while every generated output stayed reproducible.
+        text = self.tool.parse_wrapper(
+            modules.ROOT / "src" / "Polaris.Blazor" / "Components" / "PolarisText.cs"
+        )
+        paragraph = self.tool.parse_wrapper(
+            modules.ROOT / "src" / "Polaris.Blazor" / "Components" / "PolarisParagraph.cs"
+        )
+
+        self.assertEqual(text["tags"], ["s-text"])
+        self.assertEqual(paragraph["tags"], ["s-paragraph"])
+        self.assertNotEqual(text["wrapper"], paragraph["wrapper"])
+
+        text_parameters = {parameter["name"] for parameter in text["parameters"]}
+        paragraph_parameters = {parameter["name"] for parameter in paragraph["parameters"]}
+
+        # The text-only parameters exist on one side and not the other.
+        self.assertIn("Type", text_parameters)
+        self.assertIn("InterestFor", text_parameters)
+        self.assertNotIn("Type", paragraph_parameters)
+        self.assertNotIn("InterestFor", paragraph_parameters)
+
+        # And the paragraph-only parameter is absent from inline text, which Polaris documents as
+        # never truncating.
+        self.assertIn("LineClamp", paragraph_parameters)
+        self.assertNotIn("LineClamp", text_parameters)
+
+        # Every parameter these two do write is an attribute; neither has a render flag left, which is
+        # what made the merge possible in the first place.
+        for wrapper in (text, paragraph):
+            with self.subTest(wrapper=wrapper["wrapper"]):
+                self.assertTrue(wrapper["parameters"])
+                self.assertEqual(
+                    {parameter["kind"] for parameter in wrapper["parameters"]},
+                    {"attribute"},
+                )
 
     def test_parameters_keep_their_defaults_and_their_rendered_kind(self):
         wrapper = self.tool.parse_wrapper(

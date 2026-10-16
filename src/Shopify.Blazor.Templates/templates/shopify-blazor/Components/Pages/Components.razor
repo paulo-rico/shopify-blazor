@@ -16,11 +16,11 @@
 
 <PolarisStack Gap="PolarisGap.Base">
     <PolarisSection Heading="Component gallery">
-        <PolarisText Paragraph="true">
+        <PolarisParagraph>
             Every control on this page is a Shopify Polaris web component rendered by a Razor
             component from <code>Polaris.Blazor</code>. There is no custom CSS and no reimplementation:
             the elements are Shopify's, and their appearance follows the merchant's admin branding.
-        </PolarisText>
+        </PolarisParagraph>
     </PolarisSection>
 
     <PolarisSection Heading="Actions and feedback">
@@ -110,10 +110,10 @@
             </PolarisStack>
 
             <PolarisModal Id="gallery-modal" Heading="Polaris modal">
-                    <PolarisText Paragraph="true">
+                    <PolarisParagraph>
                         Opened with commandFor, closed by the same mechanism, with no hand-written
                         JavaScript on either side.
-                    </PolarisText>
+                    </PolarisParagraph>
                 @* The slot attribute sits on the button itself: Polaris validates slot children and
                    rejects anything else, including a div that merely wraps a button. *@
                 <PolarisButton Slot="primary-action"

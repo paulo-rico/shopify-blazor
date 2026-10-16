@@ -892,7 +892,7 @@
       ],
       "minPolarisVersion": "1.1",
       "verification": "unverified",
-      "notes": "Shares PolarisText with s-text: the wrapper switches element on its Paragraph parameter. `type` and `interestFor` exist on s-text but not on s-paragraph, so the wrapper omits them. Tone colours are tuned for light backgrounds."
+      "notes": "Wrapped by PolarisParagraph, a class of its own rather than a mode of PolarisText: the elements differ, and `lineClamp` exists here and not on s-text. `type` and `interestFor` belong to s-text, so this wrapper does not offer them. Tone colours are tuned for light backgrounds."
     },
     {
       "element": "s-password-field",
@@ -1294,7 +1294,7 @@
       ],
       "minPolarisVersion": "1.1",
       "verification": "unverified",
-      "notes": "Shares PolarisText with s-paragraph. `type` and `interestFor` exist only on s-text; the wrapper omits them when Paragraph is set, which is why the generated reference lists two tags for one class."
+      "notes": "Wrapped by PolarisText, one class per element: s-paragraph has its own wrapper (PolarisParagraph) because the two do not share a property set. `type` and `interestFor` exist only on s-text, and `lineClamp` is absent, so inline runs cannot be truncated."
     },
     {
       "element": "s-text-area",

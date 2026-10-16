@@ -59,7 +59,7 @@ The record for each element joins two sources that cannot drift apart: the wrapp
 | `<s-option-group>` | Option group | `PolarisOptionGroup` | forms | 1.1 | browser-verified | 1 |
 | `<s-ordered-list>` | Ordered list | `PolarisOrderedList` | layout-and-structure | 1.1 | browser-verified | 1 |
 | `<s-page>` | Page | `PolarisPage` | layout-and-structure | 1.1 | browser-verified | 2 |
-| `<s-paragraph>` | Paragraph | `PolarisText` | typography-and-content | 1.1 | browser-verified | 1 |
+| `<s-paragraph>` | Paragraph | `PolarisParagraph` | typography-and-content | 1.1 | browser-verified | 2 |
 | `<s-password-field>` | Password field | `PolarisPasswordField` | forms | 1.1 | browser-verified | 2 |
 | `<s-popover>` | Popover | `PolarisPopover` | overlays | 1.1 | browser-verified | 1 |
 | `<s-progress>` | Progress | `PolarisProgress` | feedback-and-status-indicators | 1.1 | browser-verified | 1 |
@@ -76,7 +76,7 @@ The record for each element joins two sources that cannot drift apart: the wrapp
 | `<s-table-body>` | Table body | `PolarisTableBody` | layout-and-structure | 1.1 | browser-verified | 1 |
 | `<s-table-row>` | Table row | `PolarisTableRow` | layout-and-structure | 1.1 | browser-verified | 2 |
 | `<s-table-cell>` | Table cell | `PolarisTableCell` | layout-and-structure | 1.1 | browser-verified | 1 |
-| `<s-text>` | Text | `PolarisText` | typography-and-content | 1.1 | browser-verified | 1 |
+| `<s-text>` | Text | `PolarisText` | typography-and-content | 1.1 | browser-verified | 2 |
 | `<s-text-area>` | Text area | `PolarisTextArea` | forms | 1.1 | browser-verified | 1 |
 | `<s-text-field>` | Text field | `PolarisTextField` | forms | 1.1 | browser-verified | 3 |
 | `<s-thumbnail>` | Thumbnail | `PolarisThumbnail` | media-and-visuals | 1.1 | browser-verified | 1 |
@@ -1658,9 +1658,9 @@ Exercised by:
 
 Notes: The aside slot only renders at inlineSize="base" (the default); at small or large it is silently dropped. Two slots are exempt from validation — supplemental-start and aside — which is why those are the only two exposed as fragment parameters. Shopify's docs point to the App Bridge title bar when a native admin title bar is wanted without the styled page layout.
 
-### `PolarisText` → `<s-paragraph>`
+### `PolarisParagraph` → `<s-paragraph>`
 
-Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.
+Wraps `<s-paragraph>`, a block of prose.
 
 - Official name: Paragraph
 - Category: typography-and-content
@@ -1671,14 +1671,13 @@ Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.
 
 | Parameter | C# type | Rendered as | Notes |
 |---|---|---|---|
-| `Paragraph` | `bool` | render flag | Renders a block-level paragraph instead of inline text. Paragraphs carry their own vertical spacing, which can add unwanted gaps inside a tight layout; inline text has none. |
-| `Type` | `PolarisTextType` | attribute | Text type. Only meaningful for inline text. |
 | `Tone` | `PolarisTone` | attribute | Semantic colour. |
 | `Color` | `PolarisColor` | attribute | Standard or subdued. |
 | `FontSize` | `PolarisFontSize` | attribute | Font size. |
 | `FontWeight` | `PolarisFontWeight` | attribute | Font weight. |
-| `LineClamp` | `int?` | attribute | Lines after which the text is truncated visually. |
-| `InterestFor` | `string?` | attribute | Id of a tooltip or popover shown on hover. |
+| `LineClamp` | `int?` | attribute | Lines after which the paragraph is truncated visually. This exists on s-paragraph and not on s-text. Truncation hides content, so it needs a way to reach the full text — a tooltip on the same element, say. |
+| `Dir` | `PolarisTextDirection?` | attribute | Text direction. Unset means the component's own default. |
+| `AccessibilityVisibility` | `PolarisAccessibilityVisibility?` | attribute | How assistive technology sees the paragraph. Use `PolarisAccessibilityVisibility.Exclusive` for a screen-reader-only paragraph, such as the sort order a table communicates visually. |
 
 No events.
 
@@ -1693,9 +1692,10 @@ Accessibility requirements:
 
 Exercised by:
 
-- `EmptyState_accepts_its_subheading_slot`
+- `Paragraph_omits_the_clamp_when_it_is_unset`
+- `Paragraph_renders_the_block_element_with_its_paragraph_only_clamp`
 
-Notes: Shares PolarisText with s-text: the wrapper switches element on its Paragraph parameter. `type` and `interestFor` exist on s-text but not on s-paragraph, so the wrapper omits them. Tone colours are tuned for light backgrounds.
+Notes: Wrapped by PolarisParagraph, a class of its own rather than a mode of PolarisText: the elements differ, and `lineClamp` exists here and not on s-text. `type` and `interestFor` belong to s-text, so this wrapper does not offer them. Tone colours are tuned for light backgrounds.
 
 ### `PolarisPasswordField` → `<s-password-field>`
 
@@ -2309,7 +2309,7 @@ Notes: No props of its own. Only valid inside s-table-row, and the cell count sh
 
 ### `PolarisText` → `<s-text>`
 
-Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.
+Wraps `<s-text>`, an inline run of text.
 
 - Official name: Text
 - Category: typography-and-content
@@ -2320,14 +2320,14 @@ Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.
 
 | Parameter | C# type | Rendered as | Notes |
 |---|---|---|---|
-| `Paragraph` | `bool` | render flag | Renders a block-level paragraph instead of inline text. Paragraphs carry their own vertical spacing, which can add unwanted gaps inside a tight layout; inline text has none. |
-| `Type` | `PolarisTextType` | attribute | Text type. Only meaningful for inline text. |
+| `Type` | `PolarisTextType` | attribute | Semantic type of the run: strong, generic, address or redundant. |
 | `Tone` | `PolarisTone` | attribute | Semantic colour. |
 | `Color` | `PolarisColor` | attribute | Standard or subdued. |
 | `FontSize` | `PolarisFontSize` | attribute | Font size. |
 | `FontWeight` | `PolarisFontWeight` | attribute | Font weight. |
-| `LineClamp` | `int?` | attribute | Lines after which the text is truncated visually. |
-| `InterestFor` | `string?` | attribute | Id of a tooltip or popover shown on hover. |
+| `InterestFor` | `string?` | attribute | Id of a tooltip or popover shown on hover. This exists on s-text and not on s-paragraph: it is how a run of explanatory text is wired to the tooltip that explains it. |
+| `Dir` | `PolarisTextDirection?` | attribute | Text direction. Unset means the component's own default. |
+| `AccessibilityVisibility` | `PolarisAccessibilityVisibility?` | attribute | How assistive technology sees the run. |
 
 No events.
 
@@ -2344,8 +2344,9 @@ Accessibility requirements:
 Exercised by:
 
 - `EmptyState_accepts_its_subheading_slot`
+- `Text_renders_the_inline_element_with_its_text_only_attributes`
 
-Notes: Shares PolarisText with s-paragraph. `type` and `interestFor` exist only on s-text; the wrapper omits them when Paragraph is set, which is why the generated reference lists two tags for one class.
+Notes: Wrapped by PolarisText, one class per element: s-paragraph has its own wrapper (PolarisParagraph) because the two do not share a property set. `type` and `interestFor` exist only on s-text, and `lineClamp` is absent, so inline runs cannot be truncated.
 
 ### `PolarisTextArea` → `<s-text-area>`
 

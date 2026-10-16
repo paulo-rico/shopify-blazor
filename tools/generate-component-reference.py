@@ -58,17 +58,11 @@ def clean(block: str) -> str:
 def parse(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
 
+    # One class wraps one element, which is what lets a wrapper be joined to the spec by tag. A class
+    # whose TagName switched on a parameter would read as "?" here, which is deliberate: it has no
+    # single element to be indexed under, and silently reporting one of the two would hide the other.
     tag = re.search(r'TagName\s*=>\s*"([^"]+)"', text)
-    if not tag:
-        # PolarisText switches between two elements.
-        tag = re.search(r'TagName\s*=>\s*Paragraph\s*\?\s*"([^"]+)"\s*:\s*"([^"]+)"', text)
-
-    if isinstance(tag, re.Match) and tag and tag.lastindex == 2:
-        tag_name = f"{tag.group(1)} / {tag.group(2)}"
-    elif tag:
-        tag_name = tag.group(1)
-    else:
-        tag_name = "?"
+    tag_name = tag.group(1) if tag else "?"
 
     # Everything up to the first closing tag: a per-parameter summary later in the file must not
     # be mistaken for the type's own summary.

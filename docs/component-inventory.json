@@ -4251,7 +4251,7 @@
       "implementationStatus": "wrapped",
       "minimumSupportedVersion": "1.1",
       "namespace": "Polaris.Blazor.Components",
-      "notes": "Shares PolarisText with s-text: the wrapper switches element on its Paragraph parameter. `type` and `interestFor` exist on s-text but not on s-paragraph, so the wrapper omits them. Tone colours are tuned for light backgrounds.",
+      "notes": "Wrapped by PolarisParagraph, a class of its own rather than a mode of PolarisText: the elements differ, and `lineClamp` exists here and not on s-text. `type` and `interestFor` belong to s-text, so this wrapper does not offer them. Tone colours are tuned for light backgrounds.",
       "officialName": "Paragraph",
       "slotDefinitions": [
         {
@@ -4261,22 +4261,8 @@
           "wrapperSupport": "ChildContent"
         }
       ],
-      "summary": "Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.",
+      "summary": "Wraps `<s-paragraph>`, a block of prose.",
       "supportedProperties": [
-        {
-          "default": null,
-          "doc": "Renders a block-level paragraph instead of inline text. Paragraphs carry their own vertical spacing, which can add unwanted gaps inside a tight layout; inline text has none.",
-          "kind": "render flag",
-          "name": "Paragraph",
-          "type": "bool"
-        },
-        {
-          "default": "PolarisTextType.Generic",
-          "doc": "Text type. Only meaningful for inline text.",
-          "kind": "attribute",
-          "name": "Type",
-          "type": "PolarisTextType"
-        },
         {
           "default": "PolarisTone.Auto",
           "doc": "Semantic colour.",
@@ -4307,25 +4293,33 @@
         },
         {
           "default": null,
-          "doc": "Lines after which the text is truncated visually.",
+          "doc": "Lines after which the paragraph is truncated visually. This exists on s-paragraph and not on s-text. Truncation hides content, so it needs a way to reach the full text — a tooltip on the same element, say.",
           "kind": "attribute",
           "name": "LineClamp",
           "type": "int?"
         },
         {
           "default": null,
-          "doc": "Id of a tooltip or popover shown on hover.",
+          "doc": "Text direction. Unset means the component's own default.",
           "kind": "attribute",
-          "name": "InterestFor",
-          "type": "string?"
+          "name": "Dir",
+          "type": "PolarisTextDirection?"
+        },
+        {
+          "default": null,
+          "doc": "How assistive technology sees the paragraph. Use `PolarisAccessibilityVisibility.Exclusive` for a screen-reader-only paragraph, such as the sort order a table communicates visually.",
+          "kind": "attribute",
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
         }
       ],
       "testCoverage": [
-        "EmptyState_accepts_its_subheading_slot"
+        "Paragraph_omits_the_clamp_when_it_is_unset",
+        "Paragraph_renders_the_block_element_with_its_paragraph_only_clamp"
       ],
       "verification": "browser-verified",
       "verifiedInBrowser": true,
-      "wrapper": "PolarisText"
+      "wrapper": "PolarisParagraph"
     },
     {
       "accessibilityRequirements": [
@@ -5662,7 +5656,7 @@
       "implementationStatus": "wrapped",
       "minimumSupportedVersion": "1.1",
       "namespace": "Polaris.Blazor.Components",
-      "notes": "Shares PolarisText with s-paragraph. `type` and `interestFor` exist only on s-text; the wrapper omits them when Paragraph is set, which is why the generated reference lists two tags for one class.",
+      "notes": "Wrapped by PolarisText, one class per element: s-paragraph has its own wrapper (PolarisParagraph) because the two do not share a property set. `type` and `interestFor` exist only on s-text, and `lineClamp` is absent, so inline runs cannot be truncated.",
       "officialName": "Text",
       "slotDefinitions": [
         {
@@ -5672,18 +5666,11 @@
           "wrapperSupport": "ChildContent"
         }
       ],
-      "summary": "Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.",
+      "summary": "Wraps `<s-text>`, an inline run of text.",
       "supportedProperties": [
         {
-          "default": null,
-          "doc": "Renders a block-level paragraph instead of inline text. Paragraphs carry their own vertical spacing, which can add unwanted gaps inside a tight layout; inline text has none.",
-          "kind": "render flag",
-          "name": "Paragraph",
-          "type": "bool"
-        },
-        {
           "default": "PolarisTextType.Generic",
-          "doc": "Text type. Only meaningful for inline text.",
+          "doc": "Semantic type of the run: strong, generic, address or redundant.",
           "kind": "attribute",
           "name": "Type",
           "type": "PolarisTextType"
@@ -5718,21 +5705,29 @@
         },
         {
           "default": null,
-          "doc": "Lines after which the text is truncated visually.",
-          "kind": "attribute",
-          "name": "LineClamp",
-          "type": "int?"
-        },
-        {
-          "default": null,
-          "doc": "Id of a tooltip or popover shown on hover.",
+          "doc": "Id of a tooltip or popover shown on hover. This exists on s-text and not on s-paragraph: it is how a run of explanatory text is wired to the tooltip that explains it.",
           "kind": "attribute",
           "name": "InterestFor",
           "type": "string?"
+        },
+        {
+          "default": null,
+          "doc": "Text direction. Unset means the component's own default.",
+          "kind": "attribute",
+          "name": "Dir",
+          "type": "PolarisTextDirection?"
+        },
+        {
+          "default": null,
+          "doc": "How assistive technology sees the run.",
+          "kind": "attribute",
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
         }
       ],
       "testCoverage": [
-        "EmptyState_accepts_its_subheading_slot"
+        "EmptyState_accepts_its_subheading_slot",
+        "Text_renders_the_inline_element_with_its_text_only_attributes"
       ],
       "verification": "browser-verified",
       "verifiedInBrowser": true,

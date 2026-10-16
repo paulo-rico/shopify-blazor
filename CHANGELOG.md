@@ -14,8 +14,8 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 ### Added
 
 - **`Polaris.Blazor`** — C# wrappers for every documented Shopify Polaris web component: all 50
-  top-level elements plus the 10 composed sub-elements they need, in 59 classes (`s-text` and
-  `s-paragraph` share one wrapper). Each wrapper renders the element Shopify defined, with typed
+  top-level elements plus the 10 composed sub-elements they need, one class per element, in 62 classes
+  including the 2 App Bridge components. Each wrapper renders the element Shopify defined, with typed
   parameters, named-slot support and forwarded events. Polaris booleans are rendered as presence
   attributes, `value`/`checked`/`selected` and array-valued properties are assigned as DOM properties
   after the element upgrades, and numbers are formatted with the invariant culture.
@@ -44,6 +44,18 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Changed
 
+- **`s-text` and `s-paragraph` no longer share one wrapper.** `PolarisText` had a `Paragraph` flag that
+  switched its element, so a single class had to model two property sets and omitted the half that did
+  not apply. The elements genuinely differ: `type` and `interestFor` exist only on `s-text`, and
+  `lineClamp` only on `s-paragraph`. There is now a `PolarisParagraph` class for the block element and
+  `PolarisText` renders inline text alone. **Breaking** for anyone using `PolarisText Paragraph="true"`
+  (use `PolarisParagraph`) or `PolarisText LineClamp` (use `PolarisParagraph LineClamp`), and it is why
+  `LineClamp` moved rather than being copied: Polaris documents inline text as never truncating, so the
+  attribute was accepted by the DOM and silently ignored.
+- **`PolarisText` and `PolarisParagraph` model `dir` and `accessibilityVisibility`.** Both properties
+  are documented on both elements and neither was exposed, so an RTL run or a screen-reader-only
+  paragraph could not be expressed. A paragraph with `AccessibilityVisibility="Exclusive"` is the
+  documented way to give a table's sort order to assistive technology.
 - **Development happens on a web server.** A tunnel is no longer part of the workflow: point Shopify
   at a server that can terminate HTTPS, publish with `bin/shopify-publish` (which replaces
   `bin/shopify-dev`) and copy the output there. The documentation, the generated project's README and

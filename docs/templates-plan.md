@@ -100,11 +100,10 @@ the inventory complete and the pattern uniform, that has not happened yet.
 
 ## Current component coverage
 
-Complete: all 50 documented top-level elements are wrapped, in 49 classes (`s-text` and `s-paragraph`
-share `PolarisText`), plus the 10 composed sub-elements — `s-choice`, `s-option`, `s-option-group`,
-`s-grid-item`, `s-list-item`, `s-table-header-row`, `s-table-header`, `s-table-body`, `s-table-row`,
-`s-table-cell`. The generated [reference](components.md) marks which are named in tests; all of them
-are.
+Complete: all 50 documented top-level elements are wrapped, one class each, plus the 10 composed
+sub-elements — `s-choice`, `s-option`, `s-option-group`, `s-grid-item`, `s-list-item`,
+`s-table-header-row`, `s-table-header`, `s-table-body`, `s-table-row`, `s-table-cell`. The generated
+[reference](components.md) marks which are named in tests; all of them are.
 
 `PolarisChoiceList` was the last notable absence, and it earned its reputation: it is the only
 multi-select, and `values` is an array property, which is the path that exposed a latent bug —

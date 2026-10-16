@@ -80,8 +80,10 @@ public sealed class PolarisCatalogue
 
         return _components
             .Select(component => (component.Wrapper, Distance: Distance(wanted, Normalise(component.Wrapper))))
-            // Distinct by wrapper first: two entries can share one (PolarisText wraps s-text and
-            // s-paragraph), and a "did you mean" list that repeats a name looks like a bug.
+            // Distinct by wrapper first. The catalogue holds one entry per element, so a wrapper
+            // covering more than one element would appear more than once, and a "did you mean" list
+            // that repeats a name looks like a bug. No wrapper does today — s-text and s-paragraph have
+            // a class each — but the suggestion contract is "up to N names", not "up to N entries".
             .DistinctBy(candidate => candidate.Wrapper, StringComparer.Ordinal)
             .OrderBy(candidate => candidate.Distance)
             .ThenBy(candidate => candidate.Wrapper, StringComparer.Ordinal)

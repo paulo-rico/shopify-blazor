@@ -5,12 +5,12 @@
 <PolarisStack Gap="PolarisGap.Base">
     <PolarisSection Heading="What this sample proves">
         <PolarisStack Gap="PolarisGap.Base">
-            <PolarisText Paragraph="true">
+            <PolarisParagraph>
                 This is the reference application for the Shopify Blazor Toolkit. It runs as an
                 embedded app inside the Shopify Admin, builds its whole interface from Shopify's own
                 Polaris web components, and reaches the Admin API through a server that never lets a
                 credential near the browser.
-            </PolarisText>
+            </PolarisParagraph>
 
             <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
                 <PolarisBadge Tone="PolarisTone.Success">Polaris components</PolarisBadge>
@@ -41,11 +41,11 @@
             {
                 <PolarisBanner Heading="Standalone browser session"
                                Tone="PolarisTone.Warning">
-                    <PolarisText Paragraph="true">
+                    <PolarisParagraph>
                         App Bridge is loaded from the CDN but only becomes active inside the Admin.
                         Everything you see here is still genuine Polaris: the same custom elements the
                         Admin uses, upgraded by the same script.
-                    </PolarisText>
+                    </PolarisParagraph>
                 </PolarisBanner>
             }
         </PolarisStack>

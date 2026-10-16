@@ -283,8 +283,9 @@ def render(entry: dict) -> tuple[str, list[str]]:
     lines.append(f"public sealed class {name} : {base}")
     lines.append("{")
 
-    # TagName is not a parameter, so it is always emitted; a component whose tag changes on a
-    # parameter is exactly the `PolarisText` exception and not something to generate blindly.
+    # TagName is not a parameter, so it is always emitted: a generated class wraps exactly one
+    # element. A component whose tag changed on a parameter could not be catalogued either — the
+    # inventory indexes a wrapper by its tag — so such a component is two components, not one.
     lines.append("    /// <inheritdoc />")
     lines.append(f'    protected override string TagName => "{element}";')
     lines.append("")

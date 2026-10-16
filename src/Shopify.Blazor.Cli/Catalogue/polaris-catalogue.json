@@ -1974,19 +1974,11 @@
       ]
     },
     {
-      "wrapper": "PolarisText",
+      "wrapper": "PolarisParagraph",
       "element": "s-paragraph",
       "namespace": "Polaris.Blazor.Components",
-      "summary": "Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.",
+      "summary": "Wraps `<s-paragraph>`, a block of prose.",
       "parameters": [
-        {
-          "name": "Paragraph",
-          "type": "bool"
-        },
-        {
-          "name": "Type",
-          "type": "PolarisTextType"
-        },
         {
           "name": "Tone",
           "type": "PolarisTone"
@@ -2008,8 +2000,12 @@
           "type": "int?"
         },
         {
-          "name": "InterestFor",
-          "type": "string?"
+          "name": "Dir",
+          "type": "PolarisTextDirection?"
+        },
+        {
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
         }
       ],
       "events": [],
@@ -2585,12 +2581,8 @@
       "wrapper": "PolarisText",
       "element": "s-text",
       "namespace": "Polaris.Blazor.Components",
-      "summary": "Wraps `<s-text>`, and with Paragraph set, `<s-paragraph>`.",
+      "summary": "Wraps `<s-text>`, an inline run of text.",
       "parameters": [
-        {
-          "name": "Paragraph",
-          "type": "bool"
-        },
         {
           "name": "Type",
           "type": "PolarisTextType"
@@ -2612,12 +2604,16 @@
           "type": "PolarisFontWeight"
         },
         {
-          "name": "LineClamp",
-          "type": "int?"
-        },
-        {
           "name": "InterestFor",
           "type": "string?"
+        },
+        {
+          "name": "Dir",
+          "type": "PolarisTextDirection?"
+        },
+        {
+          "name": "AccessibilityVisibility",
+          "type": "PolarisAccessibilityVisibility?"
         }
       ],
       "events": [],
