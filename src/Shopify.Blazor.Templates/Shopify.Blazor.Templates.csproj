@@ -44,8 +44,10 @@
     <Content Include="templates/**/*" Exclude="templates/**/bin/**;templates/**/obj/**" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="/" Condition="Exists('README.md')" />
-  </ItemGroup>
+  <!--
+    No readme item here: Directory.Build.props picks up a README.md in the project directory, both
+    naming it and packing it. Declaring it in two places is how it ends up packed twice, or named but
+    not packed.
+  -->
 
 </Project>

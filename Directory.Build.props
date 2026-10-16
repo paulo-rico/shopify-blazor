@@ -24,10 +24,29 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' != 'false'">
-    <PackageReadmeFile Condition="Exists('$(MSBuildProjectDirectory)/README.md')">README.md</PackageReadmeFile>
     <PackageTags>shopify;blazor;polaris;embedded-app</PackageTags>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <!--
+    A project with a README.md of its own ships it as the package readme, and it takes BOTH halves:
+    PackageReadmeFile names the file, and the None/Pack item is what puts it in the package. Naming it
+    without packing it fails the pack with NU5039 — and because `dotnet pack` on the solution carries
+    on through the other projects and only fails at the end, the run looks successful while exiting 1,
+    which is how the CLI's readme went missing. Declaring the two together here is what keeps them
+    from drifting apart; a project that wants a readme only has to add the file.
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'false' And Exists('$(MSBuildProjectDirectory)/README.md')">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' != 'false' And Exists('$(MSBuildProjectDirectory)/README.md')">
+    <!--
+      Include, not Update: the SDK's default item globs do not cover README.md, so an Update has
+      nothing to attach to and packs nothing — which is the same NU5039 by another route.
+    -->
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
 </Project>

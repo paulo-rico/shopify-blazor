@@ -76,6 +76,13 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **`dotnet pack Shopify.Blazor.slnx` exited 1.** `Directory.Build.props` set `PackageReadmeFile`
+  whenever a project had a `README.md` of its own, but nothing put that file in the package, so the CLI
+  project failed with `NU5039` ("The readme file 'README.md' does not exist in the package"). Because
+  `dotnet pack` carries on through the other projects and only fails at the end, the run wrote the
+  libraries and looked successful while returning non-zero — and any script that packs the solution
+  stopped before doing what came next. Naming the readme and packing it are now declared together in
+  one place, and the CLI package ships its README.
 - **A stale `s-choice-list` selection could never be cleared.** The component base class documented
   `ClearedProperties` and gated its property write on it, but never called
   `IPolarisInterop.ClearPropertiesAsync`. Nothing used the collection until `PolarisChoiceList`
