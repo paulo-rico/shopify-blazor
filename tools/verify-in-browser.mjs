@@ -613,7 +613,8 @@ function evaluateAssertions(result) {
             `the header has a stated accessible name (${opened?.name ?? "none"})`,
         );
         check(
-            opened?.transition ? true : false,
+            // A browser with reduced motion on reports 0s on purpose, so that is not a failure.
+            accordion.reducedMotion || (opened?.transition ?? "0s") !== "0s",
             `the panel's transition is applied, not merely linked (duration ${opened?.transition ?? "none"})`,
         );
         check(
