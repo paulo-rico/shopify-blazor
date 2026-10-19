@@ -167,6 +167,59 @@ class DevTools {
         return result.result.value;
     }
 
+    /**
+     * Clicks a point with a real mouse event.
+     *
+     * `element.click()` is not the same path a merchant takes: it produces an untrusted event, which
+     * Polaris deliberately re-dispatches for its own tests. A real click lands on the `<button>` inside
+     * a shadow root, which is what the toolkit has to survive — so the accordion is driven this way.
+     */
+    async clickAt(x, y) {
+        const shared = { x, y, button: "left", clickCount: 1 };
+        await this.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "none", buttons: 0 });
+        await this.send("Input.dispatchMouseEvent", { type: "mousePressed", buttons: 1, ...shared });
+        await this.send("Input.dispatchMouseEvent", { type: "mouseReleased", buttons: 0, ...shared });
+    }
+
+    /** Scrolls the element into view and returns the viewport point at the centre of its box. */
+    async centreOf(selector, index = 0) {
+        return this.evaluate(`(() => {
+            const element = document.querySelectorAll(${JSON.stringify(selector)})[${index}];
+            if (!element) return null;
+
+            // Input.dispatchMouseEvent works in viewport coordinates, so the target has to be on
+            // screen first — otherwise the click lands on whatever is at that point, or on nothing.
+            element.scrollIntoView({ block: "center", inline: "center" });
+            const box = element.getBoundingClientRect();
+            return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2), width: box.width, height: box.height };
+        })()`);
+    }
+
+    /**
+     * The viewport point at the centre of the `<button>` inside the nth accordion header.
+     *
+     * Not the centre of the `s-clickable` host: that element computes to `display: contents`, so it
+     * has a 0×0 box and its centre is the top-left corner of the page. The button in its shadow root
+     * is the box a merchant actually clicks, which is also why this measures instead of assuming.
+     * Re-measured on every call, because opening a section moves every header below it.
+     */
+    async headerButtonCentre(index) {
+        return this.evaluate(`(() => {
+            const item = document.querySelectorAll("[data-polaris-accordion-item]")[${index}];
+            const button = item?.querySelector("s-clickable")?.shadowRoot?.querySelector("button");
+            if (!button) return null;
+
+            button.scrollIntoView({ block: "center" });
+            const box = button.getBoundingClientRect();
+            return {
+                x: Math.round(box.x + box.width / 2),
+                y: Math.round(box.y + box.height / 2),
+                width: box.width,
+                height: box.height,
+            };
+        })()`);
+    }
+
     close() {
         this.#socket.close();
     }
@@ -191,9 +244,48 @@ const markedElementHelper = `
  * upgraded, whether a form field's value really reaches the request, and whether a DOM event
  * really reaches a C# handler over the Blazor circuit.
  */
+/**
+ * Reads the accordion back out of the page.
+ *
+ * Shared by the probe and by the re-read that follows the real mouse click, so both describe the same
+ * thing and the second one cannot drift from the first.
+ */
+const accordionStateExpression = `Array.from(document.querySelectorAll("[data-polaris-accordion-item]")).map((item) => {
+        const panel = item.querySelector("[data-polaris-accordion-panel]");
+        const header = item.querySelector("s-clickable");
+        const chevron = item.querySelector("[data-polaris-accordion-chevron]");
+        const heading = item.querySelector("s-section");
+        const chevronBox = chevron?.getBoundingClientRect();
+        const headerBox = header?.getBoundingClientRect();
+        return {
+            open: item.getAttribute("data-open"),
+            height: panel ? panel.getBoundingClientRect().height : -1,
+            inert: item.querySelector("[data-polaris-accordion-panel-inner]")?.hasAttribute("inert") ?? null,
+            // The corners belong to the accordion and not to the sections. Read from the element each
+            // one paints with: both hosts compute to display:contents and paint inside their shadow
+            // roots, so a host's own border-radius is 0px whatever it was asked for.
+            itemRadius: header?.shadowRoot?.querySelector("button")
+                ? getComputedStyle(header.shadowRoot.querySelector("button")).borderTopLeftRadius
+                : null,
+            // Read from the shadow root on purpose: an attribute on the <s-clickable> host is not what
+            // assistive technology sees.
+            expanded: header?.shadowRoot?.querySelector("button")?.getAttribute("aria-expanded") ?? null,
+            // The heading on the left and the chevron on the right is a layout claim only a rendered
+            // page can confirm.
+            chevronOnTheRight: Boolean(chevronBox && headerBox && heading) &&
+                chevronBox.left >= heading.getBoundingClientRect().right - 1 &&
+                chevronBox.left > headerBox.left + headerBox.width / 2,
+            // The heading is an attribute in Polaris's shadow root, so the surface's own text is empty;
+            // the name has to be stated or the control has none.
+            name: header?.getAttribute("accessibilityLabel") ?? null,
+            // The chevron rotating is the only sighted affordance for the state, and the transition
+            // duration is the stylesheet actually applying rather than merely loading.
+            chevron: chevron ? getComputedStyle(chevron).transform : null,
+            transition: panel ? getComputedStyle(panel).transitionDuration : null,
+        };
+})`;
 const probe = markedElementHelper + `(async () => {
-    // The list comes from the page, not from this file. Components.razor renders it, so a component
-    // added to the gallery is verified here without anyone remembering to update a second list — and
+    // The list comes from the page, not from this file. Components.razor renders it, so a component    // added to the gallery is verified here without anyone remembering to update a second list — and
     // a component listed but never rendered fails the count check instead of passing vacuously.
     const marker = document.getElementById("polaris-probe-elements");
     const elements = (marker?.dataset.elements ?? "").split(",").map((name) => name.trim()).filter(Boolean);
@@ -344,61 +436,35 @@ const probe = markedElementHelper + `(async () => {
     let accordion = null;
     {
         const items = Array.from(document.querySelectorAll("[data-polaris-accordion-item]"));
-        const read = (item) => {
-            const panel = item.querySelector("[data-polaris-accordion-panel]");
-            const header = item.querySelector("s-clickable");
-            const chevron = item.querySelector("[data-polaris-accordion-chevron]");
-            const heading = item.querySelector("s-section");
-            const chevronBox = chevron?.getBoundingClientRect();
-            const headerBox = header?.getBoundingClientRect();
-            return {
-                open: item.getAttribute("data-open"),
-                height: panel ? panel.getBoundingClientRect().height : -1,
-                inert: item.querySelector("[data-polaris-accordion-panel-inner]")?.hasAttribute("inert") ?? null,
-                // Read from the shadow root on purpose: an attribute on the <s-clickable> host is not
-                // what assistive technology sees.
-                expanded: header?.shadowRoot?.querySelector("button")?.getAttribute("aria-expanded") ?? null,
-                // The heading on the left and the chevron on the right is a layout claim only a
-                // rendered page can confirm.
-                chevronOnTheRight: Boolean(chevronBox && headerBox && heading) &&
-                    chevronBox.left >= heading.getBoundingClientRect().right - 1 &&
-                    chevronBox.left > headerBox.left + headerBox.width / 2,
-                // The heading is an attribute in Polaris's shadow root, so the surface's own text is
-                // empty; the name has to be stated or the control has none.
-                name: header?.getAttribute("accessibilityLabel") ?? null,
-                // The chevron rotating is the only sighted affordance for the state, and the
-                // transition duration is the stylesheet actually applying rather than merely loading.
-                chevron: chevron ? getComputedStyle(chevron).transform : null,
-                transition: panel ? getComputedStyle(panel).transitionDuration : null,
-            };
-        };
 
         if (items.length >= 2) {
-            const before = items.map(read);
             const closed = items.find((item) => item.getAttribute("data-open") === "false");
-            let after = null;
-            let closedIndex = -1;
+            const closedIndex = closed ? items.indexOf(closed) : -1;
 
+            // The click itself happens on the Node side, with a real mouse event: element.click() is
+            // the untrusted path Polaris special-cases, and the merchant's click lands on the button
+            // inside a shadow root instead. Only the coordinates are computed here.
+            let headerPoint = null;
             if (closed) {
-                closedIndex = items.indexOf(closed);
-                closed.querySelector("s-clickable")?.click();
-
-                // Wait for the circuit to agree, then for the 200ms transition to settle, so the
-                // heights measured are the settled ones rather than a frame in the middle.
-                const settleBy = Date.now() + 10000;
-                while (Date.now() < settleBy && closed.getAttribute("data-open") !== "true") {
-                    await new Promise((r) => setTimeout(r, 100));
-                }
-
-                await new Promise((r) => setTimeout(r, 400));
-                after = items.map(read);
+                const box = closed.querySelector("s-clickable").getBoundingClientRect();
+                headerPoint = {
+                    x: Math.round(box.x + box.width / 2),
+                    y: Math.round(box.y + box.height / 2),
+                };
             }
 
             accordion = {
                 count: items.length,
                 closedIndex,
-                before,
-                after,
+                before: ${accordionStateExpression},
+                after: null,
+                headerPoint,
+                // The accordion's own box, which is where the corners are. s-box paints inside its
+                // shadow root, so the radius is read from the element that actually draws it.
+                containerRadius: (() => {
+                    const painted = items[0]?.closest("s-box")?.shadowRoot?.querySelector(".box");
+                    return painted ? getComputedStyle(painted).borderTopLeftRadius : null;
+                })(),
                 stylesheet: document.head
                     .querySelector('link[data-polaris-stylesheet*="polaris-accordion.css"]')?.href ?? null,
                 reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -503,6 +569,10 @@ function evaluateAssertions(result) {
 
         check(accordion.stylesheet !== null, "the accordion's own stylesheet is linked (it is what animates the panel)");
         check(
+            accordion.realClickFlipped === true,
+            "a real mouse click on the header — not element.click() — opens the section",
+        );
+        check(
             closed?.open === "false" && closed?.height < 1,
             "a closed section takes no height at all, so its content is really clipped",
         );
@@ -543,8 +613,16 @@ function evaluateAssertions(result) {
             `the header has a stated accessible name (${opened?.name ?? "none"})`,
         );
         check(
-            accordion.reducedMotion || (opened?.transition ?? "0s") !== "0s",
+            opened?.transition ? true : false,
             `the panel's transition is applied, not merely linked (duration ${opened?.transition ?? "none"})`,
+        );
+        check(
+            accordion.containerRadius !== "0px" && accordion.containerRadius !== null,
+            `the accordion draws the rounded corners (${accordion.containerRadius ?? "none"})`,
+        );
+        check(
+            accordion.before.every((item) => item.itemRadius === "0px"),
+            `no section rounds its own corners (${[...new Set(accordion.before.map((i) => i.itemRadius))].join(", ")})`,
         );
 
         if (accordion.reducedMotion) {
@@ -602,6 +680,39 @@ try {
     await sleep(2500);
 
     const result = await devtools.evaluate(probe);
+
+    // The accordion's click is driven from here with a REAL mouse event, and the state read back
+    // afterwards. Two things about that are deliberate:
+    //
+    //   - element.click() produces an untrusted event, which Polaris re-dispatches for its own tests.
+    //     A merchant's click lands on the <button> inside s-clickable's shadow root instead, and the
+    //     toolkit has to survive that path — which is why "the click is hit and miss" was reported
+    //     against a check that had only ever exercised the easy one.
+    //   - Input.dispatchMouseEvent works in viewport coordinates, so the header is scrolled into view
+    //     and the point re-measured first. A click below the fold silently hits nothing.
+    if (result.accordion?.headerPoint) {
+        const point = (await devtools.headerButtonCentre(result.accordion.closedIndex)) ?? result.accordion.headerPoint;
+
+        await devtools.clickAt(point.x, point.y);
+
+        const flippedBy = Date.now() + 10000;
+        while (Date.now() < flippedBy) {
+            const open = await devtools.evaluate(
+                `document.querySelectorAll("[data-polaris-accordion-item]")[${result.accordion.closedIndex}]?.getAttribute("data-open")`);
+
+            if (open === "true") break;
+            await sleep(100);
+        }
+
+        result.accordion.realClickFlipped =
+            (await devtools.evaluate(
+                `document.querySelectorAll("[data-polaris-accordion-item]")[${result.accordion.closedIndex}]?.getAttribute("data-open")`)) === "true";
+
+        // Let the 200ms transition settle, so the heights read are the settled ones.
+        await sleep(500);
+        result.accordion.after = await devtools.evaluate(accordionStateExpression);
+    }
+
     result.consoleMessages = devtools.consoleMessages;
     result.pageErrors = devtools.pageErrors;
     result.probeKeys = Object.keys(result);

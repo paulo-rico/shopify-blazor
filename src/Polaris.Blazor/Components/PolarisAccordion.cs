@@ -130,22 +130,35 @@ public sealed class PolarisAccordion : ComponentBase
     /// <inheritdoc />
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        // The sections are laid out by Polaris rather than by a bare div, so an accordion sits in a
-        // page exactly like any other Polaris block. gap="none" because the items draw their own
-        // rules.
-        builder.OpenComponent<PolarisStack>(0);
-        builder.AddAttribute(1, nameof(PolarisStack.Gap), PolarisGap.None);
-        builder.AddAttribute(2, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
-        {
-            content.OpenComponent<CascadingValue<PolarisAccordion>>(0);
-            content.AddAttribute(1, nameof(CascadingValue<PolarisAccordion>.Value), this);
+        // One rounded box around the whole list, with the overflow clipped, so the accordion reads as a
+        // single card: the corners are the container's and none of the sections has a radius of its own.
+        // s-box is where those properties belong — it is one of the elements that inherits Polaris's box
+        // styling set, and s-section (inside each item) is not.
+        builder.OpenComponent<PolarisBox>(20);
+        builder.AddAttribute(21, nameof(PolarisBox.Border), "base");
+        builder.AddAttribute(22, nameof(PolarisBox.BorderRadius), "base");
+        builder.AddAttribute(23, nameof(PolarisBox.Overflow), "hidden");
 
-            // Fixed, so that a container that re-renders does not re-render every item with it: each
-            // item owns its own open state and is the only thing that needs to know it changed.
-            content.AddAttribute(2, nameof(CascadingValue<PolarisAccordion>.IsFixed), true);
-            content.AddAttribute(3, nameof(CascadingValue<PolarisAccordion>.ChildContent), ChildContent);
-            content.CloseComponent();
+        // The sections are laid out by Polaris rather than by a bare div, so an accordion sits in a
+        // page exactly like any other Polaris block. gap="none" because the items draw their own rules.
+        builder.AddAttribute(24, nameof(PolarisBox.ChildContent), (RenderFragment)(box =>
+        {
+            box.OpenComponent<PolarisStack>(0);
+            box.AddAttribute(1, nameof(PolarisStack.Gap), PolarisGap.None);
+            box.AddAttribute(2, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
+            {
+                content.OpenComponent<CascadingValue<PolarisAccordion>>(0);
+                content.AddAttribute(1, nameof(CascadingValue<PolarisAccordion>.Value), this);
+
+                // Fixed, so that a container that re-renders does not re-render every item with it: each
+                // item owns its own open state and is the only thing that needs to know it changed.
+                content.AddAttribute(2, nameof(CascadingValue<PolarisAccordion>.IsFixed), true);
+                content.AddAttribute(3, nameof(CascadingValue<PolarisAccordion>.ChildContent), ChildContent);
+                content.CloseComponent();
+            }));
+            box.CloseComponent();
         }));
+
         builder.CloseComponent();
     }
 }

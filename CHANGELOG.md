@@ -57,6 +57,19 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Changed
 
+- **The accordion rounds its own corners and the sections round none.** One clipped, rounded `s-box`
+  wraps the whole list, so it reads as a single card; a radius on each header made it a stack of
+  separate cards. The first section's divider is dropped by the stylesheet, because above it sits the
+  container's border.
+- **The accordion's click no longer depends on an interop listener.** The header is handled by
+  Blazor's own `@onclick` on a wrapper element, and the Polaris surface is visual only. The listener
+  it replaces was attached to the element and re-attached after every render — and every toggle
+  re-renders the page that binds `OpenItemChanged` — so whether it was in place when a click arrived
+  depended on render history. That is the shape of an intermittent fault with no pattern, which is
+  how it was reported. A click is a composed event, so one anywhere in the surface reaches the single
+  delegated handler. **Fixed** with it: `element.click()` in the browser check was exercising
+  Polaris's untrusted-event path rather than a merchant's real click; the check now dispatches a real
+  mouse event on the shadow button.
 - **The accordion's header is a `s-clickable` surface holding an `s-section`, not a button.**
   A heading with a line of supporting text under it does not fit in a button's single truncating line,
   so the header became a surface: `s-section` carries the heading and a new `HeaderDetails` string as

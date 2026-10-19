@@ -73,11 +73,6 @@ public sealed class RecordingJSRuntime : IJSRuntime
 /// </summary>
 public sealed class RecordingPolarisInterop : IPolarisInterop
 {
-    // Registrations are held per element, in the order each element first attached, because a
-    // component re-attaches on every render: a plain list would accumulate a duplicate per render and
-    // make "the second button" mean something different after the first click.
-    private readonly List<(ElementReference Element, string TagName, IReadOnlyDictionary<string, EventCallback<PolarisEventArgs>> Registrations)> _attached = [];
-
     /// <summary>Events attached, keyed by tag name.</summary>
     public Dictionary<string, List<string>> AttachedEvents { get; } = new(StringComparer.Ordinal);
 
@@ -112,43 +107,6 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <summary>Whether initialization succeeds.</summary>
     public bool InitializeSucceeds { get; set; } = true;
 
-    /// <summary>How many distinct elements currently have listeners attached.</summary>
-    public int AttachedElementCount => _attached.Count;
-
-    /// <summary>
-    /// Raises a DOM event on an element that attached listeners, the way the interop module does when
-    /// the merchant really clicks it.
-    /// </summary>
-    /// <remarks>
-    /// Polaris events are DOM events forwarded through JavaScript, not Blazor <c>@onclick</c>
-    /// handlers, so there is no built-in way to raise one in a component test. Without this, the
-    /// whole interaction path — clicking a section, the sibling collapsing — would be untestable
-    /// outside a browser, which in practice means untested.
-    /// </remarks>
-    /// <param name="tagName">Custom element name, for example <c>s-button</c>.</param>
-    /// <param name="index">Which of that tag's elements, in the order they first attached. Zero is the first.</param>
-    /// <param name="eventName">DOM event name.</param>
-    public async Task RaiseAsync(string tagName, int index = 0, string eventName = PolarisEvents.Click)
-    {
-        var matching = _attached
-            .Where(entry => string.Equals(entry.TagName, tagName, StringComparison.Ordinal))
-            .ToList();
-
-        Assert.True(
-            index < matching.Count,
-            $"No {tagName} at index {index}: {matching.Count} element(s) of that tag attached events " +
-            $"out of {_attached.Count} in total.");
-
-        var registrations = matching[index].Registrations;
-
-        Assert.True(
-            registrations.TryGetValue(eventName, out var callback),
-            $"The {tagName} at index {index} has no '{eventName}' handler; it has " +
-            $"[{string.Join(", ", registrations.Keys)}].");
-
-        await callback.InvokeAsync(new PolarisEventArgs { Type = eventName });
-    }
-
     /// <inheritdoc />
     public ValueTask<bool> EnsureInitializedAsync()
     {
@@ -167,19 +125,6 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
         IReadOnlyDictionary<string, EventCallback<PolarisEventArgs>> registrations)
     {
         AttachedEvents[tagName] = eventNames.ToList();
-
-        var existing = _attached.FindIndex(entry => entry.Element.Equals(element));
-        var record = (element, tagName, registrations);
-
-        if (existing >= 0)
-        {
-            _attached[existing] = record;
-        }
-        else
-        {
-            _attached.Add(record);
-        }
-
         return ValueTask.CompletedTask;
     }
 

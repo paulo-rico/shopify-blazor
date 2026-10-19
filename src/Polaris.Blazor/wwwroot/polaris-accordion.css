@@ -18,6 +18,13 @@
     transition: grid-template-rows 200ms cubic-bezier(0.2, 0.8, 0, 1);
 }
 
+/* Each section draws a rule above itself, which reads as a divider between sections. Above the FIRST
+   one it would double the accordion's own outer border, so it is dropped there. Layout, not
+   appearance: the rule belongs to the section and the border to the container. */
+[data-polaris-accordion-item]:first-child > s-divider {
+    display: none;
+}
+
 /* s-icon's host is display:inline, and a transform does not apply to a non-replaced inline box. */
 [data-polaris-accordion-chevron] {
     display: inline-block;

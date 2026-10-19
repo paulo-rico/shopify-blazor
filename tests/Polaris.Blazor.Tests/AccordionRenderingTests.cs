@@ -201,11 +201,20 @@ public sealed class AccordionRenderingTests
         var component = RenderAccordion(context, ("Details", "details", false, null),
             ("Shipping", "shipping", false, "Sent by courier"));
 
-        // One rule per section: they read as rules between the sections, and as one above the first.
+        // One rule per section: they read as rules between the sections. The first one is dropped by the
+        // stylesheet, because above it sits the accordion's own border.
         Assert.Equal(2, component.FindAll("s-divider").Count);
 
+        // The corners belong to the accordion, not to the sections: one rounded, clipped box around the
+        // lot reads as a list, whereas a radius on each header reads as a stack of separate cards.
+        var container = component.Find("s-box");
+        Assert.Equal("base", container.GetAttribute("border"));
+        Assert.Equal("base", container.GetAttribute("borderRadius"));
+        Assert.Equal("hidden", container.GetAttribute("overflow"));
+
         var clickable = component.FindAll("s-clickable")[0];
-        Assert.Equal("base", clickable.GetAttribute("border"));
+        Assert.Null(clickable.GetAttribute("border"));
+        Assert.Null(clickable.GetAttribute("borderRadius"));
         Assert.Equal("subdued", clickable.GetAttribute("background"));
         Assert.Equal("Details", clickable.GetAttribute("accessibilityLabel"));
 
@@ -299,5 +308,7 @@ public sealed class AccordionRenderingTests
         PolarisTestContext context,
         int index)
         where TComponent : Microsoft.AspNetCore.Components.IComponent
-        => component.InvokeAsync(() => context.Interop.RaiseAsync("s-clickable", index));
+        => component.InvokeAsync(() => component
+            .FindAll("[data-polaris-accordion-header]")[index]
+            .TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
 }

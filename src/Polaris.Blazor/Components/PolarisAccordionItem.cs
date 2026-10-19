@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using Polaris.Blazor.Events;
 
 namespace Polaris.Blazor.Components;
 
@@ -153,7 +152,9 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         }
     }
 
-    private Task ToggleFromHeaderAsync(PolarisEventArgs args) => ToggleAsync();
+    // MouseEventArgs, not PolarisEventArgs: this is a Blazor DOM handler on our own element, not an
+    // event forwarded from a Polaris custom element.
+    private Task ToggleFromHeaderAsync(Microsoft.AspNetCore.Components.Web.MouseEventArgs args) => ToggleAsync();
 
     /// <inheritdoc />
     protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -171,27 +172,38 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
             builder.CloseComponent();
         }
 
-        // The header is a clickable surface rather than a button, because a button lays its children
-        // out on one line and truncates them, and this header is a heading with a line of supporting
-        // text under it. s-clickable renders a real <button> inside its shadow root, so it is still
-        // focusable, still announced, and still opened with Enter or Space.
+        // The whole header is the click target, and the handler is Blazor's own onclick rather than an
+        // interop listener on the Polaris element.
         //
+        // That is not a style choice. A listener attached to an s-clickable is attached, detached and
+        // re-attached on every render of this component, because the base class refreshes its
+        // registrations after each one — and every toggle re-renders the page that binds
+        // OpenItemChanged. Whether a given click lands while the listener is in place therefore depended
+        // on render history, which is why it was intermittent with no pattern. A click is also a
+        // *composed* event, so one anywhere in this surface — the heading text, the chevron, the padding
+        // — bubbles to here, including the click a keyboard Enter or Space produces on the button inside
+        // Polaris's shadow root. One handler, installed once by Blazor's own delegation.
+        builder.OpenElement(4, "div");
+        builder.AddAttribute(5, "data-polaris-accordion-header", true);
+        builder.AddAttribute(6, "onclick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs>(this, ToggleFromHeaderAsync));
+
         // The section's border and background are on the SURFACE, not on the s-section: measured from
         // the docs, s-section takes only heading, subheading, padding and accessibilityLabel, and it is
         // not one of the elements that inherit Polaris's box styling set. Attributes it does not know
         // are ignored without a word.
+        //
+        // No border and no radius of its own: the accordion draws one rounded box around every section,
+        // and a header with its own radius inside it is a stack of separate cards rather than a list.
         builder.OpenComponent<PolarisClickable>(10);
         builder.AddAttribute(11, nameof(PolarisClickable.AccessibilityLabel), AccessibleName);
         builder.AddAttribute(12, nameof(PolarisClickable.AccessibilityExpanded),
             _isOpen ? PolarisAccessibilityExpanded.Expanded : PolarisAccessibilityExpanded.Collapsed);
-        builder.AddAttribute(13, nameof(PolarisClickable.Border), "base");
-        builder.AddAttribute(14, nameof(PolarisClickable.Background), "subdued");
-        builder.AddAttribute(15, nameof(PolarisClickable.Padding), "base");
-        builder.AddAttribute(16, nameof(PolarisClickable.BorderRadius), "base");
-        builder.AddAttribute(17, nameof(PolarisClickable.OnClick),
-            EventCallback.Factory.Create<PolarisEventArgs>(this, ToggleFromHeaderAsync));
-        builder.AddAttribute(18, nameof(PolarisClickable.ChildContent), (RenderFragment)BuildHeaderContent);
+        builder.AddAttribute(13, nameof(PolarisClickable.Background), "subdued");
+        builder.AddAttribute(14, nameof(PolarisClickable.Padding), "base");
+        builder.AddAttribute(15, nameof(PolarisClickable.ChildContent), (RenderFragment)BuildHeaderContent);
         builder.CloseComponent();
+
+        builder.CloseElement();
 
         builder.OpenElement(20, "div");
         builder.AddAttribute(21, "data-polaris-accordion-panel", true);

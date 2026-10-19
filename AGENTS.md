@@ -237,6 +237,21 @@ Read these before changing anything in `src/`.
       styling set (`s-clickable`, `s-grid`, `s-grid-item`, `s-stack` are). `border="base"` and
       `background="subdued"` on a section are dropped without a word — the accordion puts them on the
       `s-clickable` that wraps it instead.
+    - **`s-clickable` and `s-box` compute to `display: contents`.** Their host has **no box at all**:
+      the border, the radius and the padding are painted by an element inside the shadow root, and the
+      host's own `getBoundingClientRect()` is `0×0` at the page origin. Two things follow, and both
+      cost an afternoon if forgotten. A **click probe** that measures the host's centre clicks the
+      top-left corner of the page and reports "the click does nothing" — measure the shadow `<button>`
+      instead. And a **layout assertion** written against the host — a radius, a height, an overflow —
+      reads the wrong number: ask the element that paints, `shadowRoot.querySelector(".box")` for a
+      box and `shadowRoot.querySelector("button")` for a clickable.
+    The click handler is Blazor's own `@onclick` on a wrapper `<div>`, **not** an interop listener on
+    the Polaris element. That is deliberate: the base class re-attaches listeners after every render,
+    and every toggle re-renders the page that binds `OpenItemChanged`, so a listener on the element was
+    the one thing whose presence depended on render history — "the click is hit and miss" with no
+    pattern was reported against exactly that. A click is a composed event, so one anywhere in the
+    surface — heading, chevron, padding, or the click a keyboard Enter produces on the shadow button —
+    reaches a single delegated handler that Blazor installs once.
     The browser check asserts all of it — clipped height, `inert`, `aria-expanded` read out of the
     shadow root, the chevron's position and rotation — because a component test cannot see any of it.
     When composing the next component, the same rule applies: put the *state* in the markup (inline
