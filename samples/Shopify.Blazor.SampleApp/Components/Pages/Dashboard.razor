@@ -72,7 +72,10 @@
             </PolarisParagraph>
 
             <PolarisAccordion OpenItemChanged="SectionChangedAsync">
-                <PolarisAccordionItem Value="piece" Header="Piece details" InitiallyOpen="true">
+                <PolarisAccordionItem Value="piece"
+                                      Header="Piece details"
+                                      HeaderDetails="What the piece is and what was agreed for it."
+                                      InitiallyOpen="true">
                     <PolarisStack Gap="PolarisGap.Base">
                         <PolarisTextField Label="Piece name" Value="Victorian signet ring" />
                         <PolarisMoneyField Label="Agreed price" CurrencyCode="GBP" Value="4850.00" />
@@ -80,13 +83,17 @@
                     </PolarisStack>
                 </PolarisAccordionItem>
 
-                <PolarisAccordionItem Value="stones" Header="Stones and materials">
+                <PolarisAccordionItem Value="stones"
+                                      Header="Stones and materials"
+                                      HeaderDetails="The ingredients this piece is costed from.">
                     <PolarisTextArea Label="Notes"
                                      Rows="3"
                                      Value="Old European cut diamond, 0.9ct. Shank thin at the base." />
                 </PolarisAccordionItem>
 
-                <PolarisAccordionItem Value="notes" Header="Workshop notes">
+                <PolarisAccordionItem Value="notes"
+                                      Header="Workshop notes"
+                                      HeaderDetails="Anything the bench needs to know.">
                     <PolarisStack Gap="PolarisGap.Base">
                         <PolarisText>
                             This section is closed when you arrive, so its fields are clipped and

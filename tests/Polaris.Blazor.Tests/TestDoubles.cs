@@ -93,6 +93,16 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <summary>Element methods invoked through interop, in the order they were called.</summary>
     public List<string> Methods { get; } = [];
 
+    /// <summary>
+    /// The expanded states written onto a shadow button, in the order they were written.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="SetProperties"/> on purpose: this is not a Polaris property but an
+    /// <c>aria-expanded</c> attribute written onto the button inside the element's shadow root, which
+    /// is the only way an <c>s-clickable</c> can carry the state.
+    /// </remarks>
+    public List<bool> AriaExpanded { get; } = [];
+
     /// <summary>How many times the module was initialized.</summary>
     public int InitializeCount { get; private set; }
 
@@ -213,6 +223,13 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
 
         list.AddRange(names);
         return ValueTask.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> SetAriaExpandedAsync(ElementReference element, bool expanded)
+    {
+        AriaExpanded.Add(expanded);
+        return ValueTask.FromResult(true);
     }
 
     /// <inheritdoc />

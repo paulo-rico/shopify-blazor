@@ -336,24 +336,36 @@ const probe = markedElementHelper + `(async () => {
     }
 
     // The accordion is the toolkit's only composed component, so its open state is the library's
-    // rather than Shopify's. Three things are invisible to a unit test: that the panel really grows,
-    // that aria-expanded reaches the <button> inside s-button's shadow root (it is set as a DOM
-    // property — no light-DOM attribute can get there), and that opening one section collapses the
-    // open one in the same frame.
+    // rather than Shopify's. Four things are invisible to a unit test: that the panel really grows,
+    // that aria-expanded reaches the <button> inside s-clickable's shadow root (it is written there
+    // through the interop layer — the element has no property for the state, and no light-DOM
+    // attribute can reach the shadow button), that the chevron really sits at the right-hand end of
+    // the header, and that opening one section collapses the open one in the same frame.
     let accordion = null;
     {
         const items = Array.from(document.querySelectorAll("[data-polaris-accordion-item]"));
         const read = (item) => {
             const panel = item.querySelector("[data-polaris-accordion-panel]");
-            const header = item.querySelector("s-button");
+            const header = item.querySelector("s-clickable");
             const chevron = item.querySelector("[data-polaris-accordion-chevron]");
+            const heading = item.querySelector("s-section");
+            const chevronBox = chevron?.getBoundingClientRect();
+            const headerBox = header?.getBoundingClientRect();
             return {
                 open: item.getAttribute("data-open"),
                 height: panel ? panel.getBoundingClientRect().height : -1,
                 inert: item.querySelector("[data-polaris-accordion-panel-inner]")?.hasAttribute("inert") ?? null,
-                // Read from the shadow root on purpose: an attribute on the <s-button> host is not
+                // Read from the shadow root on purpose: an attribute on the <s-clickable> host is not
                 // what assistive technology sees.
                 expanded: header?.shadowRoot?.querySelector("button")?.getAttribute("aria-expanded") ?? null,
+                // The heading on the left and the chevron on the right is a layout claim only a
+                // rendered page can confirm.
+                chevronOnTheRight: Boolean(chevronBox && headerBox && heading) &&
+                    chevronBox.left >= heading.getBoundingClientRect().right - 1 &&
+                    chevronBox.left > headerBox.left + headerBox.width / 2,
+                // The heading is an attribute in Polaris's shadow root, so the surface's own text is
+                // empty; the name has to be stated or the control has none.
+                name: header?.getAttribute("accessibilityLabel") ?? null,
                 // The chevron rotating is the only sighted affordance for the state, and the
                 // transition duration is the stylesheet actually applying rather than merely loading.
                 chevron: chevron ? getComputedStyle(chevron).transform : null,
@@ -369,7 +381,7 @@ const probe = markedElementHelper + `(async () => {
 
             if (closed) {
                 closedIndex = items.indexOf(closed);
-                closed.querySelector("s-button")?.click();
+                closed.querySelector("s-clickable")?.click();
 
                 // Wait for the circuit to agree, then for the 200ms transition to settle, so the
                 // heights measured are the settled ones rather than a frame in the middle.
@@ -500,7 +512,7 @@ function evaluateAssertions(result) {
         );
         check(
             closed?.expanded === "false",
-            "a closed section announces aria-expanded=false on the button inside s-button's shadow root",
+            "a closed section announces aria-expanded=false on the button inside s-clickable's shadow root",
         );
         check(
             opened?.open === "true" && opened?.height > (closed?.height ?? 0),
@@ -508,7 +520,7 @@ function evaluateAssertions(result) {
         );
         check(
             opened?.expanded === "true",
-            "opening a section sets aria-expanded=true through a DOM property, which is the only way it can reach that button",
+            "opening a section sets aria-expanded=true on that shadow button, which is the only place it can go",
         );
         check(
             opened?.inert === false,
@@ -521,6 +533,14 @@ function evaluateAssertions(result) {
         check(
             opened?.chevron !== null && opened?.chevron !== "none",
             `the chevron rotates when the section opens (transform: ${opened?.chevron ?? "none"})`,
+        );
+        check(
+            opened?.chevronOnTheRight === true,
+            "the heading is on the left of the header and the chevron at its right-hand end",
+        );
+        check(
+            !closed?.name ? false : opened?.name === closed?.name,
+            `the header has a stated accessible name (${opened?.name ?? "none"})`,
         );
         check(
             accordion.reducedMotion || (opened?.transition ?? "0s") !== "0s",

@@ -59,6 +59,26 @@ public interface IPolarisInterop : IAsyncDisposable
     /// <summary>Clears previously set array-valued properties.</summary>
     ValueTask ClearPropertiesAsync(ElementReference element, string tagName, IEnumerable<string> names);
 
+    /// <summary>
+    /// Announces whether what an element controls is open, by writing <c>aria-expanded</c> onto the
+    /// <c>&lt;button&gt;</c> it renders inside its own shadow root.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This exists for <c>s-clickable</c>, which is an interactive surface with a real button inside it
+    /// but no property for the expanded state — measured from its render function, which reads only the
+    /// accessibility label, the command and interest props. <c>s-button</c> needs none of this: it has
+    /// <c>accessibilityExpanded</c>, so that wrapper sets a property instead.
+    /// </para>
+    /// <para>
+    /// Returns <c>false</c> when there is no button to write to, so a change in Polaris's markup costs
+    /// the announcement rather than throwing into a component's lifetime.
+    /// </para>
+    /// </remarks>
+    /// <param name="element">The element whose shadow button carries the state.</param>
+    /// <param name="expanded">Whether the controlled content is open.</param>
+    ValueTask<bool> SetAriaExpandedAsync(ElementReference element, bool expanded);
+
     /// <summary>Reports which custom elements are registered and upgraded in the current page.</summary>
     ValueTask<IReadOnlyDictionary<string, PolarisComponentStatus>> GetComponentStatusAsync(IEnumerable<string> tagNames);
 
@@ -262,6 +282,24 @@ public sealed class PolarisInterop : IPolarisInterop
         }
         catch (Exception ex) when (IsRecoverable(ex))
         {
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> SetAriaExpandedAsync(ElementReference element, bool expanded)
+    {
+        if (!await EnsureInitializedAsync().ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        try
+        {
+            return await _module!.InvokeAsync<bool>("setShadowButtonExpanded", element, expanded).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsRecoverable(ex))
+        {
+            return false;
         }
     }
 

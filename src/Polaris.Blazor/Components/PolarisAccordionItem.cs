@@ -10,10 +10,18 @@ namespace Polaris.Blazor.Components;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The header is a real <see cref="PolarisButton"/>, so it is a <c>&lt;button&gt;</c> inside
-/// Polaris's shadow root: focusable, announced, and opened with Enter or Space. Its expanded state
-/// reaches assistive technology as <c>aria-expanded</c>; the chevron is the sighted equivalent and
-/// carries no meaning of its own.
+/// The header is a <see cref="PolarisClickable"/> — an interactive surface, because a heading with a
+/// line of supporting text under it does not fit in a button's single truncating line. It still
+/// renders a real <c>&lt;button&gt;</c> inside Polaris's shadow root, so it is focusable, announced,
+/// and opened with Enter or Space. Inside it, an <see cref="PolarisSection"/> holds the heading on the
+/// left and the chevron sits at the far right.
+/// </para>
+/// <para>
+/// Three things about that header are not what the markup suggests, and each is forced by Polaris:
+/// the border and background are on the surface, because <c>s-section</c> takes no styling
+/// properties; the accessible name is set explicitly, because a heading given as an attribute lives in
+/// Polaris's shadow root and leaves the surface with no text; and <c>aria-expanded</c> is written onto
+/// the shadow button, because <c>s-clickable</c> has no property for the state.
 /// </para>
 /// <para>
 /// The content is clipped by a plain <c>&lt;div&gt;</c> pair around it, because Polaris elements live
@@ -39,21 +47,18 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     /// <summary>The accordion this section belongs to, when it is inside one.</summary>
     [CascadingParameter] private PolarisAccordion? Accordion { get; set; }
 
-    /// <summary>
-    /// The header's text, which is also the button's accessible name.
-    /// </summary>
-    /// <remarks>Ignored when <see cref="HeaderContent"/> is set.</remarks>
+    /// <summary>The header's heading. The header's accessible name is built from it.</summary>
     [Parameter] public string? Header { get; set; }
 
     /// <summary>
-    /// The header's content, for a heading that needs more than text — a badge beside a title, for
-    /// example.
+    /// A line of supporting text under <see cref="Header"/>, for what the section is about.
     /// </summary>
     /// <remarks>
-    /// It is rendered inside a Polaris button, which lays its children out on one line and truncates
-    /// them, so keep it short. When both are supplied this wins over <see cref="Header"/>.
+    /// It is rendered as the section's <c>subheading</c> rather than as a paragraph inside it: Polaris
+    /// styles that below the heading and above the content, which is where this belongs, and keeping it
+    /// an attribute leaves the header's markup to the two elements rather than to a wrapper.
     /// </remarks>
-    [Parameter] public RenderFragment? HeaderContent { get; set; }
+    [Parameter] public string? HeaderDetails { get; set; }
 
     /// <summary>The content that opens and closes.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -166,14 +171,26 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
             builder.CloseComponent();
         }
 
-        builder.OpenComponent<PolarisButton>(10);
-        builder.AddAttribute(11, nameof(PolarisButton.Variant), PolarisButtonVariant.Tertiary);
-        builder.AddAttribute(12, nameof(PolarisButton.InlineSize), PolarisButtonInlineSize.Fill);
-        builder.AddAttribute(13, nameof(PolarisButton.AccessibilityExpanded),
+        // The header is a clickable surface rather than a button, because a button lays its children
+        // out on one line and truncates them, and this header is a heading with a line of supporting
+        // text under it. s-clickable renders a real <button> inside its shadow root, so it is still
+        // focusable, still announced, and still opened with Enter or Space.
+        //
+        // The section's border and background are on the SURFACE, not on the s-section: measured from
+        // the docs, s-section takes only heading, subheading, padding and accessibilityLabel, and it is
+        // not one of the elements that inherit Polaris's box styling set. Attributes it does not know
+        // are ignored without a word.
+        builder.OpenComponent<PolarisClickable>(10);
+        builder.AddAttribute(11, nameof(PolarisClickable.AccessibilityLabel), AccessibleName);
+        builder.AddAttribute(12, nameof(PolarisClickable.AccessibilityExpanded),
             _isOpen ? PolarisAccessibilityExpanded.Expanded : PolarisAccessibilityExpanded.Collapsed);
-        builder.AddAttribute(14, nameof(PolarisButton.OnClick),
+        builder.AddAttribute(13, nameof(PolarisClickable.Border), "base");
+        builder.AddAttribute(14, nameof(PolarisClickable.Background), "subdued");
+        builder.AddAttribute(15, nameof(PolarisClickable.Padding), "base");
+        builder.AddAttribute(16, nameof(PolarisClickable.BorderRadius), "base");
+        builder.AddAttribute(17, nameof(PolarisClickable.OnClick),
             EventCallback.Factory.Create<PolarisEventArgs>(this, ToggleFromHeaderAsync));
-        builder.AddAttribute(15, nameof(PolarisButton.ChildContent), (RenderFragment)BuildHeaderContent);
+        builder.AddAttribute(18, nameof(PolarisClickable.ChildContent), (RenderFragment)BuildHeaderContent);
         builder.CloseComponent();
 
         builder.OpenElement(20, "div");
@@ -201,26 +218,52 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         builder.CloseElement();
     }
 
+    /// <summary>
+    /// What assistive technology announces for the header.
+    /// </summary>
+    /// <remarks>
+    /// It has to be stated rather than derived. A heading and a subheading set as attributes live in
+    /// Polaris's shadow root, so this surface's own text is empty apart from the chevron, and a button
+    /// with no text has no name. Quoting the visible text here also means the supporting line is
+    /// announced with the heading instead of being skipped.
+    /// </remarks>
+    private string? AccessibleName => HeaderDetails is null or ""
+        ? Header
+        : string.Concat(Header ?? string.Empty, ". ", HeaderDetails);
+
     private void BuildHeaderContent(RenderTreeBuilder builder)
     {
-        if (HeaderContent is not null)
+        // A row, so the text sits at the start and the chevron at the end. The section is a block
+        // element sized to its content, and space-between puts the two at opposite edges of a surface
+        // that is already full width.
+        builder.OpenComponent<PolarisStack>(0);
+        builder.AddAttribute(1, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
+        builder.AddAttribute(2, nameof(PolarisStack.Gap), PolarisGap.Base);
+        builder.AddAttribute(3, nameof(PolarisStack.JustifyContent), "space-between");
+        builder.AddAttribute(4, nameof(PolarisStack.AlignItems), "center");
+        builder.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
         {
-            builder.AddContent(0, HeaderContent);
-        }
-        else if (Header is not null)
-        {
-            builder.AddContent(1, Header);
-        }
+            content.OpenComponent<PolarisSection>(0);
+            content.AddAttribute(1, nameof(PolarisSection.Heading), Header);
+            content.AddAttribute(2, nameof(PolarisSection.Subheading), HeaderDetails);
+            // None: the surface around it already pads, and two paddings make a header that is mostly
+            // space.
+            content.AddAttribute(3, nameof(PolarisSection.Padding), PolarisSectionPadding.None);
+            content.CloseComponent();
 
-        builder.OpenComponent<PolarisIcon>(2);
-        builder.AddAttribute(3, nameof(PolarisIcon.Type), "chevron-down");
-        builder.AddAttribute(4, nameof(PolarisIcon.Size), PolarisIconSize.Small);
-        builder.AddAttribute(5, nameof(PolarisIcon.Color), PolarisColor.Subdued);
-        builder.AddAttribute(6, nameof(PolarisIcon.AdditionalAttributes),
-            new Dictionary<string, object>(StringComparer.Ordinal)
-            {
-                ["data-polaris-accordion-chevron"] = true,
-            });
+            // The visible affordance for the state. It carries no meaning of its own — aria-expanded on
+            // the button is what announces it — and the stylesheet rotates it from the item's data-open.
+            content.OpenComponent<PolarisIcon>(4);
+            content.AddAttribute(5, nameof(PolarisIcon.Type), "chevron-down");
+            content.AddAttribute(6, nameof(PolarisIcon.Size), PolarisIconSize.Small);
+            content.AddAttribute(7, nameof(PolarisIcon.Color), PolarisColor.Subdued);
+            content.AddAttribute(8, nameof(PolarisIcon.AdditionalAttributes),
+                new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["data-polaris-accordion-chevron"] = true,
+                });
+            content.CloseComponent();
+        }));
         builder.CloseComponent();
     }
 

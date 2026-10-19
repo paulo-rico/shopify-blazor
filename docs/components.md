@@ -174,8 +174,8 @@ One section of a `PolarisAccordion`: a header that opens and closes the content 
 
 | Parameter | Type | Notes |
 |---|---|---|
-| `Header` | `string?` | The header's text, which is also the button's accessible name. |
-| `HeaderContent` | `RenderFragment?` | The header's content, for a heading that needs more than text — a badge beside a title, for example. |
+| `Header` | `string?` | The header's heading. |
+| `HeaderDetails` | `string?` | A line of supporting text under `Header`, for what the section is about. |
 | `ChildContent` | `RenderFragment?` | The content that opens and closes. |
 | `Value` | `string?` | An identifier reported to the container's `PolarisAccordion.OpenItemChanged` so that code outside the accordion can tell which section is showing. |
 | `InitiallyOpen` | `bool` | Starts this section open. |
@@ -383,6 +383,7 @@ Wraps `<s-clickable>`, a custom interactive surface.
 | `Overflow` | `string?` | Overflow behaviour: visible or hidden. |
 | `Display` | `string?` | Display: auto or none. |
 | `OnClick` | `EventCallback<PolarisEventArgs>` | Raised on click. |
+| `AccessibilityExpanded` | `PolarisAccessibilityExpanded?` | Announces whether what this surface controls is open, as aria-expanded on the <button> Polaris renders inside its shadow root. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | Raised when the surface receives focus. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | Raised when the surface loses focus. |
 

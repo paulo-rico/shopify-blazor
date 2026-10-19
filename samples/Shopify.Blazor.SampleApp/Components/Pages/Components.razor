@@ -153,12 +153,17 @@
             </PolarisParagraph>
 
             <PolarisAccordion OpenItemChanged="AccordionSectionChangedAsync">
-                <PolarisAccordionItem Value="first" Header="An open section" InitiallyOpen="true">
-                    <PolarisText>Opened on arrival, so the probe has something to collapse.</PolarisText>
+                <PolarisAccordionItem Value="first"
+                                      Header="An open section"
+                                      HeaderDetails="Opened on arrival, so the probe has something to collapse."
+                                      InitiallyOpen="true">
+                    <PolarisText>The heading sits on the left of the header, the chevron on the right.</PolarisText>
                 </PolarisAccordionItem>
-                <PolarisAccordionItem Value="second" Header="A closed section">
+                <PolarisAccordionItem Value="second"
+                                      Header="A closed section"
+                                      HeaderDetails="Closed on arrival: clipped, inert, and openable by clicking.">
                     <PolarisText>
-                        Closed on arrival: clipped, inert, and openable by clicking the header.
+                        Its content is clipped and inert until the header is clicked.
                     </PolarisText>
                 </PolarisAccordionItem>
             </PolarisAccordion>

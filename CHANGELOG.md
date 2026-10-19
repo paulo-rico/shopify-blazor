@@ -57,6 +57,22 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Changed
 
+- **The accordion's header is a `s-clickable` surface holding an `s-section`, not a button.**
+  A heading with a line of supporting text under it does not fit in a button's single truncating line,
+  so the header became a surface: `s-section` carries the heading and a new `HeaderDetails` string as
+  its `subheading`, and the chevron sits at the right-hand end of a row. Three things had to move with
+  it, each because Polaris forced it: the border and background are on the surface, because
+  `s-section` takes no styling properties and silently drops them; the accessible name is stated
+  explicitly, because a heading given as an attribute lives in Polaris's shadow root and leaves the
+  surface with no text; and `aria-expanded` is written onto the shadow button by
+  `IPolarisInterop.SetAriaExpandedAsync`, because `s-clickable` has no property for the state. The
+  `HeaderContent` fragment is gone with the button — a surface cannot lay out an arbitrary fragment
+  inside a shadow-rendered button, and a parameter that no longer renders is worse than no parameter.
+- **`PolarisClickable` can hold content.** It derived from the element base class and so had no
+  `ChildContent`: content written inside one had nowhere to go, and the sample gallery's own clickable
+  surface was empty. It is a content component now.
+- **`PolarisClickable.AccessibilityExpanded`** — announces the expanded state of what the surface
+  controls, through the interop layer as described above.
 - **The interop module asks Polaris to render after writing a property it does not react to.** Most
   Polaris properties are accessors that schedule a render; `accessibilityExpanded` is read by the
   render function and nothing more, so writing it changed nothing on screen — the state was announced

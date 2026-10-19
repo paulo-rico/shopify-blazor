@@ -154,6 +154,33 @@ export async function setProperties(element, tagName, values) {
 }
 
 /**
+ * Writes `aria-expanded` onto the `<button>` an element renders inside its own shadow root.
+ *
+ * Two Polaris components are interactive surfaces with a real button inside a shadow root, and only
+ * one of them can express this state as a property: `s-button` has `accessibilityExpanded`, and
+ * `s-clickable` has no equivalent (measured — its render function reads the accessibility label and
+ * the interest/command props, and nothing else). The button Polaris renders is the element assistive
+ * technology sees, so that is where the state has to go.
+ *
+ * Returns false rather than throwing when there is no button to write to, so a Polaris change that
+ * moves the markup costs the announcement and nothing else.
+ *
+ * @param {HTMLElement} element the upgraded custom element
+ * @param {boolean} expanded whether what the element controls is open
+ * @returns {Promise<boolean>} true when the attribute was written
+ */
+export async function setShadowButtonExpanded(element, expanded) {
+    requireElement(element, "setShadowButtonExpanded");
+    await whenDefined(element.localName);
+
+    const button = element.shadowRoot?.querySelector("button");
+    if (!button) return false;
+
+    button.setAttribute("aria-expanded", expanded ? "true" : "false");
+    return true;
+}
+
+/**
  * Clears properties that were set from a previous render.
  *
  * An array-valued property is reset to an empty array rather than to `undefined`, and that is not

@@ -12,9 +12,10 @@ namespace Polaris.Blazor.Components;
 /// in the Polaris 1 runtime that this toolkit wraps (60 elements) contains no accordion, collapsible
 /// or details component, and the App Home documentation has no such page. So this is the first
 /// component in the library that is <em>composed</em> rather than a wrapper: it is built from
-/// <see cref="PolarisAccordionItem"/>, which in turn is an <c>s-button</c> header, an <c>s-box</c>
-/// holding the content and an <c>s-icon</c> chevron. Nothing here reimplements a Polaris look;
-/// what it adds is the structure and the open/closed behaviour Polaris does not provide.
+/// <see cref="PolarisAccordionItem"/>, which in turn is an <c>s-clickable</c> surface holding an
+/// <c>s-section</c> (heading and supporting line) and an <c>s-icon</c> chevron, with an <c>s-box</c>
+/// for the content. Nothing here reimplements a Polaris look; what it adds is the structure and the
+/// open/closed behaviour Polaris does not provide.
 /// </para>
 /// <para>
 /// State belongs to the items, and this container only arbitrates between them: when an item opens,

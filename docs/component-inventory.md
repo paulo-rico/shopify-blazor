@@ -293,6 +293,7 @@ Accessibility requirements:
 
 Exercised by:
 
+- `A_button_announces_the_expanded_state_as_a_dom_property`
 - `Button_forwards_command_for_so_a_modal_opens_without_javascript`
 - `Button_omits_a_false_boolean_entirely`
 - `Button_registers_an_interop_listener_only_for_supplied_callbacks`
@@ -301,7 +302,6 @@ Exercised by:
 - `Button_renders_variant_and_tone_as_shopify_values`
 - `Child_components_carry_their_slot_attribute`
 - `Menu_renders_its_accessible_label_and_accepts_button_children`
-- `The_expanded_state_is_a_dom_property_because_polaris_does_not_reflect_it`
 
 Notes: loading gives feedback but does not debounce or block repeat clicks — guard double submission in C#. External href targets may be blocked by the Admin. Icon-only buttons have a fixed touch target and do not fill the available space.
 
@@ -546,6 +546,7 @@ Wraps `<s-clickable>`, a custom interactive surface.
 | `Overflow` | `string?` | attribute | Overflow behaviour: visible or hidden. |
 | `Display` | `string?` | attribute | Display: auto or none. |
 | `OnClick` | `EventCallback<PolarisEventArgs>` | event callback | Raised on click. |
+| `AccessibilityExpanded` | `PolarisAccessibilityExpanded?` | render flag | Announces whether what this surface controls is open, as aria-expanded on the <button> Polaris renders inside its shadow root. Leave it null for a surface that controls nothing. Unlike `PolarisButton.AccessibilityExpanded`, this cannot use a property: measured from Polaris's render function, s-clickable reads only its accessibility label and its command/interest props, so the state is written onto the shadow button through the interop layer. That is the element assistive technology sees; an attribute on the `<s-clickable>` host lands on an element with no role and is ignored. The surface has no accessible name of its own either, because a heading set as an attribute lives in Polaris's shadow root rather than in this element's text. Set `PolarisElementComponentBase.AccessibilityLabel` alongside this. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the surface receives focus. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the surface loses focus. |
 
@@ -557,7 +558,7 @@ Wraps `<s-clickable>`, a custom interactive surface.
 
 | Slot | Accepts | Wrapper support | Notes |
 |---|---|---|---|
-| `children` | HTMLElement | none | The clickable content. |
+| `children` | HTMLElement | ChildContent | The clickable content. |
 
 Accessibility requirements:
 
