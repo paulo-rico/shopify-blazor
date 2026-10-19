@@ -27,7 +27,7 @@ The record for each element joins two sources that cannot drift apart: the wrapp
 | `<s-badge>` | Badge | `PolarisBadge` | feedback-and-status-indicators | 1.1 | browser-verified | 1 |
 | `<s-banner>` | Banner | `PolarisBanner` | feedback-and-status-indicators | 1.1 | browser-verified | 1 |
 | `<s-box>` | Box | `PolarisBox` | layout-and-structure | 1.1 | browser-verified | 1 |
-| `<s-button>` | Button | `PolarisButton` | actions | 1.1 | browser-verified | 8 |
+| `<s-button>` | Button | `PolarisButton` | actions | 1.1 | browser-verified | 9 |
 | `<s-button-group>` | Button group | `PolarisButtonGroup` | actions | 1.1 | browser-verified | 1 |
 | `<s-checkbox>` | Checkbox | `PolarisCheckbox` | forms | 1.1 | browser-verified | 1 |
 | `<s-chip>` | Chip | `PolarisChip` | typography-and-content | 1.1 | browser-verified | 1 |
@@ -270,6 +270,7 @@ Wraps Shopify's `<s-button>`.
 | `CommandFor` | `string?` | attribute | Id of the element this button controls: the declarative way to open a modal or popover with no JavaScript at all. |
 | `Command` | `PolarisCommand` | attribute | The command sent to `CommandFor`. |
 | `InterestFor` | `string?` | attribute | Id of a tooltip or popover shown when the button is hovered or focused. |
+| `AccessibilityExpanded` | `PolarisAccessibilityExpanded?` | dom property | Announces to assistive technology whether what this button controls is open, as aria-expanded on the <button> Polaris renders inside its shadow root. Leave it null for a button that controls nothing. This is a DOM <em>property, not an attribute. Polaris does not reflect it, so an attribute would freeze the state at first paint; and the element that carries the semantics is the shadow button, which no light-DOM attribute can reach — an aria-expanded attribute on the `<s-button>` host lands on an element with no role and is ignored. It is also one of the few Polaris properties that does not schedule a render when it changes: it is read by the render function and nothing else, so writing it alone changes nothing that is visible to assistive technology. The interop layer therefore asks the element to render after writing it — see polaris-interop.js. Polaris ignores it when `CommandFor` is set: there, aria-expanded follows the open state of the target instead, and the value here is dropped with a console warning. |
 | `OnClick` | `EventCallback<PolarisEventArgs>` | event callback | Raised on click. Modifier keys are on the event args. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the button loses focus. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the button receives focus. |
@@ -300,6 +301,7 @@ Exercised by:
 - `Button_renders_variant_and_tone_as_shopify_values`
 - `Child_components_carry_their_slot_attribute`
 - `Menu_renders_its_accessible_label_and_accepts_button_children`
+- `The_expanded_state_is_a_dom_property_because_polaris_does_not_reflect_it`
 
 Notes: loading gives feedback but does not debounce or block repeat clicks — guard double submission in C#. External href targets may be blocked by the Admin. Icon-only buttons have a fixed touch target and do not fill the available space.
 

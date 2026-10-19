@@ -193,7 +193,7 @@ errors.
 |---|---|
 | [Getting started](docs/getting-started.md) | Shopify app, web server, configuration, first authenticated call |
 | [Troubleshooting](docs/troubleshooting.md) | Diagnosing a rejected session token, and the framing trap |
-| [Component reference](docs/components.md) | All 59 components — every documented Polaris element — generated from source |
+| [Component reference](docs/components.md) | All 62 wrappers — every documented Polaris element — plus the composed accordion, generated from source |
 | [Component inventory](docs/component-inventory.md) | Every element with its slots, events, accessibility notes, version and verification status |
 | [CLI reference](docs/cli-reference.md) | Every command, option, exit code and check |
 | [Versioning](docs/versioning.md) | What a version promises, and what it is pinned to |

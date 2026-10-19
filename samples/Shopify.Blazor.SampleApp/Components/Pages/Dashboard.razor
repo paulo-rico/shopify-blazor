@@ -62,6 +62,62 @@
         </PolarisStack>
     </PolarisSection>
 
+    <PolarisSection Heading="Accordion (composed)">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisParagraph>
+                Polaris has no accordion element. This one is composed from components that do
+                exist — an <code>s-button</code> header, an <code>s-box</code> for the content, an
+                <code>s-icon</code> chevron and a <code>div</code> that clips and animates. Open a
+                section and the open one closes in the same frame, so both transitions run together.
+            </PolarisParagraph>
+
+            <PolarisAccordion OpenItemChanged="SectionChangedAsync">
+                <PolarisAccordionItem Value="piece" Header="Piece details" InitiallyOpen="true">
+                    <PolarisStack Gap="PolarisGap.Base">
+                        <PolarisTextField Label="Piece name" Value="Victorian signet ring" />
+                        <PolarisMoneyField Label="Agreed price" CurrencyCode="GBP" Value="4850.00" />
+                        <PolarisSwitch Label="Hallmarked" Details="Metal has been assayed and stamped." Checked="true" />
+                    </PolarisStack>
+                </PolarisAccordionItem>
+
+                <PolarisAccordionItem Value="stones" Header="Stones and materials">
+                    <PolarisTextArea Label="Notes"
+                                     Rows="3"
+                                     Value="Old European cut diamond, 0.9ct. Shank thin at the base." />
+                </PolarisAccordionItem>
+
+                <PolarisAccordionItem Value="notes" Header="Workshop notes">
+                    <PolarisStack Gap="PolarisGap.Base">
+                        <PolarisText>
+                            This section is closed when you arrive, so its fields are clipped and
+                            inert — unreachable by Tab and unannounced by a screen reader.
+                        </PolarisText>
+                        <PolarisButton OnClick="ShowToastAsync">A button inside a panel</PolarisButton>
+                    </PolarisStack>
+                </PolarisAccordionItem>
+            </PolarisAccordion>
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Small">
+                <PolarisText Color="PolarisColor.Subdued">The server believes this section is open:</PolarisText>
+                <PolarisBadge Tone="PolarisTone.Info">@(_openSection ?? "none")</PolarisBadge>
+            </PolarisStack>
+
+            <PolarisText Color="PolarisColor.Subdued">
+                The same component with AllowMultiple: sections are independent, and closing one
+                leaves the others alone.
+            </PolarisText>
+
+            <PolarisAccordion AllowMultiple="true">
+                <PolarisAccordionItem Header="Care instructions" InitiallyOpen="true">
+                    <PolarisText>Warm water, soft brush, no ultrasonic cleaner on opals.</PolarisText>
+                </PolarisAccordionItem>
+                <PolarisAccordionItem Header="Delivery">
+                    <PolarisText>Insured special delivery, signature on receipt.</PolarisText>
+                </PolarisAccordionItem>
+            </PolarisAccordion>
+        </PolarisStack>
+    </PolarisSection>
+
     <PolarisSection Heading="Request a fresh session token">
         <PolarisStack Gap="PolarisGap.Base">
             <PolarisText>
@@ -82,6 +138,7 @@
     private bool _checking = true;
     private bool _minting;
     private bool? _embedded;
+    private string? _openSection;
     private string? _tokenSummary;
 
     /// <inheritdoc />
@@ -101,6 +158,12 @@
     {
         await Bridge.ShowToastAsync("Hello from the Shopify Blazor Toolkit.");
     }
+
+    /// <summary>
+    /// The accordion reports which section is open, which is how anything outside it can follow the
+    /// merchant's choice. A closing section reports null.
+    /// </summary>
+    private void SectionChangedAsync(string? value) => _openSection = value;
 
     private async Task MintTokenAsync(PolarisEventArgs args)
     {

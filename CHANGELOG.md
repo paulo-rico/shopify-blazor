@@ -13,6 +13,19 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Added
 
+- **`PolarisAccordion` and `PolarisAccordionItem`** — the first components that are composed rather
+  than wrappers, because Polaris 1 has no accordion (measured against the runtime, not assumed). A
+  section is an `s-button` header, an `s-box` for the content and an `s-icon` chevron; opening one
+  section collapses the open one in the same render, so both transitions run together. The panel is
+  clipped by `grid-template-rows: 0fr` → `1fr` — no measurement, no JavaScript — and a closed panel is
+  `inert`, so clipped content leaves the tab order and the accessibility tree. The motion itself is
+  the library's only stylesheet, loaded by the interop module, because `prefers-reduced-motion`
+  cannot be expressed inline; without it the panels still open and close, they simply stop animating.
+- **`PolarisButton.AccessibilityExpanded`** — announces the expanded state of what a button controls
+  as `aria-expanded` on the `<button>` inside Polaris's shadow root. Polaris's
+  `accessibilityExpanded` property is undocumented and two things about it were only discoverable in
+  a browser: it takes the string `"expanded"`, not a boolean, and it does not schedule a render, so
+  the interop module asks the element to render after writing it.
 - **`Polaris.Blazor`** — C# wrappers for every documented Shopify Polaris web component: all 50
   top-level elements plus the 10 composed sub-elements they need, one class per element, in 62 classes
   including the 2 App Bridge components. Each wrapper renders the element Shopify defined, with typed
@@ -43,6 +56,16 @@ unreleased. The first planned release is `0.1.0-preview.1`.
   reference, a versioning and compatibility policy, and ADR 0001 for the hosting model.
 
 ### Changed
+
+- **The interop module asks Polaris to render after writing a property it does not react to.** Most
+  Polaris properties are accessors that schedule a render; `accessibilityExpanded` is read by the
+  render function and nothing more, so writing it changed nothing on screen — the state was announced
+  wrongly, silently and only to assistive technology. `setProperties` now calls the element's own
+  `queueRender()` after writing a property from that (currently one-entry) set, defensively: if the
+  name ever changes, the value is merely applied later rather than wrongly.
+- **The interop module also loads this package's stylesheets**, so a consuming app has nothing to wire
+  up. Today that is one file, `polaris-accordion.css`, which carries the accordion's transitions and
+  its `prefers-reduced-motion` override.
 
 - **`s-text` and `s-paragraph` no longer share one wrapper.** `PolarisText` had a `Paragraph` flag that
   switched its element, so a single class had to model two property sets and omitted the half that did
@@ -76,6 +99,15 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **`shopify-blazor doctor` reported "no `@rendermode` directive was found" for every project with
+  Windows line endings.** The scanner anchored the directive with `[ \t]*$`, and a CRLF line ends with
+  `\r` before the `\n` that multiline `$` anchors to, so the match failed — a false FAIL, exit code 1,
+  on a project that was correct. This is the check the CLI's documentation calls its most valuable
+  one, and a wrong verdict from it trains the reader to ignore it. The regex now allows the `\r`, and
+  a test holds a CRLF file to the same expectation as an LF one.
+- **One drift test failed on a Windows checkout.** It compared the tool's output against
+  forward-slash paths, which Windows prints with backslashes; the separator is now normalised first.
+  It said nothing about whether the files were in sync.
 - **`dotnet pack Shopify.Blazor.slnx` exited 1.** `Directory.Build.props` set `PackageReadmeFile`
   whenever a project had a `README.md` of its own, but nothing put that file in the package, so the CLI
   project failed with `NU5039` ("The readme file 'README.md' does not exist in the package"). Because

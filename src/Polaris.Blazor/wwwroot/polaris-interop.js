@@ -2,11 +2,13 @@
  * Polaris.Blazor — browser interop for Shopify's Polaris web components.
  *
  * Loaded as an ES module from /_content/Polaris.Blazor/polaris-interop.js by
- * PolarisInterop (C#). It owns three things and nothing else:
+ * PolarisInterop (C#). It owns four things and nothing else:
  *
  *   1. Attaching DOM listeners and forwarding events to .NET.
  *   2. Setting DOM *properties* that cannot be expressed (or cannot be kept) as attributes.
  *   3. Detaching both when a component is disposed or a circuit goes away.
+ *   4. Loading this package's stylesheets, which exist only for motion that a media query has to
+ *      govern — see polaris-accordion.css.
  *
  * Application logic belongs in C#. If this file grows a decision about what a click means,
  * something has gone wrong.
@@ -14,6 +16,63 @@
 
 const registry = new Map();          // element -> { objRef, listeners: Map<event, fn> }
 let seq = 0;                         // generates DOM ids for components that do not have one
+
+/**
+ * Properties Polaris reads while rendering but does not react to.
+ *
+ * Most Polaris properties are accessors that schedule a render when they change; these are plain
+ * values the render function reads, so writing one on its own changes nothing on screen. Measured
+ * in a real browser: setting `s-button.accessibilityExpanded` left the shadow button's
+ * `aria-expanded` untouched, and it appeared only once the element rendered again.
+ */
+const RENDER_ONLY_PROPERTIES = new Set(["accessibilityExpanded"]);
+
+/**
+ * Asks an element to render itself, using Polaris's own queue.
+ *
+ * This is deliberately defensive: `queueRender` is not documented API. If a future Polaris renames
+ * it, the property has still been written and simply takes effect on the next render the element
+ * does anyway — the state is late rather than wrong.
+ *
+ * @param {HTMLElement} element the upgraded custom element
+ */
+function requestRender(element) {
+    if (typeof element.queueRender === "function") {
+        element.queueRender();
+    }
+}
+
+// The accordion's motion lives in a stylesheet because a media query cannot be written inline, and
+// that stylesheet is loaded from here because the alternative — asking every consuming app to add a
+// <link> — fails silently: the accordion still works, so nobody ever notices the missing animation.
+const stylesheets = ["./polaris-accordion.css"];
+
+/**
+ * Loads this package's stylesheets into the document, once.
+ *
+ * Guarded by the href, not by a module-level flag: the module can be loaded more than once (a second
+ * circuit, a hot reload) and a duplicate <link> would be a second request for the same file.
+ */
+export function ensureStylesheets() {
+    if (!document.head) {
+        // Only reachable when the module is imported from <head>, before the document body exists.
+        document.addEventListener("DOMContentLoaded", ensureStylesheets, { once: true });
+        return;
+    }
+
+    for (const path of stylesheets) {
+        const href = new URL(path, import.meta.url).href;
+        if (document.head.querySelector(`link[data-polaris-stylesheet="${href}"]`)) continue;
+
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = href;
+        link.dataset.polarisStylesheet = href;
+        document.head.append(link);
+    }
+}
+
+ensureStylesheets();
 
 /**
  * Waits until a custom element has been defined and upgraded.
@@ -73,6 +132,8 @@ export async function setProperties(element, tagName, values) {
     requireElement(element, "setProperties");
     await whenDefined(tagName);
 
+    let needsRender = false;
+
     for (const [name, value] of Object.entries(values ?? {})) {
         if (value === null || value === undefined) continue;
 
@@ -85,7 +146,11 @@ export async function setProperties(element, tagName, values) {
                 element.removeAttribute(name);
             }
         }
+
+        if (RENDER_ONLY_PROPERTIES.has(name)) needsRender = true;
     }
+
+    if (needsRender) requestRender(element);
 }
 
 /**

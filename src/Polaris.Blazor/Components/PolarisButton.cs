@@ -54,6 +54,31 @@ public sealed class PolarisButton : PolarisContentComponentBase
     /// <summary>Id of a tooltip or popover shown when the button is hovered or focused.</summary>
     [Parameter] public string? InterestFor { get; set; }
 
+    /// <summary>
+    /// Announces to assistive technology whether what this button controls is open, as
+    /// <c>aria-expanded</c> on the <c>&lt;button&gt;</c> Polaris renders inside its shadow root.
+    /// Leave it <c>null</c> for a button that controls nothing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is a DOM <em>property</em>, not an attribute. Polaris does not reflect it, so an
+    /// attribute would freeze the state at first paint; and the element that carries the semantics
+    /// is the shadow button, which no light-DOM attribute can reach — an <c>aria-expanded</c>
+    /// attribute on the <c>&lt;s-button&gt;</c> host lands on an element with no role and is ignored.
+    /// </para>
+    /// <para>
+    /// It is also one of the few Polaris properties that does not schedule a render when it changes:
+    /// it is read by the render function and nothing else, so writing it alone changes nothing that
+    /// is visible to assistive technology. The interop layer therefore asks the element to render
+    /// after writing it — see <c>polaris-interop.js</c>.
+    /// </para>
+    /// <para>
+    /// Polaris ignores it when <see cref="CommandFor"/> is set: there, <c>aria-expanded</c> follows
+    /// the open state of the target instead, and the value here is dropped with a console warning.
+    /// </para>
+    /// </remarks>
+    [Parameter] public PolarisAccessibilityExpanded? AccessibilityExpanded { get; set; }
+
     /// <summary>Raised on click. Modifier keys are on the event args.</summary>
     [Parameter] public EventCallback<PolarisEventArgs> OnClick { get; set; }
 
@@ -70,6 +95,16 @@ public sealed class PolarisButton : PolarisContentComponentBase
         events.On(PolarisEvents.Blur, OnBlur);
         events.On(PolarisEvents.Focus, OnFocus);
     }
+
+    /// <inheritdoc />
+    protected override IReadOnlyDictionary<string, object?> Properties => AccessibilityExpanded is null
+        ? EmptyPropertySet
+        : new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            // The element's own spelling ("expanded" / "collapsed"), not a boolean: Polaris reads
+            // this string and derives aria-expanded from it, and a bool is read as collapsed.
+            ["accessibilityExpanded"] = PolarisAttributeValue.EnumValue(AccessibilityExpanded.Value),
+        };
 
     /// <inheritdoc />
     protected override void BuildAttributes(Dictionary<string, string?> attributes)

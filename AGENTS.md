@@ -214,6 +214,26 @@ Read these before changing anything in `src/`.
     `variant.price` arrives as a **string** (that is how Shopify states money), so the DTO carries it as one
     and the caller parses it — binding it to a decimal would fail at runtime rather than at compile time.
 
+25. **Polaris 1 has no accordion, and `s-button`'s `accessibilityExpanded` is a string property that
+    does not trigger a render.** `PolarisAccordion`/`PolarisAccordionItem` are the first components
+    here that are *composed* rather than wrappers, because there is no element to wrap: the shipped
+    runtime defines 74 tag names and none is an accordion, collapsible or details element (checked in
+    `polaris-1.js` itself, and the App Home docs 404 for `details`). Two measured facts came out of
+    wiring the disclosure semantics, and both are silent failures:
+    - **`accessibilityExpanded` takes `"expanded"` / `"collapsed"` (a string), not a boolean.**
+      Polaris derives `aria-expanded` from `"expanded" === value`, so `true` renders
+      `aria-expanded="false"` — the *opposite* of the intent, with nothing to see. That is why the
+      parameter is a `PolarisAccessibilityExpanded` enum, and why a bool is not offered.
+    - **It is not a reactive property.** The render function reads it and nothing schedules a render,
+      so writing it alone changes nothing on screen. `polaris-interop.js` therefore calls the
+      element's own `queueRender()` after writing a name from `RENDER_ONLY_PROPERTIES`, defensively:
+      if Polaris renames it, the value is applied late rather than wrongly.
+    The browser check asserts all of it — clipped height, `inert`, and `aria-expanded` read out of the
+    shadow root — because a component test cannot see any of it. When composing the next component,
+    the same rule applies: put the *state* in the markup (inline `grid-template-rows`, `inert`) and
+    only the *motion* in CSS, so a stylesheet that never arrives degrades to a snap rather than to a
+    panel that can never be collapsed.
+
 ## Resetting the build tree
 
 To force a from-scratch build, remove **only** .NET build output. Do not reach for

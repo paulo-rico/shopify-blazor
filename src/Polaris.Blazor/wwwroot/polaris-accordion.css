@@ -1,0 +1,39 @@
+/*
+ * Polaris.Blazor — the accordion's motion, and nothing else.
+ *
+ * Polaris web components live in a shadow root, so nothing here touches one. The two rules below
+ * only describe how long a change of state takes; the state itself is written inline by
+ * PolarisAccordionItem, which is what makes this file optional. Without it the accordion still
+ * opens and closes correctly and simply stops animating.
+ *
+ * Loaded automatically by polaris-interop.js, so a consuming app has nothing to wire up. It can
+ * also be linked by hand, which is what the static web asset is for:
+ *
+ *     <link rel="stylesheet" href="_content/Polaris.Blazor/polaris-accordion.css" />
+ */
+
+/* The panel is a grid whose single row goes from 0fr to 1fr. That interpolates to the content's
+   real height with no measurement and no JavaScript, which is why the height is never hard-coded. */
+[data-polaris-accordion-panel] {
+    transition: grid-template-rows 200ms cubic-bezier(0.2, 0.8, 0, 1);
+}
+
+/* s-icon's host is display:inline, and a transform does not apply to a non-replaced inline box. */
+[data-polaris-accordion-chevron] {
+    display: inline-block;
+    vertical-align: middle;
+    transition: transform 200ms cubic-bezier(0.2, 0.8, 0, 1);
+}
+
+[data-polaris-accordion-item][data-open="true"] [data-polaris-accordion-chevron] {
+    transform: rotate(180deg);
+}
+
+/* A merchant who asked for less motion gets the same states immediately. The accordion is still
+   usable: opening and closing is a state change first and an animation second. */
+@media (prefers-reduced-motion: reduce) {
+    [data-polaris-accordion-panel],
+    [data-polaris-accordion-chevron] {
+        transition: none;
+    }
+}

@@ -221,6 +221,10 @@
           "type": "string?"
         },
         {
+          "name": "AccessibilityExpanded",
+          "type": "PolarisAccessibilityExpanded?"
+        },
+        {
           "name": "OnClick",
           "type": "EventCallback<PolarisEventArgs>"
         },

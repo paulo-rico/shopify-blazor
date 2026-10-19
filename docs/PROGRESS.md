@@ -2,15 +2,16 @@
 
 What is true **now**. `AGENTS.md` is what is always true; this file changes every session.
 
-Last updated: 2026-10-15 — phases 1–7 done. The component inventory is complete, the template and CLI
-exist and are verified, and the release machinery is prepared but unused.
+Last updated: 2026-10-19 — phases 1–7 done, plus the first composed component. The component inventory
+is complete, the template and CLI exist and are verified, and the release machinery is prepared but
+unused.
 
 ## State
 
 | Area | State |
 |---|---|
-| Solution, CI, docs | Done. `dotnet test` = 246 passed, 0 failed across three suites. |
-| `Polaris.Blazor` | 59 components — all 50 documented top-level elements plus 10 composed sub-elements — and the interop module. All 60 element names are asserted in a real browser. |
+| Solution, CI, docs | Done. `dotnet test` = 263 passed, 0 failed across three suites, on Linux and on a Windows checkout. |
+| `Polaris.Blazor` | 62 wrappers — all 50 documented top-level elements plus 10 composed sub-elements and the 2 App Bridge components — plus `PolarisAccordion`/`PolarisAccordionItem`, the first components that are composed rather than wrappers because Polaris has no accordion element. All 60 element names are asserted in a real browser. |
 | `Shopify.Blazor` | Session token validation, token exchange, Admin API client, App Bridge interop, embedded framing. |
 | Reference app | Embedded shell, dashboard, products, and a gallery that renders every wrapped component. Authenticated `/api/products`. Reconnection dialog wired. |
 | `Shopify.Blazor.Templates` | `dotnet new shopify-blazor`, verified by packing, installing, generating and building all four parameter combinations. |
@@ -24,6 +25,8 @@ exist and are verified, and the release machinery is prepared but unused.
 | Check | Method | Result |
 |---|---|---|
 | Component rendering, defaults, booleans, slots, attribute forwarding | bUnit, 81 tests | pass |
+| Accordion: exclusivity, clipped panel, `inert`, `aria-expanded` sent as a property, competing `InitiallyOpen` | bUnit, 10 tests, clicks raised through the recorded interop callback | pass |
+| Accordion in a real browser: panel takes height, sibling collapses, `aria-expanded` read out of `s-button`'s shadow root, stylesheet served | Headless Chrome + DevTools Protocol, `--assert` | pass |
 | Session token validation (signature, audience, expiry, cross-shop, hostile `dest`) | Real RS256 keys + scripted JWKS, 15 tests | pass |
 | Token exchange (RFC 8693 parameters, caching, per-merchant keys, errors) | Scripted HTTP, 11 tests | pass |
 | Admin API (GraphQL errors on 200, throttling code, version fall-forward, 401 access-denied, 401 recovery) | Scripted HTTP, 7 tests | pass |
@@ -58,6 +61,20 @@ exist and are verified, and the release machinery is prepared but unused.
    constant). The lever is adding those constants and slot parameters, not loosening the generator:
    see `docs/templates-plan.md`.
 
+## Resolved on 2026-10-19
+
+- **`aria-expanded` was announced backwards, and then not at all.** `PolarisButton` first wrote
+  `accessibilityExpanded` as a bool, which Polaris reads as "not expanded" — the *opposite* state,
+  visible only to a screen reader. Corrected to Polaris's own `"expanded"`/`"collapsed"` strings, the
+  property still changed nothing, because it is one of the few Polaris properties that does not
+  schedule a render; the interop layer now calls the element's `queueRender()` afterwards. The browser
+  check asserts the shadow button's `aria-expanded` in both states, so this cannot regress silently.
+- **`doctor` gave a false FAIL on every project with Windows line endings.** The render-mode scanner
+  anchored the directive with `[ \t]*$`, which cannot match a line ending `\r\n`, so the highest-value
+  check the CLI performs reported "no `@rendermode` directive was found" on healthy CRLF projects. It
+  allows the `\r` now, and a CRLF test holds it. Found by running the suite on a Windows checkout,
+  where three `DoctorCommandTests` failed; the suite is green on both platforms.
+
 ## Resolved on 2026-10-15
 
 - **Browser verification was partly vacuous.** The old element list included the six table elements,
@@ -88,6 +105,9 @@ exist and are verified, and the release machinery is prepared but unused.
 
 - **A real development store** — installation, the Admin handshake, and a genuine session token.
 - **A real circuit loss** — the reconnection dialog is asserted present, not exercised.
+- **The accordion is not in the CLI's `add component` catalogue.** That catalogue is generated from
+  the Polaris element spec, and a composed component has no element to be generated from; teaching
+  `add component` to emit usage examples rather than a wrapper is the work that would change it.
 - **`s-drop-zone`'s `files` property is not modelled.** It is a read-only array of browser `File`
   objects, which cannot cross the interop boundary, so the upload path belongs in JavaScript. The
   wrapper exposes the label, `accept`, `multiple` and the events, and can only reset the zone.
@@ -109,10 +129,16 @@ exist and are verified, and the release machinery is prepared but unused.
 
 ## Session notes
 
-- The silent failures worth knowing about are documented in `AGENTS.md`, which now runs to 22 items.
-  The newest four came from this session: array clearing, template defects, namespace renaming, and
-  Blazor inserting a parent before its children.
+- The silent failures worth knowing about are documented in `AGENTS.md`, which now runs to 25 items.
+  The newest came from adding the accordion: Polaris has no such element, and `s-button`'s
+  `accessibilityExpanded` is a string property that schedules no render — so a bool renders
+  `aria-expanded="false"` and a correct string renders nothing at all until the element is asked to
+  render again. Both were found by the browser check, not by a review.
+- The accordion settled the pattern for composed components: **state in the markup, motion in CSS.**
+  The panel's `grid-template-rows` and `inert` are written by the component, so a stylesheet that never
+  arrives costs the animation and nothing else.
 - Four files are generated; `tools/check-drift.py` runs every generator and compares. Run it before
-  committing, or CI fails.
+  committing, or CI fails. `tools/generate-component-reference.py` now distinguishes wrappers from
+  composed components, since only the former has an element to name.
 - The verification scripts and generators are dependency-free on purpose: Python standard library for
   the tooling, Node 24's built-in `WebSocket` for the browser probe, no npm and no test framework.

@@ -121,4 +121,15 @@ public sealed class CliDocumentationTests
         Assert.False(RenderModeScanner.HasDirective("@rendermode InteractiveWebAssembly\n"));
         Assert.False(RenderModeScanner.HasDirective("text @rendermode InteractiveServer text\n"));
     }
+
+    [Fact]
+    public void The_directive_is_found_in_a_file_with_windows_line_endings()
+    {
+        // A CRLF line ends the directive with \r, and the regex anchored with [ \t]*$ could not match
+        // it: doctor reported "no @rendermode directive was found" for every project checked out on
+        // Windows — exit code 1, a FALSE failure on a healthy project, produced by the one check the
+        // CLI's own documentation calls its highest-value one.
+        Assert.True(RenderModeScanner.HasDirective("@rendermode InteractiveServer\r\n<Router />\r\n"));
+        Assert.True(RenderModeScanner.HasDirective("@* comment *@\r\n    @rendermode InteractiveServer   \r\n"));
+    }
 }

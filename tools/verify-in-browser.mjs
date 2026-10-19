@@ -242,6 +242,7 @@ const probe = markedElementHelper + `(async () => {
         "css/reconnect-modal.css",
         "js/reconnect-modal.js",
         "_content/Polaris.Blazor/polaris-interop.js",
+        "_content/Polaris.Blazor/polaris-accordion.css",
         "_content/Shopify.Blazor/app-bridge.js",
     ]) {
         try {
@@ -334,9 +335,69 @@ const probe = markedElementHelper + `(async () => {
         counter = { before, after, roundTripped: after !== before };
     }
 
+    // The accordion is the toolkit's only composed component, so its open state is the library's
+    // rather than Shopify's. Three things are invisible to a unit test: that the panel really grows,
+    // that aria-expanded reaches the <button> inside s-button's shadow root (it is set as a DOM
+    // property — no light-DOM attribute can get there), and that opening one section collapses the
+    // open one in the same frame.
+    let accordion = null;
+    {
+        const items = Array.from(document.querySelectorAll("[data-polaris-accordion-item]"));
+        const read = (item) => {
+            const panel = item.querySelector("[data-polaris-accordion-panel]");
+            const header = item.querySelector("s-button");
+            const chevron = item.querySelector("[data-polaris-accordion-chevron]");
+            return {
+                open: item.getAttribute("data-open"),
+                height: panel ? panel.getBoundingClientRect().height : -1,
+                inert: item.querySelector("[data-polaris-accordion-panel-inner]")?.hasAttribute("inert") ?? null,
+                // Read from the shadow root on purpose: an attribute on the <s-button> host is not
+                // what assistive technology sees.
+                expanded: header?.shadowRoot?.querySelector("button")?.getAttribute("aria-expanded") ?? null,
+                // The chevron rotating is the only sighted affordance for the state, and the
+                // transition duration is the stylesheet actually applying rather than merely loading.
+                chevron: chevron ? getComputedStyle(chevron).transform : null,
+                transition: panel ? getComputedStyle(panel).transitionDuration : null,
+            };
+        };
+
+        if (items.length >= 2) {
+            const before = items.map(read);
+            const closed = items.find((item) => item.getAttribute("data-open") === "false");
+            let after = null;
+            let closedIndex = -1;
+
+            if (closed) {
+                closedIndex = items.indexOf(closed);
+                closed.querySelector("s-button")?.click();
+
+                // Wait for the circuit to agree, then for the 200ms transition to settle, so the
+                // heights measured are the settled ones rather than a frame in the middle.
+                const settleBy = Date.now() + 10000;
+                while (Date.now() < settleBy && closed.getAttribute("data-open") !== "true") {
+                    await new Promise((r) => setTimeout(r, 100));
+                }
+
+                await new Promise((r) => setTimeout(r, 400));
+                after = items.map(read);
+            }
+
+            accordion = {
+                count: items.length,
+                closedIndex,
+                before,
+                after,
+                stylesheet: document.head
+                    .querySelector('link[data-polaris-stylesheet*="polaris-accordion.css"]')?.href ?? null,
+                reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+            };
+        }
+    }
+
     return {
         title: document.title,
         counter,
+        accordion,
         apiKeyMeta: document.querySelector('meta[name="shopify-api-key"]')?.getAttribute("content") ?? null,
         scripts: Array.from(document.querySelectorAll("script[src]")).map((s) => s.getAttribute("src")),
         appBridgeGlobal: typeof window.shopify,
@@ -415,6 +476,61 @@ function evaluateAssertions(result) {
     check(reconnect.isDialog === true, "the reconnection element is a <dialog>, which is Blazor's contract");
     check(reconnect.stylesheet !== null, "the reconnection stylesheet is linked");
     check(reconnect.script !== null, "the reconnection script is loaded");
+
+    // The accordion. Its open state is the library's own, and every part of it is invisible to a
+    // component test: the clipped panel, the aria-expanded that has to reach a shadow button, and the
+    // sibling that has to collapse with it.
+    const accordion = result.accordion;
+    check(accordion !== null, "the composed accordion is on the page with at least two sections");
+
+    if (accordion) {
+        const opened = accordion.after?.[accordion.closedIndex];
+        const closed = accordion.before?.[accordion.closedIndex];
+        const wasOpenIndex = accordion.before.findIndex((item) => item.open === "true");
+        const nowCollapsed = wasOpenIndex >= 0 ? accordion.after?.[wasOpenIndex] : null;
+
+        check(accordion.stylesheet !== null, "the accordion's own stylesheet is linked (it is what animates the panel)");
+        check(
+            closed?.open === "false" && closed?.height < 1,
+            "a closed section takes no height at all, so its content is really clipped",
+        );
+        check(
+            closed?.inert === true,
+            "a closed section is inert, so clipped content leaves the tab order and the accessibility tree",
+        );
+        check(
+            closed?.expanded === "false",
+            "a closed section announces aria-expanded=false on the button inside s-button's shadow root",
+        );
+        check(
+            opened?.open === "true" && opened?.height > (closed?.height ?? 0),
+            `opening a section gives the panel height (${closed?.height ?? "?"}px -> ${opened?.height ?? "?"}px)`,
+        );
+        check(
+            opened?.expanded === "true",
+            "opening a section sets aria-expanded=true through a DOM property, which is the only way it can reach that button",
+        );
+        check(
+            opened?.inert === false,
+            "an open section's content is no longer inert",
+        );
+        check(
+            nowCollapsed?.open === "false",
+            "the section that was open collapses when another one opens",
+        );
+        check(
+            opened?.chevron !== null && opened?.chevron !== "none",
+            `the chevron rotates when the section opens (transform: ${opened?.chevron ?? "none"})`,
+        );
+        check(
+            accordion.reducedMotion || (opened?.transition ?? "0s") !== "0s",
+            `the panel's transition is applied, not merely linked (duration ${opened?.transition ?? "none"})`,
+        );
+
+        if (accordion.reducedMotion) {
+            console.log("  note  reduced motion is on in this browser, so the transition was skipped");
+        }
+    }
 
     for (const [path, status] of Object.entries(assets)) {
         check(status === 200, `${path} is served (HTTP ${status})`);

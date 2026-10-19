@@ -18,8 +18,10 @@
     <PolarisSection Heading="Component gallery">
         <PolarisParagraph>
             Every control on this page is a Shopify Polaris web component rendered by a Razor
-            component from <code>Polaris.Blazor</code>. There is no custom CSS and no reimplementation:
-            the elements are Shopify's, and their appearance follows the merchant's admin branding.
+            component from <code>Polaris.Blazor</code>. There is no reimplementation: the elements
+            are Shopify's, and their appearance follows the merchant's admin branding. The one piece
+            of CSS anywhere in the library is the accordion's motion, because a
+            <code>prefers-reduced-motion</code> rule cannot be written inline.
         </PolarisParagraph>
     </PolarisSection>
 
@@ -132,6 +134,38 @@
                         </PolarisButton>
                     </PolarisStack>
             </PolarisPopover>
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Composed: the accordion">
+        <PolarisStack Gap="PolarisGap.Base">
+            @*
+                The one component on this page that is not a wrapper: Polaris 1 defines no accordion,
+                so Polaris.Blazor composes one from an s-button, an s-box and an s-icon. It lives here
+                because tools/verify-in-browser.mjs drives it — the open and closed state, the
+                aria-expanded that has to reach the button inside a shadow root, and the sibling
+                collapsing with it are all things no unit test can see.
+            *@
+            <PolarisParagraph>
+                Polaris has no accordion element, so this one is composed from components that do
+                exist. The header is a real button; open the second section and the first closes in
+                the same frame.
+            </PolarisParagraph>
+
+            <PolarisAccordion OpenItemChanged="AccordionSectionChangedAsync">
+                <PolarisAccordionItem Value="first" Header="An open section" InitiallyOpen="true">
+                    <PolarisText>Opened on arrival, so the probe has something to collapse.</PolarisText>
+                </PolarisAccordionItem>
+                <PolarisAccordionItem Value="second" Header="A closed section">
+                    <PolarisText>
+                        Closed on arrival: clipped, inert, and openable by clicking the header.
+                    </PolarisText>
+                </PolarisAccordionItem>
+            </PolarisAccordion>
+
+            <PolarisText Color="PolarisColor.Subdued">
+                C# was last told this section is open: @(_openAccordionSection ?? "none")
+            </PolarisText>
         </PolarisStack>
     </PolarisSection>
 
@@ -379,6 +413,7 @@
     private bool _published;
     private string _selectedStatus = "draft";
     private string? _lastChange;
+    private string? _openAccordionSection;
     private IReadOnlyDictionary<string, PolarisComponentStatus>? _runtimeStatus;
 
     private async Task CountClickAsync(PolarisEventArgs args)
@@ -433,6 +468,11 @@
         _lastChange = change;
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// The accordion's own event: which section is open now, or null when the open one was closed.
+    /// </summary>
+    private void AccordionSectionChangedAsync(string? value) => _openAccordionSection = value;
 
     private async Task CheckAsync(PolarisEventArgs args)
     {

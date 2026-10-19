@@ -6,10 +6,16 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
+2 more are composed from those wrappers, for behaviour Polaris does not
+provide in an element of its own. They add structure and interaction; they do not add
+appearance either, because everything visible in them is still a Polaris element.
+
 ## Inventory
 
 | Component | Element | Events forwarded | Named in tests |
 |---|---|---|---|
+| `PolarisAccordion` | — composed | — | yes |
+| `PolarisAccordionItem` | — composed | — | yes |
 | `PolarisAppNav` | `<s-app-nav>` | — | yes |
 | `PolarisAppWindow` | `<s-app-window>` | `Hide`, `Show` | yes |
 | `PolarisAvatar` | `<s-avatar>` | `Error`, `Load` | yes |
@@ -152,6 +158,31 @@ Values arrive as strings, because that is what the form components emit.
 
 ## Per-component parameters
 
+### `PolarisAccordion` (composed)
+
+A set of collapsible sections where opening one collapses the one that was open.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `ChildContent` | `RenderFragment?` | The sections. |
+| `AllowMultiple` | `bool` | Lets several sections stay open at once. |
+| `OpenItemChanged` | `EventCallback<string?>` | Raised with the `PolarisAccordionItem.Value` of the section that was just opened, or null when the open section was closed. |
+
+### `PolarisAccordionItem` (composed)
+
+One section of a `PolarisAccordion`: a header that opens and closes the content beneath it.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Header` | `string?` | The header's text, which is also the button's accessible name. |
+| `HeaderContent` | `RenderFragment?` | The header's content, for a heading that needs more than text — a badge beside a title, for example. |
+| `ChildContent` | `RenderFragment?` | The content that opens and closes. |
+| `Value` | `string?` | An identifier reported to the container's `PolarisAccordion.OpenItemChanged` so that code outside the accordion can tell which section is showing. |
+| `InitiallyOpen` | `bool` | Starts this section open. |
+| `ContentPadding` | `string?` | Padding inside the content area, in Polaris's spacing scale. |
+| `ShowDivider` | `bool` | Draws a rule above the section. |
+| `IsOpenChanged` | `EventCallback<bool>` | Raised with the new open state, whether the merchant opened it or a sibling closed it. |
+
 ### `PolarisAppNav` → `<s-app-nav>`
 
 Wraps `<s-app-nav>`: the navigation menu for your app inside the Shopify admin.
@@ -242,6 +273,7 @@ Wraps Shopify's `<s-button>`.
 | `CommandFor` | `string?` | Id of the element this button controls: the declarative way to open a modal or popover with no JavaScript at all. |
 | `Command` | `PolarisCommand` | The command sent to `CommandFor`. |
 | `InterestFor` | `string?` | Id of a tooltip or popover shown when the button is hovered or focused. |
+| `AccessibilityExpanded` | `PolarisAccessibilityExpanded?` | Announces to assistive technology whether what this button controls is open, as aria-expanded on the <button> Polaris renders inside its shadow root. |
 | `OnClick` | `EventCallback<PolarisEventArgs>` | Raised on click. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | Raised when the button loses focus. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | Raised when the button receives focus. |

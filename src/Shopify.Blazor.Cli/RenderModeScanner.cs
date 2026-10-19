@@ -94,7 +94,17 @@ public static partial class RenderModeScanner
         }
     }
 
-    [GeneratedRegex(@"^[ \t]*@rendermode[ \t]+InteractiveServer[ \t]*$",
+    /// <summary>
+    /// The directive on a line of its own.
+    /// </summary>
+    /// <remarks>
+    /// The trailing <c>\r?</c> is not cosmetic. A file with Windows line endings ends that line with
+    /// <c>\r</c>, and <c>[ \t]*$</c> cannot match it — multiline <c>$</c> anchors before the <c>\n</c>,
+    /// not before the <c>\r</c>. Without it, every CRLF project was reported as having no render mode
+    /// at all: `doctor` FAILed a project that was perfectly fine, which is the one verdict this check
+    /// exists to get right.
+    /// </remarks>
+    [GeneratedRegex(@"^[ \t]*@rendermode[ \t]+InteractiveServer[ \t]*\r?$",
         RegexOptions.Multiline | RegexOptions.CultureInvariant)]
     private static partial Regex DirectiveRegex();
 

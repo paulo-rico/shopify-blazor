@@ -34,13 +34,19 @@ class DriftCheckOnARealTreeTest(unittest.TestCase):
         result = modules.run_tool("generate-component-inventory.py", "--check")
 
         self.assertEqual(result.returncode, 0, result.stderr)
+
+        # The tool prints each output's path as the platform spells it, so the separator is
+        # normalised before matching: a Windows run would otherwise fail this on `docs\…` versus
+        # `docs/…`, which says nothing about whether the files are in sync.
+        output = result.stdout.replace("\\", "/")
+
         for name in (
             "docs/component-inventory.json",
             "docs/component-inventory.md",
             "src/Shopify.Blazor.Cli/Catalogue/polaris-catalogue.json",
         ):
-            self.assertIn(name, result.stdout)
-            self.assertIn("ok", result.stdout)
+            self.assertIn(name, output)
+            self.assertIn("ok", output)
 
     def test_check_writes_nothing(self):
         # A check that regenerates the thing it compares cannot detect drift, and on CI it would

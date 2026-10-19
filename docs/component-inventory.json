@@ -496,6 +496,13 @@
         },
         {
           "default": null,
+          "doc": "Announces to assistive technology whether what this button controls is open, as aria-expanded on the <button> Polaris renders inside its shadow root. Leave it null for a button that controls nothing. This is a DOM <em>property, not an attribute. Polaris does not reflect it, so an attribute would freeze the state at first paint; and the element that carries the semantics is the shadow button, which no light-DOM attribute can reach — an aria-expanded attribute on the `<s-button>` host lands on an element with no role and is ignored. It is also one of the few Polaris properties that does not schedule a render when it changes: it is read by the render function and nothing else, so writing it alone changes nothing that is visible to assistive technology. The interop layer therefore asks the element to render after writing it — see polaris-interop.js. Polaris ignores it when `CommandFor` is set: there, aria-expanded follows the open state of the target instead, and the value here is dropped with a console warning.",
+          "kind": "dom property",
+          "name": "AccessibilityExpanded",
+          "type": "PolarisAccessibilityExpanded?"
+        },
+        {
+          "default": null,
           "doc": "Raised on click. Modifier keys are on the event args.",
           "kind": "event callback",
           "name": "OnClick",
@@ -524,7 +531,8 @@
         "Button_renders_the_custom_element",
         "Button_renders_variant_and_tone_as_shopify_values",
         "Child_components_carry_their_slot_attribute",
-        "Menu_renders_its_accessible_label_and_accepts_button_children"
+        "Menu_renders_its_accessible_label_and_accepts_button_children",
+        "The_expanded_state_is_a_dom_property_because_polaris_does_not_reflect_it"
       ],
       "verification": "browser-verified",
       "verifiedInBrowser": true,
