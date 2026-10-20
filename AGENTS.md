@@ -281,6 +281,16 @@ Read these before changing anything in `src/`.
     - **A native range input insets its thumb by half the thumb's width.** A handle at the maximum sits
       half a thumb inside the track's right edge, so a drag aimed at the track's end misses the target
       that is the only part of the input receiving pointer events.
+    - **An `s-popover` paints no padding, so its slotted content sits flush against its frame.** Measured:
+      the `div.popover` inside the popover's shadow root computes to `0px` padding on every side and has
+      *the same rect as the slotted panel* (320×300, content and frame identical). A control placed
+      straight into a popover therefore puts its own border against the popover's border, which reads as
+      a container that has been filled wrongly — and no markup assertion can see it, because the markup
+      is exactly what was asked for. The panel states its own inset (`space-400`, 16px, read from
+      `var(--p-space-400, 16px)`), and the probe asserts the painted inset. Note that the runtime does
+      **not** define `--p-space-*` on `:root` or on the light-DOM panel — those custom properties live
+      inside the shadow roots — so the fallback is the value in force today, and a `var()` without one
+      would resolve to nothing at all.
     A `s-table-header` **does** accept light-DOM content, so its heading is an `s-button` and sorting is
     a real, keyboard-reachable control — asserted by clicking it in Chrome, because a component test can
     only prove the handler was attached. The grid marks its own `s-section` with `data-polaris-data-grid`

@@ -370,7 +370,19 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
             // *smaller* than it for the scroll box to be inside the visible panel at all. Measured: with
             // this box taller than the panel, everything below the panel's edge was clipped away with no
             // way to reach it.
-            panel.AddAttribute(2, "style", "max-block-size:300px;overflow-y:auto");
+            //
+            // The padding is stated here because an s-popover paints none of its own: measured in a
+            // browser, its frame (the `div.popover` inside the shadow root) computes to 0px padding on
+            // every side and has the same rect as this div, so the slotted controls sat flush against
+            // the panel's edge — a text field's own border touching the popover's border, with nothing
+            // in the markup to say so. 16px is Polaris's `space-400` step, the inset its own panels use;
+            // the token is read first so an app that themes Polaris moves this with everything else, and
+            // the fallback is what applies today, because the runtime defines these properties inside
+            // its shadow roots and not on :root (also measured).
+            //
+            // box-sizing keeps the cap a cap: the padding counts inside the 300px, so the scroll box can
+            // never grow taller than the frame that clips it.
+            panel.AddAttribute(2, "style", "box-sizing:border-box;max-block-size:300px;overflow-y:auto;padding:var(--p-space-400,16px)");
 
             panel.OpenComponent<PolarisStack>(3);
             panel.AddAttribute(4, nameof(PolarisStack.Gap), PolarisGap.Base);

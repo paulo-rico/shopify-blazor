@@ -327,6 +327,58 @@ const accordionStateExpression = `Array.from(document.querySelectorAll("[data-po
         };
 })`;
 /**
+ * The filter panel's inset, measured in the page.
+ *
+ * An `s-popover` paints no padding of its own — measured: the frame inside its shadow root computes to
+ * 0px on every side and has the same rect as the slotted panel — so the distance between a control and
+ * the panel's edge is entirely this library's to state. It is also the one layout claim no markup
+ * assertion can carry: a control flush against the frame renders perfectly and looks broken.
+ */
+const panelInsetExpression = `(() => {
+    const panel = document.querySelector("[data-polaris-filter-panel]");
+    const box = panel?.getBoundingClientRect();
+    if (!box || box.width === 0) return { present: false };
+
+    // The content's real edge is the nearest of *every* painted box inside the panel, not the first one
+    // found: the controls are Polaris hosts that compute to display: contents, so their own rects are
+    // 0×0 and the boxes that paint live inside their shadow roots — and the first such box is not
+    // necessarily the top one. Only boxes inside the frame count, because the scroll content is longer
+    // than the frame and a box below it describes a place the panel does not occupy.
+    let left = null;
+    let top = null;
+    let right = null;
+
+    const visit = (root) => {
+        for (const node of root.children) {
+            const rect = node.getBoundingClientRect();
+
+            if (rect.width > 0 && rect.height > 0 && rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1) {
+                left = Math.min(left ?? Number.POSITIVE_INFINITY, rect.x);
+                top = Math.min(top ?? Number.POSITIVE_INFINITY, rect.y);
+                right = Math.max(right ?? Number.NEGATIVE_INFINITY, rect.right);
+            }
+
+            if (node.shadowRoot) visit(node.shadowRoot);
+            visit(node);
+        }
+    };
+
+    visit(panel);
+
+    return {
+        present: true,
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+        painted: left !== null,
+        inset: left === null ? null : {
+            left: Math.round(left - box.x),
+            top: Math.round(top - box.y),
+            right: Math.round(box.right - right),
+        },
+    };
+})()`;
+
+/**
  * Reads the data grid back out of the page.
  *
  * The grid's sorting, filtering and paging are the library's own rather than Polaris's — s-table has
@@ -808,6 +860,16 @@ function evaluateAssertions(result) {
         `the track has a measurable width once the panel is open, so the stylesheet resolved ` +
         `(${grid.popoverOpenedBy?.trackWidth ?? 0}px)`,
     );
+
+    // The panel's own inset. Without one the controls sit flush against the popover's frame — a text
+    // field's border touching the panel's border — which is a layout fault that renders perfectly.
+    check(
+        (grid.panel?.inset?.left ?? 0) >= 8 && (grid.panel?.inset?.top ?? 0) >= 8 && (grid.panel?.inset?.right ?? 0) > 0,
+        `the filter panel insets its controls from the popover's edge ` +
+        `(left ${grid.panel?.inset?.left ?? "?"}px, top ${grid.panel?.inset?.top ?? "?"}px, ` +
+        `right ${grid.panel?.inset?.right ?? "?"}px across ${grid.panel?.width ?? "?"}px, ` +
+        `content ${grid.panel?.height ?? "?"}px tall)`,
+    );
     check(
         grid.afterDrag?.slider?.upperValue !== grid.beforeDrag?.slider?.upperValue,
         `dragging the upper handle moves it (${grid.beforeDrag?.slider?.upperValue ?? "?"} -> ${grid.afterDrag?.slider?.upperValue ?? "?"})`,
@@ -976,11 +1038,15 @@ try {
                     return {
                         sliderWidth: slider ? Math.round(slider.getBoundingClientRect().width) : 0,
                         trackWidth: track ? Math.round(track.getBoundingClientRect().width) : 0,
+                        // Read while the panel is open and still unscrolled: the drag below scrolls the
+                        // slider into view, and the insets would then describe a scrolled panel.
+                        panel: ${panelInsetExpression},
                     };
                 })()`);
 
             if (opened.trackWidth > 0) {
                 result.grid.popoverOpenedBy = opened;
+                result.grid.panel = opened.panel;
                 break;
             }
 

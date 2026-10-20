@@ -167,6 +167,14 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **The filter panel's controls sat flush against the popover's edge.** Measured in a browser: an
+  `s-popover` paints no padding of its own — the `div.popover` inside its shadow root computes to `0px`
+  on every side and shares its rect with the slotted panel — so a text field's own border touched the
+  popover's border and the panel read as a container filled wrongly. The panel now states Polaris's
+  `space-400` inset (`var(--p-space-400, 16px)`, with the fallback in force because the runtime defines
+  that token inside its shadow roots rather than on `:root`), inside the box so the height cap still
+  caps. Held by a component test on the markup and by a browser assertion on the painted inset, because
+  a layout fault renders perfectly.
 - **A range slider that rendered before its data did kept a placeholder domain for ever.** The filter
   builds its sliders from the dataset's numeric bounds, and it renders while the grid is still loading,
   so on the first pass those bounds are a stand-in `0..1`. The slider clamped its interval into that

@@ -46,6 +46,27 @@ public sealed class DataFilterRenderingTests
     }
 
     [Fact]
+    public void The_panel_insets_its_controls_from_the_popover_edge()
+    {
+        // Measured in a browser: an s-popover paints no padding of its own — its frame computes to 0px on
+        // every side and has the same rect as this panel — so the controls sat flush against the
+        // popover's border, a text field's own border touching the frame's, with nothing in the markup to
+        // say so. A layout fault reports through no other channel, so what is asserted here is the one
+        // thing a component test can see: that the inset is stated, at Polaris's space-400 step, and that
+        // it is inside the box so the height cap still caps. The real geometry is checked in a browser by
+        // tools/verify-in-browser.mjs.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        var filter = RenderFilter(context, state);
+
+        var style = filter.Find("[data-polaris-filter-panel]").GetAttribute("style") ?? string.Empty;
+
+        Assert.Contains("padding:var(--p-space-400,16px)", style, StringComparison.Ordinal);
+        Assert.Contains("box-sizing:border-box", style, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Each_filterable_column_gets_the_control_its_type_asks_for()
     {
         // A single control for every column would filter the wrong way round: a text box on a numeric
