@@ -67,7 +67,8 @@ public sealed class RangeSliderRenderingTests
     [Fact]
     public void Moving_a_handle_reports_the_new_interval_and_leaves_the_other_end_alone()
     {
-        // The whole point of a dual control: moving one end must not move the other.
+        // The whole point of a dual control: moving one end must not move the other. Reported on `change`
+        // rather than `input`, because a drag reports once — on release — and not on every pixel.
         using var context = new PolarisTestContext();
         PolarisNumberRange? reported = null;
 
@@ -79,12 +80,12 @@ public sealed class RangeSliderRenderingTests
             .Add(p => p.ValueChanged, range => reported = range));
 
         slider.Find("input[data-polaris-range-handle=lower]")
-            .TriggerEvent("oninput", new ChangeEventArgs { Value = "35" });
+            .TriggerEvent("onchange", new ChangeEventArgs { Value = "35" });
 
         Assert.Equal(new PolarisNumberRange(35m, 80m), reported);
 
         slider.Find("input[data-polaris-range-handle=upper]")
-            .TriggerEvent("oninput", new ChangeEventArgs { Value = "60" });
+            .TriggerEvent("onchange", new ChangeEventArgs { Value = "60" });
 
         Assert.Equal(new PolarisNumberRange(35m, 60m), reported);
     }
@@ -128,7 +129,7 @@ public sealed class RangeSliderRenderingTests
             .Add(p => p.ValueChanged, range => reported = range));
 
         slider.Find("input[data-polaris-range-handle=lower]")
-            .TriggerEvent("oninput", new ChangeEventArgs { Value = "95" });
+            .TriggerEvent("onchange", new ChangeEventArgs { Value = "95" });
 
         Assert.Equal(new PolarisNumberRange(80m, 80m), reported);
     }
@@ -233,6 +234,135 @@ public sealed class RangeSliderRenderingTests
 
         var datalist = slider.Find("datalist");
         Assert.Equal(5, datalist.QuerySelectorAll("option").Length);
+    }
+
+    [Fact]
+    public void A_drag_previews_on_input_and_reports_only_when_it_ends()
+    {
+        // The reason this exists: a range filter re-queried the grid on every pixel of a drag. Input
+        // events arrive continuously (measured: four across one drag) and `change` arrives once, on
+        // release — so the interval may follow the thumb on `input`, but nothing upstream may hear about
+        // it until `change`. A component test can see both halves: the handler, and what it did NOT call.
+        using var context = new PolarisTestContext();
+        var reported = new List<PolarisNumberRange>();
+
+        var slider = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 100m)
+            .Add(p => p.Step, 1m)
+            .Add(p => p.Value, new PolarisNumberRange(20m, 80m))
+            .Add(p => p.ValueChanged, range => reported.Add(range)));
+
+        var upper = slider.Find("input[data-polaris-range-handle=upper]");
+
+        upper.TriggerEvent("oninput", new ChangeEventArgs { Value = "60" });
+        upper.TriggerEvent("oninput", new ChangeEventArgs { Value = "50" });
+
+        Assert.Empty(reported);
+
+        // The preview still moved this control: the interval is what draws the filled span, and a preview
+        // that did not move it would look exactly like a slider that ignores the mouse.
+        var style = slider.Find("[data-polaris-range-slider]").GetAttribute("style");
+        Assert.Contains("--polaris-range-end:50%", style, StringComparison.Ordinal);
+
+        upper = slider.Find("input[data-polaris-range-handle=upper]");
+        upper.TriggerEvent("onchange", new ChangeEventArgs { Value = "50" });
+
+        Assert.Equal([new PolarisNumberRange(20m, 50m)], reported);
+    }
+
+    [Fact]
+    public void A_stale_caller_value_does_not_pull_a_handle_back()
+    {
+        // Measured in a browser, with the filter's 300ms debounce in front of the query: while the new
+        // interval was still in flight the parent re-rendered with the *previous* one, and comparing that
+        // against "the value we last reported" treated it as an instruction and reset the control. Every
+        // second key press undid the one before it, and a drag had to be released twice. The distinguishing
+        // question is not "is this what we reported?" but "is this a new instruction at all?" — the same
+        // parameter arriving again is not.
+        using var context = new PolarisTestContext();
+        PolarisNumberRange? reported = null;
+
+        var slider = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 100m)
+            .Add(p => p.Step, 1m)
+            .Add(p => p.Value, new PolarisNumberRange(20m, 80m))
+            .Add(p => p.ShowInputs, false)
+            .Add(p => p.ValueChanged, range => reported = range));
+
+        slider.Find("input[data-polaris-range-handle=upper]")
+            .TriggerEvent("onchange", new ChangeEventArgs { Value = "60" });
+
+        Assert.Equal(new PolarisNumberRange(20m, 60m), reported);
+
+        // The parent re-renders before its own state catches up: the same 20-80 it passed in before.
+        slider.Render(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 100m)
+            .Add(p => p.Step, 1m)
+            .Add(p => p.Value, new PolarisNumberRange(20m, 80m))
+            .Add(p => p.ShowInputs, false));
+
+        Assert.Equal("60", slider.Find("input[data-polaris-range-handle=upper]").GetAttribute("value"));
+
+        // A genuinely new value from the caller is still adopted: a cleared filter, a restored saved view.
+        slider.Render(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 100m)
+            .Add(p => p.Step, 1m)
+            .Add(p => p.Value, new PolarisNumberRange(10m, 40m))
+            .Add(p => p.ShowInputs, false));
+
+        Assert.Equal("40", slider.Find("input[data-polaris-range-handle=upper]").GetAttribute("value"));
+    }
+
+    [Fact]
+    public void The_two_numeric_fields_share_one_row_of_equal_columns()
+    {
+        // Measured: an `s-stack direction="inline"` around the two fields laid them out one above the
+        // other at full width, because a Polaris host computes to `display: contents` and its contents are
+        // not the flex items the stack lays out. A grid of real cells cannot be flattened away, so this
+        // asserts the layout is stated here rather than inherited from a framework's internals.
+        using var context = new PolarisTestContext();
+
+        var slider = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 100m)
+            .Add(p => p.Value, new PolarisNumberRange(20m, 80m)));
+
+        var row = slider.Find("[data-polaris-range-inputs]");
+        var style = row.GetAttribute("style") ?? string.Empty;
+
+        Assert.Contains("display:grid", style, StringComparison.Ordinal);
+        Assert.Contains("grid-template-columns:minmax(0,1fr) minmax(0,1fr)", style, StringComparison.Ordinal);
+
+        var cells = row.QuerySelectorAll("[data-polaris-range-input]");
+        Assert.Equal(2, cells.Length);
+        Assert.All(cells, cell => Assert.Single(cell.QuerySelectorAll("s-number-field")));
+        Assert.Equal(["lower", "upper"], cells.Select(cell => cell.GetAttribute("data-polaris-range-input")));
+    }
+
+    [Fact]
+    public void The_title_is_on_screen_as_well_as_in_the_group_name()
+    {
+        // A title that only exists in an aria-label is invisible: the filter panel showed two sliders with
+        // no caption at all, which is what "the title isn't displaying" meant. It still names the group,
+        // and the visible copy is hidden from assistive technology so the name is not announced twice.
+        using var context = new PolarisTestContext();
+
+        var slider = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 100m)
+            .Add(p => p.Label, "Price"));
+
+        var group = slider.Find("[data-polaris-range-slider]");
+        Assert.Equal("group", group.GetAttribute("role"));
+        Assert.Equal("Price", group.GetAttribute("aria-label"));
+
+        var visible = slider.Find("[data-polaris-range-label]");
+        Assert.Contains("Price", visible.TextContent, StringComparison.Ordinal);
+        Assert.Equal("true", visible.GetAttribute("aria-hidden"));
     }
 
     [Fact]

@@ -281,6 +281,24 @@ Read these before changing anything in `src/`.
     - **A native range input insets its thumb by half the thumb's width.** A handle at the maximum sits
       half a thumb inside the track's right edge, so a drag aimed at the track's end misses the target
       that is the only part of the input receiving pointer events.
+    - **`input` is continuous and `change` is the end of the interaction.** Recorded from the page: a
+      mouse drag produces four `input` events and exactly one `change`, on the frame the button is
+      released (`change`, `pointerup` and `mouseup` all at the same timestamp); one arrow-key press
+      produces `input` and `change` together. So a control that re-queries on `input` re-queries per
+      pixel, and the only honest "the drag has finished" signal is `change`. Timing alone will not show
+      this: the filter debounces by 300ms, so a fast drag looks innocent and a merchant who *holds* a
+      handle still for half a second gets the query mid-drag — which is why the probe now pauses with
+      the button still down before it samples.
+    - **A control must adopt a caller's value when the parameter *changes*, not when it differs from
+      what it last reported.** A parent that applies changes lazily (a debounced filter) re-renders with
+      its *previous* value while the new one is in flight. Comparing against "the value we reported"
+      makes that stale echo look like an instruction and resets the control: measured, the slider's
+      handle jumped back on every second key press and a drag had to be released twice.
+    - **An `s-stack direction="inline"` does not put two `s-number-field`s on one line.** Measured: the
+      pair rendered full width and one above the other, because a Polaris host computes to
+      `display: contents` and the boxes that paint live inside shadow roots, so they are not the flex
+      items the stack lays out. A grid of real cells (`display:grid;grid-template-columns:minmax(0,1fr)
+      minmax(0,1fr)` written inline) cannot be flattened away and holds at 50/50.
     - **An `s-popover` paints no padding, so its slotted content sits flush against its frame.** Measured:
       the `div.popover` inside the popover's shadow root computes to `0px` padding on every side and has
       *the same rect as the slotted panel* (320×300, content and frame identical). A control placed

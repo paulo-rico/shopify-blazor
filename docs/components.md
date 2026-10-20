@@ -972,7 +972,7 @@ A dual-handle numeric range control: one track, two handles and the interval bet
 | `Disabled` | `bool` | Prevents every interaction, including the numeric inputs. |
 | `ShowInputs` | `bool` | Shows a numeric field for each end, for values a handle cannot land on precisely. |
 | `ShowTicks` | `bool` | Shows tick marks along the track, at whole steps. |
-| `Label` | `string?` | The control's label, which names the group the two handles belong to. |
+| `Label` | `string?` | The control's title: shown above the track and used as the accessible name of the group the two handles belong to. |
 | `LowerLabel` | `string` | The accessible name of the lower handle. |
 | `UpperLabel` | `string` | The accessible name of the upper handle. |
 | `Unit` | `string?` | A unit shown after each numeric input, such as % or ct. |

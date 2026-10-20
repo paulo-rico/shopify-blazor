@@ -460,6 +460,27 @@ const gridStateExpression = `(() => {
                     y: Math.round(trackBox.y + (trackBox.height / 2)),
                 };
             })(),
+            // The two numeric fields are Polaris hosts, so the boxes that paint are inside their shadow
+            // roots; the cell each one was given is the box that says whether they ended up side by side.
+            fields: Array.from(document.querySelectorAll("[data-polaris-range-inputs] > [data-polaris-range-input]"))
+                .map((cell) => {
+                    const rect = cell.getBoundingClientRect();
+                    return { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width) };
+                }),
+            // The title, which has to be text on the page and not only an attribute: a label nobody can
+            // see is the failure this measures.
+            label: (() => {
+                const label = document.querySelector("[data-polaris-range-label]");
+                if (!label) return null;
+                const rect = label.getBoundingClientRect();
+                const text = (label.textContent ?? "").replace(/\\s+/g, " ").trim();
+                return {
+                    text,
+                    visible: rect.width > 0 && rect.height > 0 && text.length > 0,
+                    // Above the track rather than floating next to it.
+                    aboveTrack: trackBox ? rect.bottom <= trackBox.top + 1 : null,
+                };
+            })(),
         } : { present: false },
     };
 })()`;
@@ -855,6 +876,41 @@ function evaluateAssertions(result) {
         `(content width ${grid.popoverBeforeWidth ?? "?"}px -> ${grid.popoverOpenedBy?.sliderWidth ?? "?"}px)`,
     );
     check(grid.slider?.present === true, "the range filter renders a slider with a track of its own");
+
+    // The two numeric fields on one line, at equal widths. Measured: an `s-stack direction="inline"`
+    // around them laid them out one above the other at full width, because a Polaris host computes to
+    // `display: contents`; nothing in the markup said so.
+    //
+    // Read from the snapshot taken with the panel open: every box inside a closed popover is 0×0, so the
+    // first measurement of the page would say the fields have no geometry at all — a check that fails
+    // for the wrong reason is worse than no check.
+    const openSlider = grid.afterDrag?.slider ?? grid.duringDrag?.slider ?? {};
+    const fields = openSlider.fields ?? [];
+
+    // Grouped by row, because a panel can hold more than one range filter (this one has two): what the
+    // check claims is that each pair shares a line at equal widths, not that the page has one pair.
+    const rows = Object.values(fields.reduce((grouped, field) => {
+        (grouped[field.y] ??= []).push(field);
+        return grouped;
+    }, {}));
+    const pairs = rows.filter((row) => row.length === 2);
+    const alignedAtEqualWidths = (row) =>
+        Math.abs(row[0].w - row[1].w) <= 1 &&
+        Math.abs(row[0].w - (row[1].x - row[0].x - 8)) <= 1;
+
+    check(
+        pairs.length > 0 && pairs.length === rows.length && pairs.every(alignedAtEqualWidths),
+        `the min and max fields share one row of two equal columns ` +
+        `(${rows.map((row) => row.map((f) => `${f.w}px@x${f.x},y${f.y}`).join(" + ")).join(" | ") || "no fields"})`,
+    );
+
+    // The title is text on the page, above the track — not only an `aria-label` that no merchant can see.
+    check(
+        openSlider.label?.visible === true && openSlider.label.aboveTrack === true &&
+        (openSlider.label.text ?? "").length > 0,
+        `the range filter shows its title above the track ("${openSlider.label?.text ?? "none"}")`,
+    );
+
     check(
         (grid.popoverOpenedBy?.trackWidth ?? 0) > 50,
         `the track has a measurable width once the panel is open, so the stylesheet resolved ` +
@@ -869,6 +925,22 @@ function evaluateAssertions(result) {
         `(left ${grid.panel?.inset?.left ?? "?"}px, top ${grid.panel?.inset?.top ?? "?"}px, ` +
         `right ${grid.panel?.inset?.right ?? "?"}px across ${grid.panel?.width ?? "?"}px, ` +
         `content ${grid.panel?.height ?? "?"}px tall)`,
+    );
+
+    // The drag reported nothing until it ended. Two halves, and both are needed: the control really was
+    // following the pointer (or a drag that did nothing would also "not re-query"), and the result text
+    // had not moved yet (or a re-query per pixel would look the same as one per release).
+    check(
+        (grid.duringDrag?.slider?.end ?? "") !== (grid.beforeDrag?.slider?.end ?? "") &&
+        (grid.duringDrag?.slider?.upperValue ?? "") !== (grid.beforeDrag?.slider?.upperValue ?? ""),
+        `the interval follows the drag while the mouse is still down ` +
+        `(${grid.beforeDrag?.slider?.end ?? "?"} -> ${grid.duringDrag?.slider?.end ?? "?"})`,
+    );
+    check(
+        (grid.duringDrag?.rangeText ?? "") === (grid.beforeDrag?.rangeText ?? "") &&
+        (grid.afterDrag?.rangeText ?? "") !== (grid.beforeDrag?.rangeText ?? ""),
+        `the grid re-queries once, on release, and not while dragging ` +
+        `(during the drag "${grid.duringDrag?.rangeText ?? "?"}", after release "${grid.afterDrag?.rangeText ?? "?"}")`,
     );
     check(
         grid.afterDrag?.slider?.upperValue !== grid.beforeDrag?.slider?.upperValue,
@@ -1076,11 +1148,25 @@ try {
             await devtools.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: from.x, y: from.y, button: "none", buttons: 0 });
             await devtools.send("Input.dispatchMouseEvent", { type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1 });
 
-            for (let step = 1; step <= 5; step++) {
-                const x = Math.round(from.x + ((toX - from.x) * (step / 5)));
+            for (let step = 1; step <= 6; step++) {
+                const x = Math.round(from.x + ((toX - from.x) * (step / 6)));
                 await devtools.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, buttons: 1, ...shared });
-                await sleep(50);
+                // Slow enough that the whole drag outlasts the filter's 300ms debounce. A drag shorter
+                // than that would let a per-pixel commit go unnoticed even by a check that samples
+                // mid-drag, which is a check that cannot fail.
+                await sleep(120);
             }
+
+            // Sampled with the mouse still down, which is the whole claim of "do not re-query while
+            // dragging": the fill has followed the thumb, and the result has not been recomputed.
+            //
+            // The pause before sampling is what makes this check able to fail. A merchant holds a handle
+            // still all the time, and the filter applies a change 300ms after it stops arriving, so a
+            // control that reported on every `input` event would re-query during exactly this hold —
+            // while a control that reports on `change` has told the page nothing yet.
+            await sleep(600);
+
+            result.grid.duringDrag = await devtools.evaluate(gridStateExpression);
 
             await devtools.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: toX, buttons: 0, ...shared });
 

@@ -167,6 +167,29 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **`PolarisRangeSlider` reported every pixel of a drag, so a range filter re-queried the data while the
+  mouse was still down.** Measured in a browser: `input` fires continuously through a drag and `change`
+  fires once, on release — so `input` now only previews (this control moves its own interval and
+  re-renders) and `change` is where `ValueChanged` is raised. A keyboard user is unaffected: one key
+  press fires both events at the same instant, and a key press is a finished change rather than a drag.
+  The browser check holds both halves — the fill follows the thumb while the button is down, and the
+  result text has not moved until it comes up.
+- **`PolarisRangeSlider`'s handles were pulled back by a stale value from the caller.** The component
+  adopted any `Value` that differed from the last one it had reported, which a lazily-applying parent
+  defeats: with the filter's 300ms debounce the parent still holds the previous interval while the new
+  one is in flight, so that echo was read as an instruction. Every second key press undid the one
+  before it (measured: 45.95 -> 66.95 -> 66.95 -> 87.95) and a drag had to be released twice. A caller
+  value is now adopted when it *changes*; the same parameter arriving again is not a new instruction.
+- **`PolarisRangeSlider.Label` was never displayed.** It was written as the group's `aria-label` and
+  nowhere else, so in a filter panel the range control was the only control with no caption on screen —
+  which is how it was reported as "the title doesn't seem to be displaying". The title is now rendered
+  above the track (hidden from assistive technology, because the group already carries the same text as
+  its name).
+- **The slider's two numeric fields sat one above the other at full width instead of side by side.**
+  Measured: an `s-stack direction="inline"` around them does not lay them out in a row, because a
+  Polaris host computes to `display: contents` and its contents are not the flex items the stack
+  positions. They are now a grid of two equal columns, stated inline on a real element so no framework
+  internals can flatten it away.
 - **The filter panel's controls sat flush against the popover's edge.** Measured in a browser: an
   `s-popover` paints no padding of its own — the `div.popover` inside its shadow root computes to `0px`
   on every side and shares its rect with the slotted panel — so a text field's own border touched the

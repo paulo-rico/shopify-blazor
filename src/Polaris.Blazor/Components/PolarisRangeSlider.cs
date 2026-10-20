@@ -52,7 +52,8 @@ public sealed class PolarisRangeSlider : ComponentBase
 
     private PolarisNumberRange _current;
     private PolarisNumberRange _domain;
-    private PolarisNumberRange? _reported;
+    private PolarisNumberRange _committed;
+    private PolarisNumberRange? _seenValue;
     private bool _initialised;
 
     /// <summary>The lower end of the domain. A value above <see cref="Maximum"/> swaps the two.</summary>
@@ -86,9 +87,15 @@ public sealed class PolarisRangeSlider : ComponentBase
     [Parameter] public bool ShowTicks { get; set; }
 
     /// <summary>
-    /// The control's label, which names the group the two handles belong to. Without it a screen
-    /// reader announces two sliders with no idea what they measure.
+    /// The control's title: shown above the track and used as the accessible name of the group the two
+    /// handles belong to.
     /// </summary>
+    /// <remarks>
+    /// It has to be both. As an accessible name alone it is invisible, so a merchant sees two unnamed
+    /// sliders in a filter panel — which is how this parameter came to be reported as "not displaying".
+    /// The visible run is hidden from assistive technology, because the group already carries the name
+    /// and announcing it twice says nothing new.
+    /// </remarks>
     [Parameter] public string? Label { get; set; }
 
     /// <summary>The accessible name of the lower handle.</summary>
@@ -124,40 +131,49 @@ public sealed class PolarisRangeSlider : ComponentBase
     {
         var domain = new PolarisNumberRange(DomainMinimum, DomainMaximum);
 
-        // No caller value means "the whole domain" — so the interval has to follow the domain when the
-        // domain changes, which it does whenever the data behind it arrives or is replaced.
+        // The caller's value is adopted when it *changes*, and ignored when it is the same one it sent
+        // last time. That distinction is the difference between a handle that follows the mouse and one
+        // that fights it:
         //
-        // This is not a refinement. A filter panel renders before its grid's rows do, so the bounds it
-        // reads are a placeholder: a slider that only ever clamped would keep that placeholder range
-        // for ever, showing both handles parked at the first value of a domain nobody can widen — a
-        // range filter that matches everything, cannot be dragged and looks like a stylesheet fault.
-        // It was found by pointing the grid at a real, asynchronously loaded catalogue.
+        //   - A parent that applies a change lazily — a debounced filter, for instance — still holds the
+        //     old value while the round trip is in flight. Comparing against "the value we last
+        //     reported" treated that stale echo as an instruction and pulled the handle back to where it
+        //     started, so each key press undid the previous one and a drag had to be released twice.
+        //     Measured in a browser: the DOM value reverted to the pre-press value on every second press.
+        //   - A genuine change — a cleared filter, a restored saved view, a page setting the range —
+        //     always arrives as a different parameter, so it is still adopted.
+        var callerChanged = !_initialised || Value != _seenValue;
+        var domainChanged = domain != _domain;
+
+        _domain = domain;
+        _seenValue = Value;
+
+        // A null value means "the whole domain", so a domain that arrives, grows or is replaced moves
+        // the interval with it. Without that, a filter panel — which renders before its grid's rows do —
+        // kept the placeholder range it first saw for ever.
         if (Value is null)
         {
-            if (!_initialised || _domain != domain)
-            {
-                _current = domain;
-            }
-
-            _domain = domain;
-            _initialised = true;
-            return;
+            _current = !_initialised || callerChanged || domainChanged ? domain : Clamp(_current, domain);
         }
-
-        // A value the caller supplies wins — unless it is the one this component has just reported,
-        // which is the same value arriving back and must not reset a drag in progress.
-        if (!_initialised || Value.Value != _reported)
+        else if (callerChanged)
         {
-            _domain = domain;
             _current = Clamp(Value.Value, domain);
-            _initialised = true;
-            return;
+        }
+        else
+        {
+            // Nothing new from the caller: keep what the handles are showing, but not a value outside
+            // the domain, which a reload can shrink under a handle that is already placed.
+            _current = Clamp(_current, domain);
         }
 
-        // The domain moved: a reload can shrink or widen it, and a handle outside it would render
-        // off the end of the track.
-        _domain = domain;
-        _current = Clamp(_current, domain);
+        if (!_initialised || callerChanged)
+        {
+            // The interval is now the caller's own instruction, so the next committed change to the same
+            // value is not news and must not be reported again.
+            _committed = _current;
+        }
+
+        _initialised = true;
     }
 
     /// <inheritdoc />
@@ -176,6 +192,8 @@ public sealed class PolarisRangeSlider : ComponentBase
         {
             builder.AddAttribute(4, "role", "group");
             builder.AddAttribute(5, "aria-label", Label);
+
+            BuildLabel(builder);
         }
 
         BuildTrack(builder);
@@ -190,6 +208,33 @@ public sealed class PolarisRangeSlider : ComponentBase
             BuildInputs(builder);
         }
 
+        builder.CloseElement();
+    }
+
+    /// <summary>
+    /// The visible title, above the track.
+    /// </summary>
+    /// <remarks>
+    /// A label that lives only in an <c>aria-label</c> is not a label a merchant can see: in a filter
+    /// panel the range control was the one control with no caption, so two sliders sat there unlabelled
+    /// to the eye — which is what "the title isn't displaying" was. The run is <c>aria-hidden</c>
+    /// because the group already carries the same text as its name.
+    /// </remarks>
+    private void BuildLabel(RenderTreeBuilder builder)
+    {
+        builder.OpenElement(6, "div");
+        builder.AddAttribute(7, "data-polaris-range-label", true);
+        builder.AddAttribute(8, "aria-hidden", "true");
+
+        // The gap is inline, like the interval: a missing stylesheet must cost looks, not layout. 8px is
+        // Polaris's space-200 step, the label-to-control gap its own fields use.
+        builder.AddAttribute(9, "style", "margin-block-end:8px");
+
+        builder.OpenComponent<PolarisText>(10);
+        builder.AddAttribute(11, nameof(PolarisText.Type), PolarisTextType.Strong);
+        builder.AddAttribute(12, nameof(PolarisText.ChildContent), (RenderFragment)(text => text.AddContent(0, Label)));
+
+        builder.CloseComponent();
         builder.CloseElement();
     }
 
@@ -235,9 +280,23 @@ public sealed class PolarisRangeSlider : ComponentBase
             builder.AddAttribute(30, "style", string.Create(CultureInfo.InvariantCulture, $"z-index:{(raised ? 3 : 2)}"));
         }
 
+        // Two events, and the split is the whole of "do not query while dragging":
+        //
+        //   - `input` fires on every pixel of a drag (measured: four events across one drag, and no
+        //     `change` among them), so it may only preview — move this control's own interval and
+        //     re-render, without telling the caller anything.
+        //   - `change` fires once, on release (measured alongside pointerup and mouseup), so that is
+        //     where the new interval is reported and a caller re-queries the data exactly once.
+        //
+        // A keyboard user gets both per key press (measured: `input` and `change` at the same instant),
+        // which is correct — a key press is a finished change, not a drag.
         builder.AddAttribute(31, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
             this,
-            args => lower ? MoveLowerAsync(args) : MoveUpperAsync(args)));
+            args => PreviewAsync(args, lower)));
+
+        builder.AddAttribute(32, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+            this,
+            args => MoveAsync(args, lower)));
 
         builder.CloseElement();
     }
@@ -271,89 +330,116 @@ public sealed class PolarisRangeSlider : ComponentBase
         builder.OpenElement(50, "div");
         builder.AddAttribute(51, "data-polaris-range-inputs", true);
 
-        builder.OpenComponent<PolarisStack>(52);
-        builder.AddAttribute(53, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
-        builder.AddAttribute(54, nameof(PolarisStack.Gap), PolarisGap.Base);
-        builder.AddAttribute(55, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
-        {
-            content.OpenComponent<PolarisNumberField>(0);
-            content.AddAttribute(1, nameof(PolarisNumberField.Label), LowerLabel);
-            content.AddAttribute(2, nameof(PolarisNumberField.LabelAccessibilityVisibility), PolarisAccessibilityVisibility.Exclusive);
-            content.AddAttribute(3, nameof(PolarisNumberField.Value), Invariant(Lower));
-            content.AddAttribute(4, nameof(PolarisNumberField.Min), (double)DomainMinimum);
-            content.AddAttribute(5, nameof(PolarisNumberField.Max), (double)DomainMaximum);
-            content.AddAttribute(6, nameof(PolarisNumberField.Step), Step > 0m ? (double)Step : null);
-            content.AddAttribute(7, nameof(PolarisNumberField.Suffix), Unit);
-            content.AddAttribute(8, nameof(PolarisNumberField.Disabled), Disabled);
-            content.AddAttribute(9, nameof(PolarisNumberField.OnChange), EventCallback.Factory.Create<Events.PolarisEventArgs>(this, LowerTypedAsync));
-            content.CloseComponent();
+        // Two equal columns, stated inline. Measured: an `s-stack direction="inline"` around the two
+        // fields laid them out one above the other, at full width each, because a Polaris host computes
+        // to `display: contents` and its contents are not the flex items the stack expects. A grid of
+        // real cells cannot be flattened away, so each field fills a column and the pair stays on one
+        // line whatever the framework does inside its shadow roots. `minmax(0, 1fr)` rather than `1fr`
+        // so a field's own minimum does not push the second one onto the next line.
+        builder.AddAttribute(52, "style", "display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:8px;margin-block-start:8px");
 
-            content.OpenComponent<PolarisNumberField>(10);
-            content.AddAttribute(11, nameof(PolarisNumberField.Label), UpperLabel);
-            content.AddAttribute(12, nameof(PolarisNumberField.LabelAccessibilityVisibility), PolarisAccessibilityVisibility.Exclusive);
-            content.AddAttribute(13, nameof(PolarisNumberField.Value), Invariant(Upper));
-            content.AddAttribute(14, nameof(PolarisNumberField.Min), (double)DomainMinimum);
-            content.AddAttribute(15, nameof(PolarisNumberField.Max), (double)DomainMaximum);
-            content.AddAttribute(16, nameof(PolarisNumberField.Step), Step > 0m ? (double)Step : null);
-            content.AddAttribute(17, nameof(PolarisNumberField.Suffix), Unit);
-            content.AddAttribute(18, nameof(PolarisNumberField.Disabled), Disabled);
-            content.AddAttribute(19, nameof(PolarisNumberField.OnChange), EventCallback.Factory.Create<Events.PolarisEventArgs>(this, UpperTypedAsync));
-            content.CloseComponent();
-        }));
-        builder.CloseComponent();
+        builder.OpenElement(53, "div");
+        builder.AddAttribute(54, "data-polaris-range-input", "lower");
+        BuildNumberField(builder, lower: true);
+        builder.CloseElement();
+
+        builder.OpenElement(55, "div");
+        builder.AddAttribute(56, "data-polaris-range-input", "upper");
+        BuildNumberField(builder, lower: false);
+        builder.CloseElement();
 
         builder.CloseElement();
     }
 
-    private Task MoveLowerAsync(ChangeEventArgs args)
+    private void BuildNumberField(RenderTreeBuilder builder, bool lower)
+    {
+        var label = lower ? LowerLabel : UpperLabel;
+
+        builder.OpenComponent<PolarisNumberField>(0);
+        builder.AddAttribute(1, nameof(PolarisNumberField.Label), label);
+        builder.AddAttribute(2, nameof(PolarisNumberField.LabelAccessibilityVisibility), PolarisAccessibilityVisibility.Exclusive);
+        builder.AddAttribute(3, nameof(PolarisNumberField.Value), Invariant(lower ? Lower : Upper));
+        builder.AddAttribute(4, nameof(PolarisNumberField.Min), (double)DomainMinimum);
+        builder.AddAttribute(5, nameof(PolarisNumberField.Max), (double)DomainMaximum);
+        builder.AddAttribute(6, nameof(PolarisNumberField.Step), Step > 0m ? (double)Step : null);
+        builder.AddAttribute(7, nameof(PolarisNumberField.Suffix), Unit);
+        builder.AddAttribute(8, nameof(PolarisNumberField.Disabled), Disabled);
+        builder.AddAttribute(9, nameof(PolarisNumberField.OnChange), EventCallback.Factory.Create<Events.PolarisEventArgs>(
+            this,
+            lower ? LowerTypedAsync : UpperTypedAsync));
+        builder.CloseComponent();
+    }
+
+    /// <summary>
+    /// Moves one end of the interval without reporting it: the visual half of a drag in progress.
+    /// </summary>
+    private Task PreviewAsync(ChangeEventArgs args, bool lower)
     {
         if (!TryParse(args.Value, out var value))
         {
             return Task.CompletedTask;
         }
 
-        // Clamped rather than swapped: a handle dragged past its neighbour stops there, so the
-        // merchant keeps hold of the handle they grabbed instead of watching the two exchange places.
-        return CommitAsync(PolarisNumberRange.Create(Math.Min(value, Upper), Upper));
-    }
+        var clamped = Clamp(RangeFor(lower, value), Domain());
 
-    private Task MoveUpperAsync(ChangeEventArgs args)
-    {
-        if (!TryParse(args.Value, out var value))
+        if (clamped == _current)
         {
             return Task.CompletedTask;
         }
 
-        return CommitAsync(PolarisNumberRange.Create(Lower, Math.Max(value, Lower)));
+        // Only this component re-renders: the caller is told on release, so nothing upstream re-queries
+        // the data on every pixel. The interval is written inline, so the highlighted span follows the
+        // thumb from this re-render alone.
+        _current = clamped;
+        StateHasChanged();
+
+        return Task.CompletedTask;
     }
+
+    /// <summary>Reports the interval a drag or a key press has finished on.</summary>
+    private Task MoveAsync(ChangeEventArgs args, bool lower)
+        => TryParse(args.Value, out var value)
+            ? CommitAsync(RangeFor(lower, value))
+            : Task.CompletedTask;
 
     private Task LowerTypedAsync(Events.PolarisEventArgs args)
         => TryParse(args.Value, out var value)
-            ? CommitAsync(PolarisNumberRange.Create(Math.Min(value, Upper), Upper))
+            ? CommitAsync(RangeFor(lower: true, value))
             : Task.CompletedTask;
 
     private Task UpperTypedAsync(Events.PolarisEventArgs args)
         => TryParse(args.Value, out var value)
-            ? CommitAsync(PolarisNumberRange.Create(Lower, Math.Max(value, Lower)))
+            ? CommitAsync(RangeFor(lower: false, value))
             : Task.CompletedTask;
+
+    /// <summary>
+    /// Clamps a new end against the other one: a handle dragged past its neighbour stops there, so the
+    /// merchant keeps hold of the handle they grabbed instead of watching the two exchange places.
+    /// </summary>
+    private PolarisNumberRange RangeFor(bool lower, decimal value)
+        => lower
+            ? PolarisNumberRange.Create(Math.Min(value, Upper), Upper)
+            : PolarisNumberRange.Create(Lower, Math.Max(value, Lower));
 
     private async Task CommitAsync(PolarisNumberRange range)
     {
-        var clamped = Clamp(range, new PolarisNumberRange(DomainMinimum, DomainMaximum));
+        var clamped = Clamp(range, Domain());
 
-        if (clamped == _current)
-        {
-            return;
-        }
+        // Compared against the last interval *reported*, not against what the control is showing: a drag
+        // has already previewed the value into `_current`, so comparing with that would treat the release
+        // as "nothing changed" and never tell the caller at all.
+        var changed = clamped != _committed;
 
         _current = clamped;
-        _reported = clamped;
+        _committed = clamped;
 
-        if (ValueChanged.HasDelegate)
+        if (changed && ValueChanged.HasDelegate)
         {
             await ValueChanged.InvokeAsync(clamped);
         }
     }
+
+    private PolarisNumberRange Domain() => new(DomainMinimum, DomainMaximum);
 
     private PolarisNumberRange Clamp(PolarisNumberRange range, PolarisNumberRange domain)
     {

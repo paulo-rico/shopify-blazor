@@ -127,10 +127,10 @@
     --polaris-range-fill-color: var(--p-color-bg-fill-brand, #2c6ecb);
 }
 
-[data-polaris-range-inputs] {
-    margin-block-start: 8px;
-}
-
-[data-polaris-range-inputs] > s-stack > * {
+/* The row of numeric fields is a grid of two equal columns, and both the grid and the gap are written
+   inline by PolarisRangeSlider — layout in the markup, so a missing stylesheet leaves the pair on one
+   line. What is left here is the overflow guard: a grid item defaults to `min-width: auto`, which lets a
+   field's own minimum widen its column and push the second field onto a line of its own. */
+[data-polaris-range-inputs] > [data-polaris-range-input] {
     min-inline-size: 0;
 }

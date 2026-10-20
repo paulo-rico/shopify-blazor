@@ -253,7 +253,7 @@ public sealed class DataFilterRenderingTests
         var filter = RenderFilter(context, state, PolarisGridFilterApplyMode.Immediate);
 
         var upper = filter.Find("input[data-polaris-range-handle=upper]");
-        await filter.InvokeAsync(() => upper.TriggerEventAsync("oninput", new ChangeEventArgs { Value = "15" }));
+        await filter.InvokeAsync(() => upper.TriggerEventAsync("onchange", new ChangeEventArgs { Value = "15" }));
 
         var applied = state.Query.FilterFor("Silver");
 
@@ -277,11 +277,11 @@ public sealed class DataFilterRenderingTests
         var filter = RenderFilter(context, state, PolarisGridFilterApplyMode.Immediate);
 
         var upper = filter.Find("input[data-polaris-range-handle=upper]");
-        await filter.InvokeAsync(() => upper.TriggerEventAsync("oninput", new ChangeEventArgs { Value = "15" }));
+        await filter.InvokeAsync(() => upper.TriggerEventAsync("onchange", new ChangeEventArgs { Value = "15" }));
         Assert.NotNull(state.Query.FilterFor("Silver"));
 
         upper = filter.Find("input[data-polaris-range-handle=upper]");
-        await filter.InvokeAsync(() => upper.TriggerEventAsync("oninput", new ChangeEventArgs { Value = "99.9" }));
+        await filter.InvokeAsync(() => upper.TriggerEventAsync("onchange", new ChangeEventArgs { Value = "99.9" }));
 
         Assert.Null(state.Query.FilterFor("Silver"));
     }
