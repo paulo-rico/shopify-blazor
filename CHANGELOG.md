@@ -72,11 +72,11 @@ unreleased. The first planned release is `0.1.0-preview.1`.
   `configure` and `doctor`. It is a convenience wrapper over `dotnet new` and the filesystem, never
   the only way to do something, and it refuses to overwrite a file without `--force`.
 - **Reference application** — embedded shell, dashboard, products page that calls the Admin API
-  through an authenticated endpoint, and a gallery of every wrapped component. The dashboard also
-  demonstrates the data grid against live data: an `AlloyCatalogue` service answers asynchronously with
-  150 alloys (fifteen metals by ten grades, generated deterministically), so the grid's own loading
-  state, a reload that keeps the page and the filters, a 150-row pager and a range filter on three
-  numeric columns are all visible rather than described.
+  through an authenticated endpoint, and a gallery of every wrapped component. The dashboard opens with
+  the data grid running on live data: a `ProductCatalogue` service answers asynchronously with 150
+  products (eight types, five vendors, three statuses, generated deterministically), so the grid's own
+  loading state, a reload that keeps the page and the filters, a 150-row pager, filter chips and a
+  range filter on price and inventory are all visible rather than described.
 - **Tooling** — a component reference generator, a component inventory (JSON and Markdown) with a
   drift check, a wrapper generator with golden-file tests, a template verification script that packs
   and builds every parameter combination, and a headless-Chrome verification script.

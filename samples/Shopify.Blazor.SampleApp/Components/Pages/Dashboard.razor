@@ -4,7 +4,7 @@
 @using Shopify.Blazor.SampleApp.Services
 @implements IDisposable
 @inject IAppBridgeInterop Bridge
-@inject AlloyCatalogue Catalogue
+@inject ProductCatalogue Catalogue
 
 @*
     The element names this page claims to render, for tools/verify-in-browser.mjs to read — the same
@@ -28,6 +28,101 @@
                 <PolarisBadge Tone="PolarisTone.Success">Polaris components</PolarisBadge>
                 <PolarisBadge Tone="PolarisTone.Info">App Bridge 4</PolarisBadge>
                 <PolarisBadge Tone="PolarisTone.Neutral">Token exchange</PolarisBadge>
+            </PolarisStack>
+        </PolarisStack>
+    </PolarisSection>
+
+    <PolarisSection Heading="Products data grid (composed)">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisParagraph>
+                Polaris has a table, and nothing that sorts, filters, pages or selects it. These four
+                components are composed from what does exist: a sortable heading is an
+                <code>s-button</code>, a selected row is an <code>s-checkbox</code> in a cell, the
+                filter panel is an <code>s-popover</code> opened declaratively with
+                <code>commandFor</code>, and the range control is two native range inputs over one
+                track. They are three separate components sharing one state object, which is what makes
+                them one grid.
+            </PolarisParagraph>
+
+            <PolarisParagraph>
+                The rows come from <code>ProductCatalogue</code> — 150 products, loaded asynchronously
+                the way the Admin API answers, which is why the grid has a spinner of its own. The data
+                is a stand-in for a store's catalogue; the grid is not, and it renders
+                <code>/api/products</code> unchanged when the app is opened inside the Admin. Reload
+                replaces the collection under the same state, so the page, the filters and the
+                selection all survive it.
+            </PolarisParagraph>
+
+            <PolarisDataFilter State="_gridState" ApplyMode="PolarisGridFilterApplyMode.Debounced">
+                <Actions>
+                    <PolarisButton OnClick="ReloadFromButtonAsync" Loading="_gridState.IsLoading">
+                        Reload
+                    </PolarisButton>
+                </Actions>
+            </PolarisDataFilter>
+
+            <PolarisDataGrid TItem="SampleProduct"
+                             State="_gridState"
+                             AllowSelection="true"
+                             EmptyHeading="No product matches those filters"
+                             EmptySubheading="Clear a filter, or search for something else."
+                             SelectionChanged="SelectionChangedAsync">
+                <Columns>
+                    <PolarisGridColumn TItem="SampleProduct"
+                                       Field="product => product.Title"
+                                       Title="Product"
+                                       ListSlot="PolarisTableListSlot.Primary"
+                                       FilterType="PolarisGridFilterType.Text" />
+
+                    <PolarisGridColumn TItem="SampleProduct"
+                                       Field="product => product.Status"
+                                       Title="Status"
+                                       FilterType="PolarisGridFilterType.MultiSelect">
+                        <CellTemplate Context="product">
+                            <PolarisBadge Tone="@StatusTone(product.Status)">@product.Status</PolarisBadge>
+                        </CellTemplate>
+                    </PolarisGridColumn>
+
+                    <PolarisGridColumn TItem="SampleProduct"
+                                       Field="product => product.ProductType"
+                                       Title="Type"
+                                       FilterType="PolarisGridFilterType.MultiSelect" />
+
+                    <PolarisGridColumn TItem="SampleProduct"
+                                       Field="product => product.Vendor"
+                                       Title="Vendor"
+                                       FilterType="PolarisGridFilterType.Text" />
+
+                    <PolarisGridColumn TItem="SampleProduct"
+                                       Field="product => product.Price"
+                                       Title="Price"
+                                       Format="C2"
+                                       FormatProvider="@UkPounds"
+                                       Alignment="PolarisTableHeaderFormat.Currency"
+                                       FilterType="PolarisGridFilterType.Range" />
+
+                    <PolarisGridColumn TItem="SampleProduct"
+                                       Field="product => product.Inventory"
+                                       Title="Inventory"
+                                       Alignment="PolarisTableHeaderFormat.Numeric"
+                                       FilterType="PolarisGridFilterType.Range" />
+
+                    <PolarisGridColumn TItem="SampleProduct"
+                                       Field="product => product.UpdatedAt"
+                                       Title="Updated"
+                                       FilterType="PolarisGridFilterType.DateRange" />
+                </Columns>
+            </PolarisDataGrid>
+
+            <PolarisDataPager State="_gridState" PageSizeOptions="@(new[] { 10, 25, 50, 100 })" />
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Small">
+                <PolarisText Color="PolarisColor.Subdued">Rows selected:</PolarisText>
+                <PolarisBadge Tone="PolarisTone.Info">@_selectedCount</PolarisBadge>
+                <PolarisText Color="PolarisColor.Subdued">· sorted by:</PolarisText>
+                <PolarisBadge Tone="PolarisTone.Neutral">@_sortSummary</PolarisBadge>
+                <PolarisText Color="PolarisColor.Subdued">· loaded:</PolarisText>
+                <PolarisBadge Tone="PolarisTone.Neutral">@_loadedSummary</PolarisBadge>
             </PolarisStack>
         </PolarisStack>
     </PolarisSection>
@@ -137,102 +232,6 @@
         </PolarisStack>
     </PolarisSection>
 
-    <PolarisSection Heading="Data grid, filter and pager (composed)">
-        <PolarisStack Gap="PolarisGap.Base">
-            <PolarisParagraph>
-                Polaris has a table, and nothing that sorts, filters or pages it. These four
-                components are composed from what does exist: the headings are buttons, the selection
-                boxes are <code>s-checkbox</code> in a cell, the filter panel is an
-                <code>s-popover</code> opened by <code>commandFor</code>, and the range control is two
-                native range inputs over one track. They are three separate components sharing a
-                single state object, which is what makes them one grid.
-            </PolarisParagraph>
-
-            <PolarisParagraph>
-                The rows come from <code>AlloyCatalogue</code> — 150 alloys, loaded asynchronously the
-                way a database would answer, which is why the grid has a spinner of its own. Reload
-                replaces the collection under the same state; the page the merchant is on, their
-                filters and their selection all survive it.
-            </PolarisParagraph>
-
-            <PolarisDataFilter State="_gridState" ApplyMode="PolarisGridFilterApplyMode.Debounced">
-                <Actions>
-                    <PolarisButton OnClick="ReloadAsync" Loading="_gridState.IsLoading">
-                        Reload
-                    </PolarisButton>
-                </Actions>
-            </PolarisDataFilter>
-
-            <PolarisDataGrid TItem="Alloy"
-                             State="_gridState"
-                             AllowSelection="true"
-                             EmptyHeading="No alloy matches those filters"
-                             EmptySubheading="Clear a filter, or search for something else."
-                             SelectionChanged="SelectionChangedAsync">
-                <Columns>
-                    <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.Name"
-                                       Title="Alloy"
-                                       ListSlot="PolarisTableListSlot.Primary"
-                                       FilterType="PolarisGridFilterType.Text" />
-
-                    <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.Metal"
-                                       Title="Metal"
-                                       FilterType="PolarisGridFilterType.MultiSelect" />
-
-                    <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.Carat"
-                                       Title="Carat"
-                                       Alignment="PolarisTableHeaderFormat.Numeric"
-                                       FilterType="PolarisGridFilterType.Range" />
-
-                    <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.SilverPercentage"
-                                       Title="Silver %"
-                                       Format="N1"
-                                       Alignment="PolarisTableHeaderFormat.Numeric"
-                                       FilterType="PolarisGridFilterType.Range" />
-
-                    <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.CostPerGram"
-                                       Title="Cost / g"
-                                       Format="C2"
-                                       FormatProvider="@UkPounds"
-                                       Alignment="PolarisTableHeaderFormat.Currency"
-                                       FilterType="PolarisGridFilterType.Range" />
-
-                    <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.LastCosted"
-                                       Title="Last costed"
-                                       FilterType="PolarisGridFilterType.DateRange" />
-
-                    <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.Active"
-                                       Title="Active"
-                                       FilterType="PolarisGridFilterType.Boolean">
-                        <CellTemplate Context="alloy">
-                            <PolarisBadge Tone="@(alloy.Active ? PolarisTone.Success : PolarisTone.Neutral)">
-                                @(alloy.Active ? "in use" : "retired")
-                            </PolarisBadge>
-                        </CellTemplate>
-                    </PolarisGridColumn>
-                </Columns>
-            </PolarisDataGrid>
-
-            <PolarisDataPager State="_gridState" PageSizeOptions="@(new[] { 10, 25, 50, 100 })" />
-
-            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Small">
-                <PolarisText Color="PolarisColor.Subdued">Rows selected:</PolarisText>
-                <PolarisBadge Tone="PolarisTone.Info">@_selectedCount</PolarisBadge>
-                <PolarisText Color="PolarisColor.Subdued">· sorted by:</PolarisText>
-                <PolarisBadge Tone="PolarisTone.Neutral">@_sortSummary</PolarisBadge>
-                <PolarisText Color="PolarisColor.Subdued">· loaded:</PolarisText>
-                <PolarisBadge Tone="PolarisTone.Neutral">@_loadedSummary</PolarisBadge>
-            </PolarisStack>
-        </PolarisStack>
-    </PolarisSection>
-
     <PolarisSection Heading="Request a fresh session token">
         <PolarisStack Gap="PolarisGap.Base">
             <PolarisText>
@@ -253,7 +252,7 @@
     /// <summary>Sterling is priced in pounds, and a cost column formatted with the invariant culture reads as $.</summary>
     private static readonly CultureInfo UkPounds = CultureInfo.GetCultureInfo("en-GB");
 
-    private PolarisGridState<Alloy> _gridState = null!;
+    private PolarisGridState<SampleProduct> _gridState = null!;
 
     /// <summary>
     /// Every element this page renders unconditionally, and therefore the list the browser
@@ -304,7 +303,7 @@
     /// </remarks>
     protected override void OnInitialized()
     {
-        _gridState = new PolarisGridState<Alloy>(keySelector: alloy => alloy.Id);
+        _gridState = new PolarisGridState<SampleProduct>(keySelector: product => product.Id);
         _gridState.SetPageSize(10);
 
         // The page shows the state's own summary — what it is sorted by, how many rows are selected —
@@ -336,7 +335,7 @@
             _gridState.SetItems(rows);
             _loadedSummary = string.Create(
                 CultureInfo.InvariantCulture,
-                $"{rows.Count} alloys at {DateTime.Now:HH:mm:ss}");
+                $"{rows.Count} products at {DateTime.Now:HH:mm:ss}");
         }
         catch (Exception ex)
         {
@@ -351,6 +350,21 @@
     }
 
     private Task ReloadFromButtonAsync(PolarisEventArgs args) => ReloadAsync();
+
+    /// <summary>
+    /// The badge colour for a product status, matching the Products page.
+    /// </summary>
+    /// <remarks>
+    /// The status is spelled out inside the badge as well as coloured: tone is not announced, so three
+    /// tone-only badges would read identically to a screen reader.
+    /// </remarks>
+    private static PolarisTone StatusTone(string status) => status.ToUpperInvariant() switch
+    {
+        "ACTIVE" => PolarisTone.Success,
+        "DRAFT" => PolarisTone.Warning,
+        "ARCHIVED" => PolarisTone.Neutral,
+        _ => PolarisTone.Info,
+    };
 
     private void OnGridStateChanged() => _ = InvokeAsync(StateHasChanged);
 

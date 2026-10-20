@@ -41,10 +41,11 @@ builder.Services.AddPolarisBlazor();
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<ProductsService>();
 
-// The data the dashboard's grid demonstrates on. A stand-in for a database this app does not have,
-// which is the point: what the grid needs from a source is a snapshot and a way to be told the
-// snapshot changed, not a particular persistence technology.
-builder.Services.AddSingleton<AlloyCatalogue>();
+// The products the dashboard's grid demonstrates on. A stand-in for the store's catalogue, which this
+// app only reaches through an authenticated Admin API call when it is inside the Admin — what the grid
+// needs from a source is a snapshot and a way to be told the snapshot changed, not a particular
+// persistence technology.
+builder.Services.AddSingleton<ProductCatalogue>();
 
 var app = builder.Build();
 
