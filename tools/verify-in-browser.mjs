@@ -16,12 +16,14 @@
  */
 
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const assertMode = process.argv.includes("--assert");
 const url = process.argv.slice(2).find((argument) => argument.startsWith("http")) ?? "http://127.0.0.1:3459/";
+const screenshotIndex = process.argv.indexOf("--screenshot");
+const screenshotPath = screenshotIndex >= 0 ? process.argv[screenshotIndex + 1] : null;
 const chromeFlagIndex = process.argv.indexOf("--chrome");
 const chromePath = chromeFlagIndex >= 0 ? process.argv[chromeFlagIndex + 1] : "google-chrome";
 
@@ -349,6 +351,7 @@ const gridStateExpression = `(() => {
 
     const slider = document.querySelector("[data-polaris-range-slider]");
     const track = slider?.querySelector("[data-polaris-range-track]");
+    const lower = track?.querySelector("input[data-polaris-range-handle=lower]");
     const upper = track?.querySelector("input[data-polaris-range-handle=upper]");
     const trackBox = track?.getBoundingClientRect();
 
@@ -381,6 +384,12 @@ const gridStateExpression = `(() => {
             start: getComputedStyle(slider).getPropertyValue("--polaris-range-start").trim(),
             end: getComputedStyle(slider).getPropertyValue("--polaris-range-end").trim(),
             trackWidth: trackBox ? Math.round(trackBox.width) : 0,
+            // The declared domain and both ends, so "the handle did not move" can be told apart from
+            // "the handle was already where the drag was aiming".
+            min: lower?.getAttribute("min") ?? null,
+            max: lower?.getAttribute("max") ?? null,
+            step: lower?.getAttribute("step") ?? null,
+            lowerValue: lower?.value ?? null,
             upperValue: upper?.value ?? null,
             // The thumb's position is not the input's: the input spans the whole track and only the
             // thumb inside it is a pointer target. Nor is the thumb at a bare fraction of the track: a
@@ -954,27 +963,21 @@ try {
             await devtools.clickAt(filterPoint.x, filterPoint.y);
         }
 
-        // A closed Polaris popover still reports visibility: visible, so the panel is waited for by its
-        // box and for a control inside it being measurable — which is also the precondition for the
-        // drag below. Waiting on the wrong signal is how the drag ran against a 0px track.
+        // A closed Polaris popover still reports visibility: visible, so the panel is waited for by a
+        // control inside it becoming measurable — which is also the precondition for the drag below.
+        // Waiting on the wrong signal is how an earlier version dragged against a 0px track.
         const openedBy = Date.now() + 5000;
-        result.grid.openSamples = [];
 
         while (Date.now() < openedBy) {
             const opened = await devtools.evaluate(
                 `(() => {
-                    const popover = document.querySelector("s-popover");
                     const track = document.querySelector("[data-polaris-range-track]");
                     const slider = document.querySelector("[data-polaris-range-slider]");
                     return {
-                        hostHeight: popover ? Math.round(popover.getBoundingClientRect().height) : 0,
                         sliderWidth: slider ? Math.round(slider.getBoundingClientRect().width) : 0,
                         trackWidth: track ? Math.round(track.getBoundingClientRect().width) : 0,
-                        nativeOpen: popover ? popover.matches(":popover-open") : null,
                     };
                 })()`);
-
-            result.grid.openSamples.push(opened);
 
             if (opened.trackWidth > 0) {
                 result.grid.popoverOpenedBy = opened;
@@ -984,61 +987,16 @@ try {
             await sleep(150);
         }
 
-        result.grid.popoverHeightAfter = await devtools.evaluate(
-            `(() => { const p = document.querySelector("s-popover"); return p ? Math.round(p.getBoundingClientRect().height) : 0; })()`);
-
-        // Reported, not asserted: what "open" looks like from outside a shadow root is Polaris's to
-        // decide, and three different signals disagree about it — visibility stays "visible", the host
-        // box can be 0×0 because a Polaris host may compute to display: contents, and :popover-open
-        // only applies to a native popover.
-        result.grid.popoverDiagnostics = await devtools.evaluate(
-            `(() => {
-                const popover = document.querySelector("s-popover");
-                if (!popover) return null;
-                const shadowFirst = popover.shadowRoot?.firstElementChild ?? null;
-                const hostStyle = getComputedStyle(popover);
-                const firstStyle = shadowFirst ? getComputedStyle(shadowFirst) : null;
-                const child = popover.firstElementChild;
-                const childBox = child?.getBoundingClientRect();
-
-                return {
-                    attributes: Array.from(popover.attributes).map((a) => a.name + "=" + a.value),
-                    nativePopoverOpen: popover.matches(":popover-open"),
-                    hostDisplay: hostStyle.display,
-                    hostVisibility: hostStyle.visibility,
-                    hostHeight: Math.round(popover.getBoundingClientRect().height),
-                    shadowFirstTag: shadowFirst?.tagName?.toLowerCase() ?? null,
-                    shadowFirstDisplay: firstStyle?.display ?? null,
-                    shadowFirstHeight: shadowFirst ? Math.round(shadowFirst.getBoundingClientRect().height) : 0,
-                    lightChildTag: child?.tagName?.toLowerCase() ?? null,
-                    lightChildHeight: childBox ? Math.round(childBox.height) : 0,
-                    // Where the panel's content actually lives, and why it has no height. Reported as
-                    // tag:display/height so an overlay that re-parents its light DOM is visible at a
-                    // glance rather than guessed at.
-                    sliderAncestors: (() => {
-                        const chain = [];
-                        let node = document.querySelector("[data-polaris-range-slider]");
-
-                        while (node && chain.length < 8) {
-                            const style = getComputedStyle(node);
-                            const box = node.getBoundingClientRect();
-                            chain.push(node.tagName.toLowerCase() + ":" + style.display + "/" + Math.round(box.height) + "x" + Math.round(box.width));
-                            node = node.parentElement;
-                        }
-
-                        return chain;
-                    })(),
-                    // Whether the command reached the <button> Polaris renders. The Invoker Commands API
-                    // reads commandfor/command from the button element itself, so a command left on the
-                    // host element is a command that never fires.
-                    triggerButton: (() => {
-                        const host = Array.from(document.querySelectorAll("s-button"))
-                            .find((element) => (element.textContent ?? "").trim().startsWith("Filter"));
-                        const inner = host?.shadowRoot?.querySelector("button");
-                        return inner ? Array.from(inner.attributes).map((a) => a.name + "=" + a.value) : null;
-                    })(),
-                };
-            })()`);
+        // The panel scrolls: it holds more controls than fit in the height it can claim, so the control
+        // to drag may be below the visible edge. A press point measured there lands on space the panel
+        // does not occupy — which reported as "the drag does nothing" three times before it was
+        // measured. Scrolling it into view is what a merchant does, and what makes the point real.
+        await devtools.evaluate(`(async () => {
+            const slider = document.querySelector("[data-polaris-range-slider]");
+            slider?.scrollIntoView({ block: "center" });
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            return true;
+        })()`);
 
         // A drag of the upper handle: pressed on the thumb, moved in steps (a range input follows
         // pointer moves, not a single jump) and released, which is the interaction a merchant makes.
@@ -1049,35 +1007,8 @@ try {
             const toX = Math.max(8, Math.round(from.x - (slider.slider.trackWidth * 0.4)));
             const shared = { button: "left", y: from.y };
 
-            // What the press actually lands on. A range input only starts dragging when the press is on
-            // its thumb, and a pseudo-element does not report itself here — so this is reported as the
-            // element that owns the point, not as an assertion.
-            result.grid.dragHit = await devtools.evaluate(`(() => {
-                const stack = document.elementsFromPoint(${from.x}, ${from.y});
-                return stack.slice(0, 4).map((element) => {
-                    const handle = element.getAttribute?.("data-polaris-range-handle") ?? null;
-                    return element.tagName.toLowerCase() + (handle ? "[" + handle + "]" : "");
-                });
-            })()`);
-
-            // Where the drag is actually being aimed, and whether that is on screen at all:
-            // elementsFromPoint returns an empty list for a point outside the viewport, which is how a
-            // panel anchored below the fold looked exactly like a press that missed its target.
-            result.grid.dragGeometry = await devtools.evaluate(`(() => {
-                const track = document.querySelector("[data-polaris-range-track]");
-                const box = track?.getBoundingClientRect();
-                return {
-                    from: { x: ${from.x}, y: ${from.y} },
-                    trackBox: box ? { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } : null,
-                    viewport: { w: window.innerWidth, h: window.innerHeight },
-                    scrollY: Math.round(window.scrollY),
-                };
-            })()`);
-
             await devtools.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: from.x, y: from.y, button: "none", buttons: 0 });
             await devtools.send("Input.dispatchMouseEvent", { type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1 });
-
-            result.grid.afterPress = await devtools.evaluate(gridStateExpression);
 
             for (let step = 1; step <= 5; step++) {
                 const x = Math.round(from.x + ((toX - from.x) * (step / 5)));
@@ -1091,6 +1022,23 @@ try {
             result.grid.beforeDrag = slider;
             result.grid.afterDrag = await devtools.evaluate(gridStateExpression);
         }
+    }
+
+    // A picture of the page as it stands after every interaction, which is the only honest answer to
+    // "what does it look like?" — and the fastest way to tell a layout fault from a behaviour one.
+    if (screenshotPath) {
+        const metrics = await devtools.send("Page.getLayoutMetrics");
+        const width = Math.ceil(metrics.cssContentSize?.width ?? 1280);
+        const height = Math.ceil(metrics.cssContentSize?.height ?? 900);
+
+        const shot = await devtools.send("Page.captureScreenshot", {
+            format: "png",
+            captureBeyondViewport: true,
+            clip: { x: 0, y: 0, width, height, scale: 1 },
+        });
+
+        await writeFile(screenshotPath, Buffer.from(shot.data, "base64"));
+        console.log(`wrote ${screenshotPath} (${width}x${height})`);
     }
 
     result.consoleMessages = devtools.consoleMessages;

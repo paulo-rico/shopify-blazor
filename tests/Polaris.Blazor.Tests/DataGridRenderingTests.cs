@@ -216,7 +216,7 @@ public sealed class DataGridRenderingTests
         // table and different problems.
         using var context = new PolarisTestContext();
         using var state = NewState();
-        state.IsLoading = true;
+        state.SetLoading(true);
 
         var grid = RenderGrid(context, state);
 
@@ -231,7 +231,7 @@ public sealed class DataGridRenderingTests
         // re-entering data that already exists.
         using var context = new PolarisTestContext();
         using var state = NewState();
-        state.ErrorMessage = "The database is unreachable.";
+        state.SetError("The database is unreachable.");
 
         var grid = RenderGrid(context, state);
 

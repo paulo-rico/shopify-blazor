@@ -73,8 +73,10 @@ unreleased. The first planned release is `0.1.0-preview.1`.
   the only way to do something, and it refuses to overwrite a file without `--force`.
 - **Reference application** — embedded shell, dashboard, products page that calls the Admin API
   through an authenticated endpoint, and a gallery of every wrapped component. The dashboard also
-  demonstrates the data grid: fourteen alloys, a filter, a grid and a pager sharing one state, and a
-  range filter on fineness.
+  demonstrates the data grid against live data: an `AlloyCatalogue` service answers asynchronously with
+  150 alloys (fifteen metals by ten grades, generated deterministically), so the grid's own loading
+  state, a reload that keeps the page and the filters, a 150-row pager and a range filter on three
+  numeric columns are all visible rather than described.
 - **Tooling** — a component reference generator, a component inventory (JSON and Markdown) with a
   drift check, a wrapper generator with golden-file tests, a template verification script that packs
   and builds every parameter combination, and a headless-Chrome verification script.
@@ -122,6 +124,16 @@ unreleased. The first planned release is `0.1.0-preview.1`.
   up. That is `polaris-accordion.css`, which carries the accordion's transitions and its
   `prefers-reduced-motion` override, and `polaris-range-slider.css`, which draws the slider's track and
   thumbs.
+- **`PolarisGridState.SetLoading` and `SetError`** replace the settable `IsLoading` and `ErrorMessage`
+  properties. Those two were the only parts of the state that could change without notifying a
+  component, so a page that set them left the grid showing the previous state — a spinner that never
+  appeared, or a failed load that looked like an empty catalogue. Using the components against a real,
+  asynchronously loaded dataset is what surfaced it.
+- **The filter panel scrolls, because a Polaris popover clips rather than scrolls.** Measured: with six
+  filters the panel caps its height and paints the controls below the cap outside its own box, where
+  nothing can reach them — `elementsFromPoint` there returns an empty list. A viewport-relative
+  `MaxBlockSize` is not a fix, because the content has to be shorter than Polaris's cap; the panel now
+  keeps its own scroll box inside the popover's frame.
 
 - **`s-text` and `s-paragraph` no longer share one wrapper.** `PolarisText` had a `Paragraph` flag that
   switched its element, so a single class had to model two property sets and omitted the half that did
@@ -155,6 +167,14 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **A range slider that rendered before its data did kept a placeholder domain for ever.** The filter
+  builds its sliders from the dataset's numeric bounds, and it renders while the grid is still loading,
+  so on the first pass those bounds are a stand-in `0..1`. The slider clamped its interval into that
+  domain and never widened it again: both handles sat at the first value, the highlighted interval was
+  4.167% of the track, and a range filter that could neither be dragged nor exclude anything looked
+  exactly like a stylesheet fault. It now follows its domain — `Value` being `null` means "the whole
+  range", so a domain that grows re-opens the slider. Found by pointing the dashboard at a real,
+  asynchronously loaded catalogue; held by a test.
 - **The generated component reference silently dropped any parameter whose attribute list was not
   exactly `[Parameter]`.** `[Parameter, EditorRequired]` and a separate `[EditorRequired]` line between
   the doc comment and the property both failed the pattern, so a component could document a parameter

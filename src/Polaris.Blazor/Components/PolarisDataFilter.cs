@@ -347,17 +347,34 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
 
         builder.OpenComponent<PolarisPopover>(40);
         builder.AddAttribute(41, nameof(PolarisPopover.Id), _panelId);
-        builder.AddAttribute(42, nameof(PolarisPopover.MaxBlockSize), "420px");
 
-        // The panel's width is stated rather than derived. Measured in a browser: a popover with no
-        // inline size lays its slotted content out at zero width — the content has height and no width,
-        // so a slider inside it has a 0px track that cannot be dragged and a text field is a sliver.
+        // The panel's size is stated rather than derived, and both halves of that were measured in a
+        // browser against real data:
+        //
+        //   - with no inline size the slotted content lays out at zero width, so a slider inside it has
+        //     a 0px track that cannot be dragged and a text field is a sliver;
+        //   - with a block-size cap Polaris *clips* the content and does not scroll it, so with four
+        //     sliders and a date range the lower controls were simply unreachable — painted below the
+        //     panel's edge, in space the panel does not occupy.
+        //
+        // Hence a generous cap here and a scroll box of our own inside it: the frame is Polaris's, the
+        // scrolling is a plain div that cannot be restyled out from under us.
+        builder.AddAttribute(42, nameof(PolarisPopover.MaxBlockSize), "70vh");
         builder.AddAttribute(43, nameof(PolarisPopover.InlineSize), "320px");
         builder.AddAttribute(44, nameof(PolarisPopover.ChildContent), (RenderFragment)(panel =>
         {
-            panel.OpenComponent<PolarisStack>(0);
-            panel.AddAttribute(1, nameof(PolarisStack.Gap), PolarisGap.Base);
-            panel.AddAttribute(2, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
+            panel.OpenElement(0, "div");
+            panel.AddAttribute(1, "data-polaris-filter-panel", true);
+
+            // A pixel height, not a viewport one: the cap belongs to Polaris, and the content has to be
+            // *smaller* than it for the scroll box to be inside the visible panel at all. Measured: with
+            // this box taller than the panel, everything below the panel's edge was clipped away with no
+            // way to reach it.
+            panel.AddAttribute(2, "style", "max-block-size:300px;overflow-y:auto");
+
+            panel.OpenComponent<PolarisStack>(3);
+            panel.AddAttribute(4, nameof(PolarisStack.Gap), PolarisGap.Base);
+            panel.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
             {
                 foreach (var column in filterable)
                 {
@@ -390,6 +407,7 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
                 }
             }));
             panel.CloseComponent();
+            panel.CloseElement();
         }));
         builder.CloseComponent();
     }

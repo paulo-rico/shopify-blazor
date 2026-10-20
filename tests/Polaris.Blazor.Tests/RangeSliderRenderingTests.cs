@@ -90,6 +90,29 @@ public sealed class RangeSliderRenderingTests
     }
 
     [Fact]
+    public void A_domain_that_grows_reopens_a_full_range_slider()
+    {
+        // The real failure this prevents, found by pointing the grid at an asynchronously loaded
+        // catalogue: a filter panel renders before its rows do, reads a placeholder domain, and a slider
+        // that only ever clamped kept that placeholder for ever. Both handles sat on the first value of
+        // a domain nobody could widen — a range filter that matched everything and could not be dragged.
+        using var context = new PolarisTestContext();
+
+        var slider = RenderSlider(context, min: 0, max: 1);
+        Assert.Equal("1", slider.Find("input[data-polaris-range-handle=upper]").GetAttribute("value"));
+
+        slider.Render(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 24m)
+            .Add(p => p.Step, 0.1m)
+            .Add(p => p.Value, (PolarisNumberRange?)null)
+            .Add(p => p.ShowInputs, false));
+
+        Assert.Equal("0", slider.Find("input[data-polaris-range-handle=lower]").GetAttribute("value"));
+        Assert.Equal("24", slider.Find("input[data-polaris-range-handle=upper]").GetAttribute("value"));
+    }
+
+    [Fact]
     public void A_handle_dragged_past_its_neighbour_stops_instead_of_swapping()
     {
         // Swapping would hand the merchant the other handle mid-drag: the value they are holding

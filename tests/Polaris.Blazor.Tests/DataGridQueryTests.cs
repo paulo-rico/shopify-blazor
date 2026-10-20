@@ -416,6 +416,36 @@ public sealed class DataGridQueryTests
     }
 
     [Fact]
+    public void The_loading_and_error_state_notify_like_everything_else()
+    {
+        // These two are the grid's own news, not the query's: a page that starts loading has to be able
+        // to redraw the spinner without touching the data. They are settable only through a method, so
+        // there is no way to change them silently — which is how the sample app's first live-data page
+        // held a spinner for ever.
+        using var state = NewState();
+        var notifications = 0;
+        state.Changed += () => notifications++;
+
+        state.SetLoading(true);
+        Assert.True(state.IsLoading);
+        Assert.Equal(1, notifications);
+
+        // The same value again is not a change, or a render loop would follow.
+        state.SetLoading(true);
+        Assert.Equal(1, notifications);
+
+        state.SetError("The database is unreachable.");
+        Assert.Equal("The database is unreachable.", state.ErrorMessage);
+        Assert.Equal(2, notifications);
+
+        state.SetLoading(false);
+        state.SetError(null);
+        Assert.False(state.IsLoading);
+        Assert.Null(state.ErrorMessage);
+        Assert.Equal(4, notifications);
+    }
+
+    [Fact]
     public void Every_mutation_notifies_once()
     {
         // A component that subscribes to the state re-renders on every notification; two per change

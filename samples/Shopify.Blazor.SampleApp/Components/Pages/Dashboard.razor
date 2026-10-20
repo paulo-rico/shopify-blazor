@@ -1,7 +1,10 @@
 @page "/"
+@using System.Globalization
 @using Shopify.Blazor.AppBridge
+@using Shopify.Blazor.SampleApp.Services
 @implements IDisposable
 @inject IAppBridgeInterop Bridge
+@inject AlloyCatalogue Catalogue
 
 @*
     The element names this page claims to render, for tools/verify-in-browser.mjs to read — the same
@@ -145,7 +148,20 @@
                 single state object, which is what makes them one grid.
             </PolarisParagraph>
 
-            <PolarisDataFilter State="_gridState" />
+            <PolarisParagraph>
+                The rows come from <code>AlloyCatalogue</code> — 150 alloys, loaded asynchronously the
+                way a database would answer, which is why the grid has a spinner of its own. Reload
+                replaces the collection under the same state; the page the merchant is on, their
+                filters and their selection all survive it.
+            </PolarisParagraph>
+
+            <PolarisDataFilter State="_gridState" ApplyMode="PolarisGridFilterApplyMode.Debounced">
+                <Actions>
+                    <PolarisButton OnClick="ReloadAsync" Loading="_gridState.IsLoading">
+                        Reload
+                    </PolarisButton>
+                </Actions>
+            </PolarisDataFilter>
 
             <PolarisDataGrid TItem="Alloy"
                              State="_gridState"
@@ -161,10 +177,15 @@
                                        FilterType="PolarisGridFilterType.Text" />
 
                     <PolarisGridColumn TItem="Alloy"
+                                       Field="alloy => alloy.Metal"
+                                       Title="Metal"
+                                       FilterType="PolarisGridFilterType.MultiSelect" />
+
+                    <PolarisGridColumn TItem="Alloy"
                                        Field="alloy => alloy.Carat"
                                        Title="Carat"
                                        Alignment="PolarisTableHeaderFormat.Numeric"
-                                       FilterType="PolarisGridFilterType.MultiSelect" />
+                                       FilterType="PolarisGridFilterType.Range" />
 
                     <PolarisGridColumn TItem="Alloy"
                                        Field="alloy => alloy.SilverPercentage"
@@ -174,11 +195,17 @@
                                        FilterType="PolarisGridFilterType.Range" />
 
                     <PolarisGridColumn TItem="Alloy"
-                                       Field="alloy => alloy.Fineness"
-                                       Title="Fineness"
-                                       Format="P1"
-                                       Alignment="PolarisTableHeaderFormat.Numeric"
+                                       Field="alloy => alloy.CostPerGram"
+                                       Title="Cost / g"
+                                       Format="C2"
+                                       FormatProvider="@UkPounds"
+                                       Alignment="PolarisTableHeaderFormat.Currency"
                                        FilterType="PolarisGridFilterType.Range" />
+
+                    <PolarisGridColumn TItem="Alloy"
+                                       Field="alloy => alloy.LastCosted"
+                                       Title="Last costed"
+                                       FilterType="PolarisGridFilterType.DateRange" />
 
                     <PolarisGridColumn TItem="Alloy"
                                        Field="alloy => alloy.Active"
@@ -193,13 +220,15 @@
                 </Columns>
             </PolarisDataGrid>
 
-            <PolarisDataPager State="_gridState" PageSizeOptions="@(new[] { 5, 10, 25 })" />
+            <PolarisDataPager State="_gridState" PageSizeOptions="@(new[] { 10, 25, 50, 100 })" />
 
             <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Small">
                 <PolarisText Color="PolarisColor.Subdued">Rows selected:</PolarisText>
                 <PolarisBadge Tone="PolarisTone.Info">@_selectedCount</PolarisBadge>
                 <PolarisText Color="PolarisColor.Subdued">· sorted by:</PolarisText>
-                <PolarisBadge Tone="PolarisTone.Neutral">@(_gridState.Query.Sorts.Count == 0 ? "source order" : string.Join(", ", _gridState.Query.Sorts.Select(sort => $"{sort.Field} {sort.Direction}")) )</PolarisBadge>
+                <PolarisBadge Tone="PolarisTone.Neutral">@_sortSummary</PolarisBadge>
+                <PolarisText Color="PolarisColor.Subdued">· loaded:</PolarisText>
+                <PolarisBadge Tone="PolarisTone.Neutral">@_loadedSummary</PolarisBadge>
             </PolarisStack>
         </PolarisStack>
     </PolarisSection>
@@ -221,31 +250,8 @@
 </PolarisStack>
 
 @code {
-    /// <summary>
-    /// The alloy data the grid demonstrates on: two silver grades, the gold carats a jeweller
-    /// actually stocks, and the platinum-group metals.
-    /// </summary>
-    /// <remarks>
-    /// Fourteen rows against a default page size of five, so the pager has three pages and a final
-    /// partial one — the arrangement that exposes an off-by-one in a row range.
-    /// </remarks>
-    private static readonly Alloy[] AlloyRows =
-    [
-        new(1, "Fine silver 999", 0, 99.9m, 0.999m, true),
-        new(2, "Sterling silver 925", 0, 92.5m, 0.925m, true),
-        new(3, "Britannia silver 958", 0, 95.8m, 0.958m, true),
-        new(4, "Sterling silver 925 (cast)", 0, 92.5m, 0.925m, true),
-        new(5, "Yellow gold 9ct", 9, 0m, 0.375m, true),
-        new(6, "Yellow gold 14ct", 14, 0m, 0.585m, true),
-        new(7, "Yellow gold 18ct", 18, 0m, 0.750m, true),
-        new(8, "White gold 18ct", 18, 0m, 0.750m, true),
-        new(9, "Rose gold 18ct", 18, 0m, 0.750m, false),
-        new(10, "Yellow gold 22ct", 22, 0m, 0.916m, false),
-        new(11, "Platinum 950", 0, 0m, 0.950m, true),
-        new(12, "Platinum 900", 0, 0m, 0.900m, true),
-        new(13, "Palladium 950", 0, 0m, 0.950m, true),
-        new(14, "Palladium 500", 0, 0m, 0.500m, false),
-    ];
+    /// <summary>Sterling is priced in pounds, and a cost column formatted with the invariant culture reads as $.</summary>
+    private static readonly CultureInfo UkPounds = CultureInfo.GetCultureInfo("en-GB");
 
     private PolarisGridState<Alloy> _gridState = null!;
 
@@ -267,26 +273,86 @@
         "s-section", "s-paragraph", "s-badge", "s-banner", "s-text", "s-text-field", "s-money-field",
         "s-switch", "s-text-area", "s-clickable", "s-box", "s-icon",
 
-        // The data grid, its filter and its pager.
+        // The data grid, its filter and its pager. The filter's controls are in the DOM whether the
+        // panel is open or not, which is what lets them be verified here.
         "s-search-field", "s-popover", "s-select", "s-option", "s-number-field", "s-checkbox",
+        "s-choice-list", "s-choice", "s-date-field",
         "s-table", "s-table-header-row", "s-table-header", "s-table-body", "s-table-row", "s-table-cell",
     ];
+
     private bool _checking = true;
     private bool _minting;
     private bool? _embedded;
     private string? _openSection;
     private string? _tokenSummary;
     private int _selectedCount;
+    private string? _loadedSummary;
+
+    /// <summary>What the grid is ordered by, read from the shared state rather than tracked separately.</summary>
+    private string _sortSummary => _gridState.Query.Sorts.Count == 0
+        ? "source order"
+        : string.Join(", ", _gridState.Query.Sorts.Select(sort => $"{sort.Field} {sort.Direction}"));
 
     /// <summary>
-    /// Creates the one state the filter, the grid and the pager share. The page owns it, which is
-    /// why it is disposed here and by nothing else.
+    /// Creates the one state the filter, the grid and the pager share. The page owns it, which is why
+    /// it is disposed here and by nothing else.
     /// </summary>
+    /// <remarks>
+    /// The state starts empty and is filled by <see cref="ReloadAsync"/>, because the catalogue answers
+    /// asynchronously. That ordering is what makes the grid's own loading state visible: the page does
+    /// not draw a spinner beside a table, the grid draws it instead of the table.
+    /// </remarks>
     protected override void OnInitialized()
     {
-        _gridState = new PolarisGridState<Alloy>(AlloyRows, alloy => alloy.Id);
-        _gridState.SetPageSize(5);
+        _gridState = new PolarisGridState<Alloy>(keySelector: alloy => alloy.Id);
+        _gridState.SetPageSize(10);
+
+        // The page shows the state's own summary — what it is sorted by, how many rows are selected —
+        // so it has to redraw when the grid changes the state as well. The components subscribe for
+        // themselves; a page that renders part of the same story has to do the same.
+        _gridState.Changed += OnGridStateChanged;
     }
+
+    /// <inheritdoc />
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    /// <summary>
+    /// Replaces the catalogue from the data source.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately a replacement, not a rebuild: the state, the page, the filters and the selection all
+    /// survive it. That is the difference between "reload the data" and "reload the screen", and it is
+    /// the behaviour a real screen needs when the pricing job has just run.
+    /// </remarks>
+    private async Task ReloadAsync()
+    {
+        _gridState.SetError(null);
+        _gridState.SetLoading(true);
+
+        try
+        {
+            var rows = await Catalogue.LoadAsync();
+
+            _gridState.SetItems(rows);
+            _loadedSummary = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{rows.Count} alloys at {DateTime.Now:HH:mm:ss}");
+        }
+        catch (Exception ex)
+        {
+            // The grid renders this in place of the rows, so a failed load never looks like an empty
+            // catalogue — which is the one thing a merchant would act on wrongly.
+            _gridState.SetError(ex.Message);
+        }
+        finally
+        {
+            _gridState.SetLoading(false);
+        }
+    }
+
+    private Task ReloadFromButtonAsync(PolarisEventArgs args) => ReloadAsync();
+
+    private void OnGridStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     /// <summary>
     /// The grid reports what is selected by key: the records themselves are the page's, and a list of
@@ -298,8 +364,12 @@
         return Task.CompletedTask;
     }
 
-    /// <summary>Stops the shared state from notifying a renderer that no longer exists.</summary>
-    public void Dispose() => _gridState.Dispose();
+    /// <summary>Detaches from the shared state and stops it notifying a renderer that no longer exists.</summary>
+    public void Dispose()
+    {
+        _gridState.Changed -= OnGridStateChanged;
+        _gridState.Dispose();
+    }
 
     /// <inheritdoc />
     protected override async Task OnAfterRenderAsync(bool firstRender)

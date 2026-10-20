@@ -73,10 +73,42 @@ public abstract class PolarisGridState : IDisposable
     public bool HasNextPage => PageCount > 0 && Query.PageIndex + 1 < PageCount;
 
     /// <summary>True while the caller is fetching or recomputing, so the pager can disable itself.</summary>
-    public bool IsLoading { get; set; }
+    /// <remarks>
+    /// Read-only, and changed through <see cref="SetLoading"/>. A settable property would be the one
+    /// part of the state that changes without notifying anyone — the grid would keep showing rows
+    /// while the data behind them was being replaced, and nothing would say why.
+    /// </remarks>
+    public bool IsLoading { get; private set; }
 
     /// <summary>A message to show instead of the rows, when a load failed outside the query.</summary>
-    public string? ErrorMessage { get; set; }
+    /// <remarks>Read-only, and changed through <see cref="SetError"/>, for the same reason.</remarks>
+    public string? ErrorMessage { get; private set; }
+
+    /// <summary>Shows or clears the loading state, and tells subscribers.</summary>
+    /// <param name="isLoading">Whether a load is in progress.</param>
+    public void SetLoading(bool isLoading)
+    {
+        if (IsLoading == isLoading)
+        {
+            return;
+        }
+
+        IsLoading = isLoading;
+        RaiseChanged();
+    }
+
+    /// <summary>Shows or clears an error message, and tells subscribers.</summary>
+    /// <param name="message">The message, or <c>null</c> to clear it.</param>
+    public void SetError(string? message)
+    {
+        if (string.Equals(ErrorMessage, message, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        ErrorMessage = message;
+        RaiseChanged();
+    }
 
     /// <summary>Raised once per change, after the result has been recomputed.</summary>
     /// <remarks>

@@ -51,6 +51,7 @@ public sealed class PolarisRangeSlider : ComponentBase
         $"polaris-range-slider-{Interlocked.Increment(ref _instanceCount)}");
 
     private PolarisNumberRange _current;
+    private PolarisNumberRange _domain;
     private PolarisNumberRange? _reported;
     private bool _initialised;
 
@@ -123,23 +124,39 @@ public sealed class PolarisRangeSlider : ComponentBase
     {
         var domain = new PolarisNumberRange(DomainMinimum, DomainMaximum);
 
-        if (!_initialised)
+        // No caller value means "the whole domain" — so the interval has to follow the domain when the
+        // domain changes, which it does whenever the data behind it arrives or is replaced.
+        //
+        // This is not a refinement. A filter panel renders before its grid's rows do, so the bounds it
+        // reads are a placeholder: a slider that only ever clamped would keep that placeholder range
+        // for ever, showing both handles parked at the first value of a domain nobody can widen — a
+        // range filter that matches everything, cannot be dragged and looks like a stylesheet fault.
+        // It was found by pointing the grid at a real, asynchronously loaded catalogue.
+        if (Value is null)
         {
+            if (!_initialised || _domain != domain)
+            {
+                _current = domain;
+            }
+
+            _domain = domain;
             _initialised = true;
-            _current = Clamp(Value ?? domain, domain);
             return;
         }
 
         // A value the caller supplies wins — unless it is the one this component has just reported,
         // which is the same value arriving back and must not reset a drag in progress.
-        if (Value is not null && Value.Value != _reported)
+        if (!_initialised || Value.Value != _reported)
         {
+            _domain = domain;
             _current = Clamp(Value.Value, domain);
+            _initialised = true;
             return;
         }
 
         // The domain moved: a reload can shrink or widen it, and a handle outside it would render
         // off the end of the track.
+        _domain = domain;
         _current = Clamp(_current, domain);
     }
 

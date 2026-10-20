@@ -286,6 +286,22 @@ Read these before changing anything in `src/`.
     only prove the handler was attached. The grid marks its own `s-section` with `data-polaris-data-grid`
     so the probe can tell it from the gallery's plain `PolarisTable`, and the grid's browser assertions
     are skipped on a page that has none.
+    Two more facts came from pointing the demo at a real, **asynchronously loaded** catalogue — the first
+    time the components met data that arrived late, which is how they will meet a database:
+    - **A control that renders before its data does must follow that data.** The filter panel draws its
+      range sliders from the dataset's bounds, and it renders while the grid is still loading, so those
+      bounds are a placeholder. A slider that only *clamped* to the domain kept the placeholder for ever:
+      both handles parked at the first value of a two-value stand-in domain, showing 4.167% of the track
+      and a range filter that matched everything and could not be dragged. `PolarisRangeSlider` now tracks
+      the domain it was given and re-opens to a full range when the domain grows (a `null` `Value` means
+      "the whole domain", so that is the correct reading), and a test holds it.
+    - **A Polaris popover clips its content; it does not scroll it.** With six filter controls the panel
+      is capped and the controls below the cap are painted beyond its edge, in space it does not occupy —
+      `elementsFromPoint` there returns an empty list, and every drag aimed at one missed. `MaxBlockSize`
+      was not the fix: the content has to be *shorter* than Polaris's cap, so the filter panel keeps its
+      own scroll box (`max-block-size:300px;overflow-y:auto` on a plain `div`) inside the popover's frame.
+    The probe grew a `--screenshot <path>` option with all of this: a layout fault and a behaviour fault
+    report identically through numbers, and an image answers "what does it look like" in one look.
 
 ## Resetting the build tree
 
