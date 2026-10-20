@@ -145,7 +145,7 @@ def parse_parameters(text: str) -> list[dict]:
     would take the type's zero member, which is a different value for a non-greedy enum.
     """
     pattern = re.compile(
-        r"((?:\s*///[^\n]*\n)*)\s*\[Parameter(?:\([^)]*\))?\]\s*public\s+([\w<>?\[\], .]+?)\s+(\w+)\s*\{\s*get;\s*set;\s*\}\s*(=\s*([^;]+);)?",
+        r"((?:\s*///[^\n]*\n)*)\s*\[Parameter\b[^\]]*\]\s*(?:\[[^\]\n]*\]\s*)*public\s+([\w<>?\[\], .]+?)\s+(\w+)\s*\{\s*get;\s*set;\s*\}\s*(=\s*([^;]+);)?",
         re.MULTILINE,
     )
     parameters = []

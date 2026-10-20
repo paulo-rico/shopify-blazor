@@ -1,6 +1,15 @@
 @page "/"
 @using Shopify.Blazor.AppBridge
+@implements IDisposable
 @inject IAppBridgeInterop Bridge
+
+@*
+    The element names this page claims to render, for tools/verify-in-browser.mjs to read — the same
+    contract the component gallery has. Only what this page always renders is listed: a chip appears
+    when a filter is applied and a spinner while something loads, so listing either would fail the
+    check on a page that is working correctly.
+*@
+<span id="polaris-probe-elements" data-elements="@string.Join(",", ProbedElements)" hidden></span>
 
 <PolarisStack Gap="PolarisGap.Base">
     <PolarisSection Heading="What this sample proves">
@@ -125,6 +134,76 @@
         </PolarisStack>
     </PolarisSection>
 
+    <PolarisSection Heading="Data grid, filter and pager (composed)">
+        <PolarisStack Gap="PolarisGap.Base">
+            <PolarisParagraph>
+                Polaris has a table, and nothing that sorts, filters or pages it. These four
+                components are composed from what does exist: the headings are buttons, the selection
+                boxes are <code>s-checkbox</code> in a cell, the filter panel is an
+                <code>s-popover</code> opened by <code>commandFor</code>, and the range control is two
+                native range inputs over one track. They are three separate components sharing a
+                single state object, which is what makes them one grid.
+            </PolarisParagraph>
+
+            <PolarisDataFilter State="_gridState" />
+
+            <PolarisDataGrid TItem="Alloy"
+                             State="_gridState"
+                             AllowSelection="true"
+                             EmptyHeading="No alloy matches those filters"
+                             EmptySubheading="Clear a filter, or search for something else."
+                             SelectionChanged="SelectionChangedAsync">
+                <Columns>
+                    <PolarisGridColumn TItem="Alloy"
+                                       Field="alloy => alloy.Name"
+                                       Title="Alloy"
+                                       ListSlot="PolarisTableListSlot.Primary"
+                                       FilterType="PolarisGridFilterType.Text" />
+
+                    <PolarisGridColumn TItem="Alloy"
+                                       Field="alloy => alloy.Carat"
+                                       Title="Carat"
+                                       Alignment="PolarisTableHeaderFormat.Numeric"
+                                       FilterType="PolarisGridFilterType.MultiSelect" />
+
+                    <PolarisGridColumn TItem="Alloy"
+                                       Field="alloy => alloy.SilverPercentage"
+                                       Title="Silver %"
+                                       Format="N1"
+                                       Alignment="PolarisTableHeaderFormat.Numeric"
+                                       FilterType="PolarisGridFilterType.Range" />
+
+                    <PolarisGridColumn TItem="Alloy"
+                                       Field="alloy => alloy.Fineness"
+                                       Title="Fineness"
+                                       Format="P1"
+                                       Alignment="PolarisTableHeaderFormat.Numeric"
+                                       FilterType="PolarisGridFilterType.Range" />
+
+                    <PolarisGridColumn TItem="Alloy"
+                                       Field="alloy => alloy.Active"
+                                       Title="Active"
+                                       FilterType="PolarisGridFilterType.Boolean">
+                        <CellTemplate Context="alloy">
+                            <PolarisBadge Tone="@(alloy.Active ? PolarisTone.Success : PolarisTone.Neutral)">
+                                @(alloy.Active ? "in use" : "retired")
+                            </PolarisBadge>
+                        </CellTemplate>
+                    </PolarisGridColumn>
+                </Columns>
+            </PolarisDataGrid>
+
+            <PolarisDataPager State="_gridState" PageSizeOptions="@(new[] { 5, 10, 25 })" />
+
+            <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Small">
+                <PolarisText Color="PolarisColor.Subdued">Rows selected:</PolarisText>
+                <PolarisBadge Tone="PolarisTone.Info">@_selectedCount</PolarisBadge>
+                <PolarisText Color="PolarisColor.Subdued">· sorted by:</PolarisText>
+                <PolarisBadge Tone="PolarisTone.Neutral">@(_gridState.Query.Sorts.Count == 0 ? "source order" : string.Join(", ", _gridState.Query.Sorts.Select(sort => $"{sort.Field} {sort.Direction}")) )</PolarisBadge>
+            </PolarisStack>
+        </PolarisStack>
+    </PolarisSection>
+
     <PolarisSection Heading="Request a fresh session token">
         <PolarisStack Gap="PolarisGap.Base">
             <PolarisText>
@@ -142,11 +221,85 @@
 </PolarisStack>
 
 @code {
+    /// <summary>
+    /// The alloy data the grid demonstrates on: two silver grades, the gold carats a jeweller
+    /// actually stocks, and the platinum-group metals.
+    /// </summary>
+    /// <remarks>
+    /// Fourteen rows against a default page size of five, so the pager has three pages and a final
+    /// partial one — the arrangement that exposes an off-by-one in a row range.
+    /// </remarks>
+    private static readonly Alloy[] AlloyRows =
+    [
+        new(1, "Fine silver 999", 0, 99.9m, 0.999m, true),
+        new(2, "Sterling silver 925", 0, 92.5m, 0.925m, true),
+        new(3, "Britannia silver 958", 0, 95.8m, 0.958m, true),
+        new(4, "Sterling silver 925 (cast)", 0, 92.5m, 0.925m, true),
+        new(5, "Yellow gold 9ct", 9, 0m, 0.375m, true),
+        new(6, "Yellow gold 14ct", 14, 0m, 0.585m, true),
+        new(7, "Yellow gold 18ct", 18, 0m, 0.750m, true),
+        new(8, "White gold 18ct", 18, 0m, 0.750m, true),
+        new(9, "Rose gold 18ct", 18, 0m, 0.750m, false),
+        new(10, "Yellow gold 22ct", 22, 0m, 0.916m, false),
+        new(11, "Platinum 950", 0, 0m, 0.950m, true),
+        new(12, "Platinum 900", 0, 0m, 0.900m, true),
+        new(13, "Palladium 950", 0, 0m, 0.950m, true),
+        new(14, "Palladium 500", 0, 0m, 0.500m, false),
+    ];
+
+    private PolarisGridState<Alloy> _gridState = null!;
+
+    /// <summary>
+    /// Every element this page renders unconditionally, and therefore the list the browser
+    /// verification checks.
+    /// </summary>
+    /// <remarks>
+    /// The grid's elements are most of the list, and they are the interesting half: a table that has
+    /// not upgraded renders as an empty box, and a checkbox that has not upgraded looks ticked while
+    /// nothing is selected.
+    /// </remarks>
+    private static readonly string[] ProbedElements =
+    [
+        // The shell, from the layout.
+        "s-page", "s-stack", "s-divider", "s-button",
+
+        // The accordion's own composition, plus the fields inside it.
+        "s-section", "s-paragraph", "s-badge", "s-banner", "s-text", "s-text-field", "s-money-field",
+        "s-switch", "s-text-area", "s-clickable", "s-box", "s-icon",
+
+        // The data grid, its filter and its pager.
+        "s-search-field", "s-popover", "s-select", "s-option", "s-number-field", "s-checkbox",
+        "s-table", "s-table-header-row", "s-table-header", "s-table-body", "s-table-row", "s-table-cell",
+    ];
     private bool _checking = true;
     private bool _minting;
     private bool? _embedded;
     private string? _openSection;
     private string? _tokenSummary;
+    private int _selectedCount;
+
+    /// <summary>
+    /// Creates the one state the filter, the grid and the pager share. The page owns it, which is
+    /// why it is disposed here and by nothing else.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        _gridState = new PolarisGridState<Alloy>(AlloyRows, alloy => alloy.Id);
+        _gridState.SetPageSize(5);
+    }
+
+    /// <summary>
+    /// The grid reports what is selected by key: the records themselves are the page's, and a list of
+    /// them would go stale the moment the collection was replaced.
+    /// </summary>
+    private Task SelectionChangedAsync(IReadOnlyCollection<object> keys)
+    {
+        _selectedCount = keys.Count;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Stops the shared state from notifying a renderer that no longer exists.</summary>
+    public void Dispose() => _gridState.Dispose();
 
     /// <inheritdoc />
     protected override async Task OnAfterRenderAsync(bool firstRender)

@@ -33,6 +33,10 @@ const chrome = spawn(chromePath, [
     "--disable-gpu",
     "--no-first-run",
     "--no-default-browser-check",
+    // A taller window than the 800x600 headless default: a control anchored near the bottom of the
+    // page opens its panel downwards, and a 485px viewport puts that panel below the fold where a
+    // synthetic drag lands on nothing at all.
+    "--window-size=1280,900",
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profileDir}`,
     "about:blank",
@@ -220,6 +224,42 @@ class DevTools {
         })()`);
     }
 
+    /**
+     * The viewport point at the centre of the `<button>` inside the first element matching an
+     * expression, or null when there is none.
+     *
+     * Three things make this different from measuring the element itself, and each one cost a run of
+     * checks that reported "the click does nothing":
+     *
+     *   - An `s-button` host computes to `display: contents`, so its own box is 0×0 at the page origin.
+     *     The button inside its shadow root is the box a merchant clicks.
+     *   - `Input.dispatchMouseEvent` works in viewport coordinates, so the element has to be on screen.
+     *   - Smooth scrolling makes a point measured on the same tick as the scroll a point the element
+     *     has left by the time the click arrives, so the scroll is forced to be instant and then
+     *     given two frames to settle.
+     *
+     * @param {string} matchExpression a JavaScript expression returning the host element or null
+     */
+    async shadowButtonCentre(matchExpression, block = "center") {
+        return this.evaluate(`(async () => {
+            const element = ${matchExpression};
+            const button = element?.shadowRoot?.querySelector("button") ?? element;
+            if (!button) return null;
+
+            const behaviour = document.documentElement.style.scrollBehavior;
+            document.documentElement.style.scrollBehavior = "auto";
+            button.scrollIntoView({ block: ${JSON.stringify(block)}, inline: "center" });
+            document.documentElement.style.scrollBehavior = behaviour;
+
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+            const box = button.getBoundingClientRect();
+            return box.width > 0 && box.height > 0
+                ? { x: Math.round(box.x + (box.width / 2)), y: Math.round(box.y + (box.height / 2)), width: Math.round(box.width) }
+                : null;
+        })()`);
+    }
+
     close() {
         this.#socket.close();
     }
@@ -284,7 +324,87 @@ const accordionStateExpression = `Array.from(document.querySelectorAll("[data-po
             transition: panel ? getComputedStyle(panel).transitionDuration : null,
         };
 })`;
-const probe = markedElementHelper + `(async () => {
+/**
+ * Reads the data grid back out of the page.
+ *
+ * The grid's sorting, filtering and paging are the library's own rather than Polaris's — s-table has
+ * none of them — so what is measured here is what a browser alone can answer: that a click on a column
+ * heading really sorts, that the filter panel really opens from `commandFor`, and that the slider's
+ * track and thumb have real geometry to drag.
+ */
+const gridStateExpression = `(() => {
+    const headers = Array.from(document.querySelectorAll("s-table-header"));
+    const rows = Array.from(document.querySelectorAll("s-table-row"));
+    const rowText = (row) => (row?.textContent ?? "").replace(/\\s+/g, " ").trim();
+
+    // Not headers[0]: a selectable grid puts its select-all checkbox in the first heading cell, so the
+    // first column's heading is the second one. The sortable heading is the one that contains a
+    // control, which keeps this independent of how many leading utility columns there are.
+    const sortButton = Array.from(document.querySelectorAll("s-table-header"))
+        .map((header) => header.querySelector("s-button"))
+        .find((button) => button !== null) ?? null;
+
+    const popover = document.querySelector("s-popover");
+    const popoverBox = popover?.getBoundingClientRect();
+
+    const slider = document.querySelector("[data-polaris-range-slider]");
+    const track = slider?.querySelector("[data-polaris-range-track]");
+    const upper = track?.querySelector("input[data-polaris-range-handle=upper]");
+    const trackBox = track?.getBoundingClientRect();
+
+    // The record range is its own text run. Reading the whole nav would concatenate the page-size
+    // options and the page numbers into it, which reported "1–5 of 1451025123".
+    const pager = document.querySelector('nav[aria-label="Pagination"]');
+
+    return {
+        // The grid marks its own section, so a page with a plain table is not mistaken for one with a
+        // grid: the gallery has the former and the dashboard the latter, and the same probe runs on
+        // both.
+        present: document.querySelector("[data-polaris-data-grid]") !== null,
+        headers: headers.length,
+        rows: rows.length,
+        cellsPerRow: rows[0] ? rows[0].querySelectorAll("s-table-cell").length : 0,
+        names: rows.slice(0, 3).map(rowText),
+        sortButton: sortButton !== null,
+        sortIcon: sortButton?.getAttribute("icon") ?? null,
+        sortLabel: sortButton?.getAttribute("accessibilityLabel") ?? null,
+        // A closed Polaris popover still computes to visibility: visible; what it does not have is a
+        // box. Geometry is the honest signal, and it is also what makes a control inside it measurable.
+        popoverHeight: popoverBox ? Math.round(popoverBox.height) : 0,
+        rangeText: (pager?.querySelector("s-text")?.textContent ?? "").replace(/\\s+/g, " ").trim(),
+        chips: document.querySelectorAll("s-clickable-chip").length,
+        slider: slider && track ? {
+            present: true,
+            // The slider's own width, which is 0 while the panel that holds it is closed: this is the
+            // measurement that says "the panel really opened", since the host element's box cannot.
+            width: Math.round(slider.getBoundingClientRect().width),
+            start: getComputedStyle(slider).getPropertyValue("--polaris-range-start").trim(),
+            end: getComputedStyle(slider).getPropertyValue("--polaris-range-end").trim(),
+            trackWidth: trackBox ? Math.round(trackBox.width) : 0,
+            upperValue: upper?.value ?? null,
+            // The thumb's position is not the input's: the input spans the whole track and only the
+            // thumb inside it is a pointer target. Nor is the thumb at a bare fraction of the track: a
+            // range input insets it by half its width at each end, so a value at the maximum puts its
+            // centre half a thumb inside the right edge — which is why a press aimed at the edge missed
+            // and the drag did nothing.
+            thumbPoint: (() => {
+                if (!upper || !trackBox || trackBox.width === 0) return null;
+                const min = Number(upper.min);
+                const max = Number(upper.max);
+                const value = Number(upper.value);
+                const ratio = max > min ? (value - min) / (max - min) : 0;
+                const inset = 8;
+                return {
+                    x: Math.round(trackBox.x + inset + (ratio * Math.max(0, trackBox.width - (inset * 2)))),
+                    y: Math.round(trackBox.y + (trackBox.height / 2)),
+                };
+            })(),
+        } : { present: false },
+    };
+})()`;
+
+const probe = markedElementHelper
+ + `(async () => {
     // The list comes from the page, not from this file. Components.razor renders it, so a component    // added to the gallery is verified here without anyone remembering to update a second list — and
     // a component listed but never rendered fails the count check instead of passing vacuously.
     const marker = document.getElementById("polaris-probe-elements");
@@ -335,6 +455,7 @@ const probe = markedElementHelper + `(async () => {
         "js/reconnect-modal.js",
         "_content/Polaris.Blazor/polaris-interop.js",
         "_content/Polaris.Blazor/polaris-accordion.css",
+        "_content/Polaris.Blazor/polaris-range-slider.css",
         "_content/Shopify.Blazor/app-bridge.js",
     ]) {
         try {
@@ -476,6 +597,10 @@ const probe = markedElementHelper + `(async () => {
         title: document.title,
         counter,
         accordion,
+        // Awaited, because the reader scrolls and waits for the scroll to settle before measuring —
+        // an un-awaited promise here serialises as an empty object, and every grid assertion then reads
+        // a grid of zero headings.
+        grid: await ${gridStateExpression},
         apiKeyMeta: document.querySelector('meta[name="shopify-api-key"]')?.getAttribute("content") ?? null,
         scripts: Array.from(document.querySelectorAll("script[src]")).map((s) => s.getAttribute("src")),
         appBridgeGlobal: typeof window.shopify,
@@ -546,7 +671,14 @@ function evaluateAssertions(result) {
 
     check(result.form?.submitted?.q === "signet", "a Polaris text field's value reaches the submitted form");
     check(result.form?.submitted?.status === "draft", "a Polaris select's selected value reaches the submitted form");
-    check(result.counter?.roundTripped === true, "a real click reaches the C# handler and re-renders");
+    // Asserted only where the page has the counter button: this probe also runs against pages that do
+    // not render the component gallery, and a check that cannot exist on a page must not be reported as
+    // a failure there. The gallery page is where this one earns its keep.
+    if (result.counter) {
+        check(result.counter.roundTripped === true, "a real click reaches the C# handler and re-renders");
+    } else {
+        console.log("  note  no click counter on this page, so the click round trip is not checked here");
+    }
     check(result.commandForWired === true, "a modal or popover is wired declaratively with commandFor");
     check(result.tableStructure?.rowsInsideBody === true, "table rows live inside s-table-body");
 
@@ -631,6 +763,56 @@ function evaluateAssertions(result) {
         }
     }
 
+    // The composed data grid. The table is Polaris's; the sorting, the filter panel and the slider are
+    // the toolkit's, and not one of them can be observed by a component test — bUnit asserts that a
+    // handler was attached, a browser is the only thing that can say the click arrived.
+    //
+    // Only where the page has one: the same probe runs against the component gallery, which has a plain
+    // Polaris table and no grid, and a check that cannot apply on a page must not report a failure there.
+    const grid = result.grid ?? {};
+
+    if (!grid.present) {
+        console.log("  note  this page has no composed data grid, so the grid checks do not apply");
+    } else {
+    check(grid.headers >= 5, `the data grid draws a heading per column (${grid.headers ?? 0})`);
+    check(
+        grid.rows > 0 && grid.cellsPerRow === grid.headers,
+        `every row has one cell per heading (${grid.cellsPerRow ?? 0} of ${grid.headers ?? 0})`,
+    );
+    check(grid.sortButton === true, "a sortable heading is a button, because s-table offers no sorting");
+    check(
+        grid.sortClicked === true,
+        `a real click on a heading sorts the grid (${grid.afterSort?.sortLabel ?? "no direction reported"})`,
+    );
+    check(
+        grid.afterSort?.names?.[0] !== grid.names?.[0],
+        `the row order really changed (${grid.names?.[0] ?? "?"} -> ${grid.afterSort?.names?.[0] ?? "?"})`,
+    );
+    check(
+        grid.popoverBeforeWidth === 0 && (grid.popoverOpenedBy?.sliderWidth ?? 0) > 0,
+        `the filter panel opens from the button's commandFor, with no JavaScript of this library's own ` +
+        `(content width ${grid.popoverBeforeWidth ?? "?"}px -> ${grid.popoverOpenedBy?.sliderWidth ?? "?"}px)`,
+    );
+    check(grid.slider?.present === true, "the range filter renders a slider with a track of its own");
+    check(
+        (grid.popoverOpenedBy?.trackWidth ?? 0) > 50,
+        `the track has a measurable width once the panel is open, so the stylesheet resolved ` +
+        `(${grid.popoverOpenedBy?.trackWidth ?? 0}px)`,
+    );
+    check(
+        grid.afterDrag?.slider?.upperValue !== grid.beforeDrag?.slider?.upperValue,
+        `dragging the upper handle moves it (${grid.beforeDrag?.slider?.upperValue ?? "?"} -> ${grid.afterDrag?.slider?.upperValue ?? "?"})`,
+    );
+    check(
+        grid.afterDrag?.slider?.end !== grid.beforeDrag?.slider?.end,
+        `the highlighted interval follows the handle (${grid.beforeDrag?.slider?.end ?? "?"} -> ${grid.afterDrag?.slider?.end ?? "?"})`,
+    );
+    check(
+        (grid.afterDrag?.rangeText ?? "") !== (grid.beforeDrag?.rangeText ?? ""),
+        `the result is re-queried after the drag (${grid.beforeDrag?.rangeText ?? "?"} -> ${grid.afterDrag?.rangeText ?? "?"})`,
+    );
+    }
+
     for (const [path, status] of Object.entries(assets)) {
         check(status === 200, `${path} is served (HTTP ${status})`);
     }
@@ -712,6 +894,203 @@ try {
         // Let the 200ms transition settle, so the heights read are the settled ones.
         await sleep(500);
         result.accordion.after = await devtools.evaluate(accordionStateExpression);
+    }
+
+    // The grid is driven next, and everything about it is the library's own behaviour: Polaris has no
+    // sorting, no filter panel and no slider, so a unit test can only prove the handler is attached.
+    //
+    // Order matters. Sorting first proves the heading is a real control; the filter panel is opened
+    // afterwards because the slider lives inside it.
+    if (result.grid?.sortButton) {
+        // Measured immediately before the click, by a helper that scrolls the heading into view: a
+        // point computed earlier is a point measured against a different scroll position, and the click
+        // then lands on whatever has since moved under it.
+        const sortPoint = await devtools.shadowButtonCentre(
+            `Array.from(document.querySelectorAll("s-table-header"))
+                .map((header) => header.querySelector("s-button"))
+                .find((button) => button !== null) ?? null`);
+
+        if (sortPoint) {
+            await devtools.clickAt(sortPoint.x, sortPoint.y);
+
+            const sortedBy = Date.now() + 10000;
+            while (Date.now() < sortedBy) {
+                const icon = await devtools.evaluate(gridStateExpression).then((state) => state.sortIcon);
+
+                if (icon) break;
+                await sleep(100);
+            }
+
+            result.grid.afterSort = await devtools.evaluate(gridStateExpression);
+            result.grid.sortClicked = result.grid.afterSort.sortIcon !== null;
+        }
+    }
+
+    if (result.grid?.slider?.present) {
+        const beforeOpen = await devtools.evaluate(gridStateExpression);
+        result.grid.popoverBeforeWidth = beforeOpen.slider?.width ?? 0;
+
+        const filterPoint = await devtools.shadowButtonCentre(
+            `Array.from(document.querySelectorAll("s-button"))
+                .find((button) => (button.textContent ?? "").trim().startsWith("Filter")) ?? null`);
+
+        if (filterPoint) {
+            result.grid.filterClick = filterPoint;
+
+            // What is under the point, measured before the click: a point that lands on a sibling — the
+            // search field beside it, say — is a click that does nothing and says nothing.
+            result.grid.filterHit = await devtools.evaluate(`(() => {
+                const target = document.elementFromPoint(${filterPoint.x}, ${filterPoint.y});
+                if (!target) return null;
+                const host = target.closest("s-button") ?? target.closest("s-search-field") ?? target;
+                return {
+                    tag: target.tagName.toLowerCase(),
+                    host: host.tagName.toLowerCase(),
+                    hostId: host.getAttribute("id") ?? null,
+                    text: (host.textContent ?? "").trim().slice(0, 24),
+                };
+            })()`);
+
+            await devtools.clickAt(filterPoint.x, filterPoint.y);
+        }
+
+        // A closed Polaris popover still reports visibility: visible, so the panel is waited for by its
+        // box and for a control inside it being measurable — which is also the precondition for the
+        // drag below. Waiting on the wrong signal is how the drag ran against a 0px track.
+        const openedBy = Date.now() + 5000;
+        result.grid.openSamples = [];
+
+        while (Date.now() < openedBy) {
+            const opened = await devtools.evaluate(
+                `(() => {
+                    const popover = document.querySelector("s-popover");
+                    const track = document.querySelector("[data-polaris-range-track]");
+                    const slider = document.querySelector("[data-polaris-range-slider]");
+                    return {
+                        hostHeight: popover ? Math.round(popover.getBoundingClientRect().height) : 0,
+                        sliderWidth: slider ? Math.round(slider.getBoundingClientRect().width) : 0,
+                        trackWidth: track ? Math.round(track.getBoundingClientRect().width) : 0,
+                        nativeOpen: popover ? popover.matches(":popover-open") : null,
+                    };
+                })()`);
+
+            result.grid.openSamples.push(opened);
+
+            if (opened.trackWidth > 0) {
+                result.grid.popoverOpenedBy = opened;
+                break;
+            }
+
+            await sleep(150);
+        }
+
+        result.grid.popoverHeightAfter = await devtools.evaluate(
+            `(() => { const p = document.querySelector("s-popover"); return p ? Math.round(p.getBoundingClientRect().height) : 0; })()`);
+
+        // Reported, not asserted: what "open" looks like from outside a shadow root is Polaris's to
+        // decide, and three different signals disagree about it — visibility stays "visible", the host
+        // box can be 0×0 because a Polaris host may compute to display: contents, and :popover-open
+        // only applies to a native popover.
+        result.grid.popoverDiagnostics = await devtools.evaluate(
+            `(() => {
+                const popover = document.querySelector("s-popover");
+                if (!popover) return null;
+                const shadowFirst = popover.shadowRoot?.firstElementChild ?? null;
+                const hostStyle = getComputedStyle(popover);
+                const firstStyle = shadowFirst ? getComputedStyle(shadowFirst) : null;
+                const child = popover.firstElementChild;
+                const childBox = child?.getBoundingClientRect();
+
+                return {
+                    attributes: Array.from(popover.attributes).map((a) => a.name + "=" + a.value),
+                    nativePopoverOpen: popover.matches(":popover-open"),
+                    hostDisplay: hostStyle.display,
+                    hostVisibility: hostStyle.visibility,
+                    hostHeight: Math.round(popover.getBoundingClientRect().height),
+                    shadowFirstTag: shadowFirst?.tagName?.toLowerCase() ?? null,
+                    shadowFirstDisplay: firstStyle?.display ?? null,
+                    shadowFirstHeight: shadowFirst ? Math.round(shadowFirst.getBoundingClientRect().height) : 0,
+                    lightChildTag: child?.tagName?.toLowerCase() ?? null,
+                    lightChildHeight: childBox ? Math.round(childBox.height) : 0,
+                    // Where the panel's content actually lives, and why it has no height. Reported as
+                    // tag:display/height so an overlay that re-parents its light DOM is visible at a
+                    // glance rather than guessed at.
+                    sliderAncestors: (() => {
+                        const chain = [];
+                        let node = document.querySelector("[data-polaris-range-slider]");
+
+                        while (node && chain.length < 8) {
+                            const style = getComputedStyle(node);
+                            const box = node.getBoundingClientRect();
+                            chain.push(node.tagName.toLowerCase() + ":" + style.display + "/" + Math.round(box.height) + "x" + Math.round(box.width));
+                            node = node.parentElement;
+                        }
+
+                        return chain;
+                    })(),
+                    // Whether the command reached the <button> Polaris renders. The Invoker Commands API
+                    // reads commandfor/command from the button element itself, so a command left on the
+                    // host element is a command that never fires.
+                    triggerButton: (() => {
+                        const host = Array.from(document.querySelectorAll("s-button"))
+                            .find((element) => (element.textContent ?? "").trim().startsWith("Filter"));
+                        const inner = host?.shadowRoot?.querySelector("button");
+                        return inner ? Array.from(inner.attributes).map((a) => a.name + "=" + a.value) : null;
+                    })(),
+                };
+            })()`);
+
+        // A drag of the upper handle: pressed on the thumb, moved in steps (a range input follows
+        // pointer moves, not a single jump) and released, which is the interaction a merchant makes.
+        const slider = await devtools.evaluate(gridStateExpression);
+
+        if (slider.slider?.thumbPoint && slider.slider.trackWidth > 0) {
+            const from = slider.slider.thumbPoint;
+            const toX = Math.max(8, Math.round(from.x - (slider.slider.trackWidth * 0.4)));
+            const shared = { button: "left", y: from.y };
+
+            // What the press actually lands on. A range input only starts dragging when the press is on
+            // its thumb, and a pseudo-element does not report itself here — so this is reported as the
+            // element that owns the point, not as an assertion.
+            result.grid.dragHit = await devtools.evaluate(`(() => {
+                const stack = document.elementsFromPoint(${from.x}, ${from.y});
+                return stack.slice(0, 4).map((element) => {
+                    const handle = element.getAttribute?.("data-polaris-range-handle") ?? null;
+                    return element.tagName.toLowerCase() + (handle ? "[" + handle + "]" : "");
+                });
+            })()`);
+
+            // Where the drag is actually being aimed, and whether that is on screen at all:
+            // elementsFromPoint returns an empty list for a point outside the viewport, which is how a
+            // panel anchored below the fold looked exactly like a press that missed its target.
+            result.grid.dragGeometry = await devtools.evaluate(`(() => {
+                const track = document.querySelector("[data-polaris-range-track]");
+                const box = track?.getBoundingClientRect();
+                return {
+                    from: { x: ${from.x}, y: ${from.y} },
+                    trackBox: box ? { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) } : null,
+                    viewport: { w: window.innerWidth, h: window.innerHeight },
+                    scrollY: Math.round(window.scrollY),
+                };
+            })()`);
+
+            await devtools.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: from.x, y: from.y, button: "none", buttons: 0 });
+            await devtools.send("Input.dispatchMouseEvent", { type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1 });
+
+            result.grid.afterPress = await devtools.evaluate(gridStateExpression);
+
+            for (let step = 1; step <= 5; step++) {
+                const x = Math.round(from.x + ((toX - from.x) * (step / 5)));
+                await devtools.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, buttons: 1, ...shared });
+                await sleep(50);
+            }
+
+            await devtools.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: toX, buttons: 0, ...shared });
+
+            await sleep(800);
+            result.grid.beforeDrag = slider;
+            result.grid.afterDrag = await devtools.evaluate(gridStateExpression);
+        }
     }
 
     result.consoleMessages = devtools.consoleMessages;

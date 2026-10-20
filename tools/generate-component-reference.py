@@ -77,9 +77,14 @@ def parse(path: Path) -> dict:
         doc = clean(type_declaration.group(1))
 
     # Parameters, with the preceding doc comment when there is one.
+    #
+    # The attribute list is matched loosely: `[Parameter]`, `[Parameter(CaptureUnmatchedValues = true)]`
+    # and `[Parameter, EditorRequired]` are all parameters, and a further attribute line between the
+    # list and the property must not hide it — an `[EditorRequired]` written that way made a
+    # documented parameter an undocumented one, silently, because the table is generated.
     parameters = []
     pattern = re.compile(
-        r"((?:\s*///[^\n]*\n)*)\s*\[Parameter(?:\([^)]*\))?\]\s*public\s+([\w<>?\[\], .]+?)\s+(\w+)\s*\{\s*get;\s*set;\s*\}",
+        r"((?:\s*///[^\n]*\n)*)\s*\[Parameter\b[^\]]*\]\s*(?:\[[^\]\n]*\]\s*)*public\s+([\w<>?\[\], .]+?)\s+(\w+)\s*\{\s*get;\s*set;\s*\}",
         re.MULTILINE,
     )
     for match in pattern.finditer(text):

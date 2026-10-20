@@ -6,7 +6,7 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
-2 more are composed from those wrappers, for behaviour Polaris does not
+7 more are composed from those wrappers, for behaviour Polaris does not
 provide in an element of its own. They add structure and interaction; they do not add
 appearance either, because everything visible in them is still a Polaris element.
 
@@ -32,6 +32,9 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisClickableChip` | `<s-clickable-chip>` | `AfterHide`, `Click`, `Remove` | yes |
 | `PolarisColorField` | `<s-color-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
 | `PolarisColorPicker` | `<s-color-picker>` | `Change`, `Input` | yes |
+| `PolarisDataFilter` | — composed | — | yes |
+| `PolarisDataGrid` | — composed | — | yes |
+| `PolarisDataPager` | — composed | — | yes |
 | `PolarisDateField` | `<s-date-field>` | `Blur`, `Change`, `Focus`, `Input`, `Invalid`, `ViewChange` | yes |
 | `PolarisDatePicker` | `<s-date-picker>` | `Blur`, `Change`, `Focus`, `Input`, `ViewChange` | yes |
 | `PolarisDivider` | `<s-divider>` | — | yes |
@@ -39,6 +42,7 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisEmailField` | `<s-email-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
 | `PolarisEmptyState` | `<s-empty-state>` | — | yes |
 | `PolarisGrid` | `<s-grid>` | — | yes |
+| `PolarisGridColumn` | — composed | — | yes |
 | `PolarisGridItem` | `<s-grid-item>` | — | yes |
 | `PolarisHeading` | `<s-heading>` | — | yes |
 | `PolarisIcon` | `<s-icon>` | — | yes |
@@ -59,6 +63,7 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisPopover` | `<s-popover>` | — | yes |
 | `PolarisProgress` | `<s-progress>` | — | yes |
 | `PolarisQueryContainer` | `<s-query-container>` | — | yes |
+| `PolarisRangeSlider` | — composed | — | yes |
 | `PolarisSearchField` | `<s-search-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
 | `PolarisSection` | `<s-section>` | — | yes |
 | `PolarisSelect` | `<s-select>` | `Change`, `Input` | yes |
@@ -442,6 +447,50 @@ Wraps `<s-color-picker>`, the palette with no field chrome.
 | `OnInput` | `EventCallback<PolarisEventArgs>` | Raised on every change while the colour is being dragged. |
 | `OnChange` | `EventCallback<PolarisEventArgs>` | Raised when the colour is committed. |
 
+### `PolarisDataFilter` (composed)
+
+The filter bar for a `PolarisDataGrid{TItem}`: a search box, a panel of per-column controls, and a chip for every filter that is applied.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `State` | `PolarisGridState` | The shared state. |
+| `ApplyMode` | `PolarisGridFilterApplyMode` | When a change reaches the query. |
+| `DebounceMilliseconds` | `int` | How long typing must pause before a debounced change applies. |
+| `SearchPlaceholder` | `string?` | Placeholder for the search box. |
+| `ShowActiveFilters` | `bool` | Shows a chip for each applied filter. |
+| `ShowClearAll` | `bool` | Shows a button that clears every filter and the search at once. |
+| `ShowSearch` | `bool` | Shows the search box, which filters every searchable column at once. |
+| `Actions` | `RenderFragment?` | Extra controls shown at the end of the bar, such as an export button. |
+
+### `PolarisDataGrid` (composed)
+
+Renders one page of a local collection as a Polaris table, with sorting, selection and empty, loading and error states.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `State` | `PolarisGridState<TItem>` | The shared state. |
+| `Columns` | `RenderFragment?` | The column declarations, one `PolarisGridColumn{TItem}` each. |
+| `AllowSelection` | `bool` | Shows a checkbox column, and a header checkbox that selects the visible page. |
+| `SelectionChanged` | `EventCallback<IReadOnlyCollection<object>>` | Raised with the keys of the selected records after a selection change, including one caused by a chip or a keyboard. |
+| `EmptyHeading` | `string?` | A heading for the empty state. |
+| `EmptySubheading` | `string?` | Supporting text under the empty heading. |
+| `EmptyContent` | `RenderFragment?` | Replaces the whole empty state. |
+| `LoadingContent` | `RenderFragment?` | Replaces the spinner shown while `PolarisGridState.IsLoading` is set. |
+
+### `PolarisDataPager` (composed)
+
+Page navigation for a `PolarisDataGrid{TItem}`, sharing its state.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `State` | `PolarisGridState` | The shared state. |
+| `PageSizeOptions` | `IReadOnlyList<int>` | The page sizes offered. |
+| `ShowFirstLast` | `bool` | Shows first-page and last-page buttons alongside previous and next. |
+| `ShowPageNumbers` | `bool` | Shows the numbered page buttons. |
+| `ShowRecordRange` | `bool` | Shows the record range, such as "26–50 of 148". |
+| `ShowPageSize` | `bool` | Shows the page-size select. |
+| `MaxPageNumbers` | `int` | How many numbered buttons are shown at most, current page included. |
+
 ### `PolarisDateField` → `<s-date-field>`
 
 Wraps `<s-date-field>`, a single date with a picker.
@@ -598,6 +647,27 @@ Wraps `<s-grid>`, a matrix of rows and columns.
 | `MaxInlineSize` | `string?` | Maximum inline size. |
 | `Overflow` | `string?` | Overflow behaviour: visible or hidden. |
 | `Display` | `string?` | Display: auto or none. |
+
+### `PolarisGridColumn` (composed)
+
+Declares one column of a `PolarisDataGrid{TItem}`: how to read it, how to render it, and what the merchant can filter it by.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Field` | `Expression<Func<TItem, object?>>` | The property this column shows. |
+| `Title` | `string?` | The heading. |
+| `Id` | `string?` | The column id, which is what a filter or a saved sort order refers to. |
+| `Sortable` | `bool` | Whether activating the header sorts by this column. |
+| `Searchable` | `bool` | Whether the global search box looks inside this column. |
+| `FilterType` | `PolarisGridFilterType` | Which filter control this column offers. |
+| `FilterOptions` | `IReadOnlyList<object?>?` | Explicit choices for a multi-select filter. |
+| `FilterTemplate` | `RenderFragment?` | Custom filter markup, required when `FilterType` is Custom. |
+| `CellTemplate` | `RenderFragment<TItem>?` | Custom cell markup. |
+| `Format` | `string?` | A standard or custom format string, such as N2 or P0. |
+| `FormatProvider` | `IFormatProvider?` | How values are formatted. |
+| `Alignment` | `PolarisTableHeaderFormat` | How the header aligns the column and the cells beneath it. |
+| `ListSlot` | `PolarisTableListSlot` | What the column becomes when the table collapses to a list on a narrow screen. |
+| `Visible` | `bool` | Whether the column is drawn. |
 
 ### `PolarisGridItem` → `<s-grid-item>`
 
@@ -887,6 +957,26 @@ Wraps `<s-query-container>`.
 | Parameter | Type | Notes |
 |---|---|---|
 | `ContainerName` | `string?` | Container name, for a named @container name (...) query. |
+
+### `PolarisRangeSlider` (composed)
+
+A dual-handle numeric range control: one track, two handles and the interval between them.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Minimum` | `decimal` | The lower end of the domain. |
+| `Maximum` | `decimal` | The upper end of the domain. |
+| `Step` | `decimal` | The increment a handle moves by. |
+| `Value` | `PolarisNumberRange?` | The selected interval. |
+| `ValueChanged` | `EventCallback<PolarisNumberRange>` | Raised with the new interval whenever a handle or a number moves. |
+| `Disabled` | `bool` | Prevents every interaction, including the numeric inputs. |
+| `ShowInputs` | `bool` | Shows a numeric field for each end, for values a handle cannot land on precisely. |
+| `ShowTicks` | `bool` | Shows tick marks along the track, at whole steps. |
+| `Label` | `string?` | The control's label, which names the group the two handles belong to. |
+| `LowerLabel` | `string` | The accessible name of the lower handle. |
+| `UpperLabel` | `string` | The accessible name of the upper handle. |
+| `Unit` | `string?` | A unit shown after each numeric input, such as % or ct. |
+| `Format` | `string?` | A standard or custom numeric format for the displayed values. |
 
 ### `PolarisSearchField` → `<s-search-field>`
 

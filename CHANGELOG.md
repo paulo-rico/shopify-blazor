@@ -13,6 +13,30 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Added
 
+- **`PolarisDataGrid<TItem>`, `PolarisGridColumn<TItem>`, `PolarisDataFilter`, `PolarisDataPager` and
+  `PolarisRangeSlider`** — sorting, filtering, paging, selection and a dual-handle range control for
+  local (in-memory) data, composed from Polaris elements because `s-table` has none of it: the runtime
+  defines no sortable header, no filter, no pagination and no slider. A column heading is an `s-button`,
+  a selected row is an `s-checkbox` in an `s-table-cell`, the filter panel is an `s-popover` opened
+  declaratively with `commandFor`, and the slider is two native `<input type="range">` elements over
+  one track. The four components share one `PolarisGridState<TItem>` that the page creates and owns;
+  each mutation recomputes once and notifies once, so a filter change reaches the grid, the chips and
+  the pager in the same render.
+- **`Polaris.Blazor.DataGrid`** — the query layer, with no renderer in it: filter and sort descriptors,
+  a column definition whose value accessor is a delegate compiled once from its `Expression` (never
+  reflection per cell), a query engine whose order is the whole contract (filter → count → stable sort
+  → page), and the shared state. Filters AND across columns and OR inside a multi-select; text compares
+  case-insensitively, numbers numerically and dates chronologically; empty values sort last ascending
+  and first descending; a filter whose value cannot be read as the column's type is dropped rather
+  than applied, so it cannot look like an empty dataset.
+- **`PolarisRangeSlider`** — a reusable range control with no knowledge of grids, emitting a
+  `PolarisNumberRange`. Handles cannot cross, a collapsed interval raises the handle that can still
+  move (otherwise the control can be left with no way to widen it), values are formatted with the
+  invariant culture, and the interval is written inline as two custom properties so a missing
+  stylesheet costs appearance rather than behaviour.
+- **`polaris-range-slider.css`** — the slider's track and thumbs, the library's second stylesheet and
+  the first that draws a control rather than a transition. Loaded by the interop module like the
+  accordion's, so a consuming app wires nothing up.
 - **`PolarisAccordion` and `PolarisAccordionItem`** — the first components that are composed rather
   than wrappers, because Polaris 1 has no accordion (measured against the runtime, not assumed). A
   section is an `s-button` header, an `s-box` for the content and an `s-icon` chevron; opening one
@@ -48,7 +72,9 @@ unreleased. The first planned release is `0.1.0-preview.1`.
   `configure` and `doctor`. It is a convenience wrapper over `dotnet new` and the filesystem, never
   the only way to do something, and it refuses to overwrite a file without `--force`.
 - **Reference application** — embedded shell, dashboard, products page that calls the Admin API
-  through an authenticated endpoint, and a gallery of every wrapped component.
+  through an authenticated endpoint, and a gallery of every wrapped component. The dashboard also
+  demonstrates the data grid: fourteen alloys, a filter, a grid and a pager sharing one state, and a
+  range filter on fineness.
 - **Tooling** — a component reference generator, a component inventory (JSON and Markdown) with a
   drift check, a wrapper generator with golden-file tests, a template verification script that packs
   and builds every parameter combination, and a headless-Chrome verification script.
@@ -93,8 +119,9 @@ unreleased. The first planned release is `0.1.0-preview.1`.
   `queueRender()` after writing a property from that (currently one-entry) set, defensively: if the
   name ever changes, the value is merely applied later rather than wrongly.
 - **The interop module also loads this package's stylesheets**, so a consuming app has nothing to wire
-  up. Today that is one file, `polaris-accordion.css`, which carries the accordion's transitions and
-  its `prefers-reduced-motion` override.
+  up. That is `polaris-accordion.css`, which carries the accordion's transitions and its
+  `prefers-reduced-motion` override, and `polaris-range-slider.css`, which draws the slider's track and
+  thumbs.
 
 - **`s-text` and `s-paragraph` no longer share one wrapper.** `PolarisText` had a `Paragraph` flag that
   switched its element, so a single class had to model two property sets and omitted the half that did
@@ -128,6 +155,12 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **The generated component reference silently dropped any parameter whose attribute list was not
+  exactly `[Parameter]`.** `[Parameter, EditorRequired]` and a separate `[EditorRequired]` line between
+  the doc comment and the property both failed the pattern, so a component could document a parameter
+  in its source and be missing it from `docs/components.md` — the file whose whole purpose is that a
+  parameter in code and a parameter in the docs cannot disagree. Both generators now match the
+  attribute list loosely and accept further attribute lines.
 - **`shopify-blazor doctor` reported "no `@rendermode` directive was found" for every project with
   Windows line endings.** The scanner anchored the directive with `[ \t]*$`, and a CRLF line ends with
   `\r` before the `\n` that multiline `$` anchors to, so the match failed — a false FAIL, exit code 1,

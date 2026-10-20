@@ -42,10 +42,13 @@ function requestRender(element) {
     }
 }
 
-// The accordion's motion lives in a stylesheet because a media query cannot be written inline, and
-// that stylesheet is loaded from here because the alternative — asking every consuming app to add a
-// <link> — fails silently: the accordion still works, so nobody ever notices the missing animation.
-const stylesheets = ["./polaris-accordion.css"];
+// The stylesheets this package ships, loaded here because the alternative — asking every consuming
+// app to add a <link> — fails silently: an accordion with no animation still works, and a range
+// slider with no track still slides, so nobody ever notices the missing file.
+//
+//   polaris-accordion.css     — the accordion's motion, which a media query has to govern.
+//   polaris-range-slider.css  — the slider's track and thumbs, which Polaris has no element for.
+const stylesheets = ["./polaris-accordion.css", "./polaris-range-slider.css"];
 
 /**
  * Loads this package's stylesheets into the document, once.

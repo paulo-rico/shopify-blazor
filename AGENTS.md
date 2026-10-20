@@ -258,6 +258,35 @@ Read these before changing anything in `src/`.
     `grid-template-rows`, `inert`) and only the *motion* in CSS, so a stylesheet that never arrives
     degrades to a snap rather than to a panel that can never be collapsed.
 
+26. **The data grid is composed, and four of the things that make it work were found in a browser, not
+    read in a document.** `s-table` has no sorting, filtering, paging, selection or editing, so
+    `PolarisDataGrid<TItem>`, `PolarisDataFilter`, `PolarisDataPager` and `PolarisRangeSlider` are
+    built from elements that do, and share one page-owned `PolarisGridState<TItem>`. What follows is
+    measured, and each item cost a failing browser run:
+    - **A Polaris popover with no inline size lays its slotted content out at zero width.** The panel
+      opens, the trigger reports `aria-expanded=true`, the content even has a height — and every
+      control inside it is 0px wide, so a slider's track cannot be dragged and a text field is a
+      sliver. `PolarisDataFilter` therefore states `InlineSize="320px"` on its panel. Nothing in the
+      markup says this is missing.
+    - **`s-button` and `s-popover` hosts compute to `display: contents`, like `s-clickable` and
+      `s-box`.** Their own box is 0×0 at the page origin, so measuring a click point from the host
+      clicks the top-left corner of the window, and measuring "is the panel open?" from the host
+      always answers 0. Measure the `<button>` in the shadow root, and open-ness from a control
+      *inside* the panel.
+    - **Every browser check needs the point re-measured immediately before the click.** The probe
+      scrolls the target into view with `scroll-behavior: auto`, waits two animation frames, then
+      measures; a point computed earlier is a point measured against a different scroll position, which
+      is why the first version of the grid check passed and failed on alternate runs and reported
+      "the click does nothing".
+    - **A native range input insets its thumb by half the thumb's width.** A handle at the maximum sits
+      half a thumb inside the track's right edge, so a drag aimed at the track's end misses the target
+      that is the only part of the input receiving pointer events.
+    A `s-table-header` **does** accept light-DOM content, so its heading is an `s-button` and sorting is
+    a real, keyboard-reachable control — asserted by clicking it in Chrome, because a component test can
+    only prove the handler was attached. The grid marks its own `s-section` with `data-polaris-data-grid`
+    so the probe can tell it from the gallery's plain `PolarisTable`, and the grid's browser assertions
+    are skipped on a page that has none.
+
 ## Resetting the build tree
 
 To force a from-scratch build, remove **only** .NET build output. Do not reach for

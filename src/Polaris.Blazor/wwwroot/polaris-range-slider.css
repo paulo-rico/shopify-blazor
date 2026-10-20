@@ -1,0 +1,136 @@
+/*
+ * Polaris.Blazor — the range slider's appearance, and nothing else.
+ *
+ * Polaris components live in a shadow root and cannot be restyled, and Polaris has no slider at all,
+ * so this control is the one place in the library that draws itself: two native range inputs laid
+ * over a single track. Everything here is appearance — the interval, which handle is on top and which
+ * end is which are all written inline by PolarisRangeSlider. Without this file the control is still a
+ * working slider (two overlapping native inputs with real keyboard, touch and screen-reader support);
+ * it merely stops looking like the admin.
+ *
+ * Loaded automatically by polaris-interop.js. It can also be linked by hand:
+ *
+ *     <link rel="stylesheet" href="_content/Polaris.Blazor/polaris-range-slider.css" />
+ */
+
+[data-polaris-range-slider] {
+    /* Polaris's own custom properties when the runtime defines them, and the admin's greys when it
+       does not. A consumer can set any of the three on an instance or on any ancestor. */
+    --polaris-range-track-color: var(--p-color-border-secondary, #d4d4d8);
+    --polaris-range-fill-color: var(--p-color-bg-fill-brand, #2c6ecb);
+    --polaris-range-thumb-color: var(--p-color-bg-surface, #ffffff);
+
+    display: grid;
+    inline-size: 100%;
+}
+
+[data-polaris-range-track] {
+    position: relative;
+    block-size: 28px;
+
+    /* The line and the selected interval are one background: the track colour up to the lower handle,
+       the fill colour between the handles, and the track colour afterwards. The two percentages are
+       the custom properties the component writes inline. */
+    background-image: linear-gradient(
+        to right,
+        var(--polaris-range-track-color) 0,
+        var(--polaris-range-track-color) var(--polaris-range-start, 0%),
+        var(--polaris-range-fill-color) var(--polaris-range-start, 0%),
+        var(--polaris-range-fill-color) var(--polaris-range-end, 100%),
+        var(--polaris-range-track-color) var(--polaris-range-end, 100%),
+        var(--polaris-range-track-color) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 4px;
+    background-position: 0 center;
+}
+
+/* Both inputs occupy the whole track and are transparent: the track above is the only thing painted.
+   pointer-events is off on the input and back on for the thumb, so a click reaches the thumb under
+   the pointer rather than the input that happens to be on top. */
+[data-polaris-range-track] input[type="range"] {
+    position: absolute;
+    inset-block: 0;
+    inset-inline: 0;
+    inline-size: 100%;
+    block-size: 28px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    pointer-events: none;
+}
+
+[data-polaris-range-track] input[type="range"]::-webkit-slider-runnable-track {
+    block-size: 28px;
+    background: transparent;
+    border: 0;
+}
+
+[data-polaris-range-track] input[type="range"]::-moz-range-track {
+    block-size: 28px;
+    background: transparent;
+    border: 0;
+}
+
+[data-polaris-range-track] input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    inline-size: 16px;
+    block-size: 16px;
+    /* Centres a 16px thumb on the 28px track the input occupies. */
+    margin-block-start: 6px;
+    border: 2px solid var(--polaris-range-fill-color);
+    border-radius: 50%;
+    background: var(--polaris-range-thumb-color);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.16);
+    cursor: grab;
+}
+
+[data-polaris-range-track] input[type="range"]::-moz-range-thumb {
+    pointer-events: auto;
+    inline-size: 16px;
+    block-size: 16px;
+    border: 2px solid var(--polaris-range-fill-color);
+    border-radius: 50%;
+    background: var(--polaris-range-thumb-color);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.16);
+    cursor: grab;
+}
+
+/* A native range input draws its own focus ring inside the input, which is invisible behind a
+   transparent track. The ring has to be on the thumb to be seen at all. */
+[data-polaris-range-track] input[type="range"]:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--polaris-range-fill-color);
+    outline-offset: 2px;
+}
+
+[data-polaris-range-track] input[type="range"]:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--polaris-range-fill-color);
+    outline-offset: 2px;
+}
+
+[data-polaris-range-track] input[type="range"]:disabled::-webkit-slider-thumb {
+    cursor: not-allowed;
+}
+
+[data-polaris-range-track] input[type="range"]:disabled::-moz-range-thumb {
+    cursor: not-allowed;
+}
+
+[data-polaris-range-slider][data-collapsed="true"] {
+    /* The two handles sit on the same value, so the filled interval has no width: the track colour
+       alone would make the control look disabled. */
+    --polaris-range-fill-color: var(--p-color-bg-fill-brand, #2c6ecb);
+}
+
+[data-polaris-range-inputs] {
+    margin-block-start: 8px;
+}
+
+[data-polaris-range-inputs] > s-stack > * {
+    min-inline-size: 0;
+}
