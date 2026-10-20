@@ -508,8 +508,18 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
 
     private void BuildBooleanControl(RenderTreeBuilder builder, IPolarisGridColumn column)
     {
+        // Read back as a bool OR as the string a previous control wrote. The descriptor carries a real
+        // boolean, but a filter seeded by a page — `Equals("InShopify", true)` — and one set through the
+        // control must describe the same thing, or the select shows no selection for a filter that is
+        // plainly applied.
         var current = State.Query.FilterFor(column.Id)?.Value;
-        var value = current is null ? AnyOption : Convert.ToString(current, CultureInfo.InvariantCulture) ?? AnyOption;
+        var value = current switch
+        {
+            bool flag => flag ? "true" : "false",
+            null => AnyOption,
+            _ => Convert.ToString(current, CultureInfo.InvariantCulture) ?? AnyOption,
+        };
+
         var columnId = column.Id;
 
         builder.OpenComponent<PolarisSelect>(0);
@@ -517,9 +527,12 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
         builder.AddAttribute(2, nameof(PolarisSelect.Value), value);
         builder.AddAttribute(3, nameof(PolarisSelect.OnChange), EventCallback.Factory.Create<PolarisEventArgs>(
             this,
+            // The descriptor gets a BOOLEAN rather than the option's own text: the engine coerces either, but
+            // a chip describing the filter and a formatter rendering it can only speak about a boolean. A
+            // string here made every chip read "In Shopify is false" beside a control offering Yes and No.
             args => SetFilterAsync(columnId, args.Value is null or AnyOption
                 ? null
-                : PolarisGridFilterDescriptor.Equals(columnId, args.Value))));
+                : PolarisGridFilterDescriptor.Equals(columnId, string.Equals(args.Value, "true", StringComparison.OrdinalIgnoreCase)))));
         builder.AddAttribute(4, nameof(PolarisSelect.ChildContent), (RenderFragment)(select =>
         {
             select.OpenComponent<PolarisOption>(0);
@@ -619,8 +632,24 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
 
     private const string SearchDraftKey = "__search";
 
+    /// <summary>
+    /// The columns this bar offers a control for.
+    /// </summary>
+    /// <returns>Every column that declares a filter type, drawn or not.</returns>
+    /// <remarks>
+    /// <strong><see cref="IPolarisGridColumn.Visible"/> is deliberately not consulted.</strong> The two
+    /// declarations answer different questions — a filter type says "this value can narrow the result", and
+    /// visibility says "this value is drawn in the table" — and a screen often needs the first without the
+    /// second: a status already shown as a badge, a boolean the cell conveys in words, or a facet the table
+    /// has no room for.
+    ///
+    /// Tying them together was wrong in both directions. It made a hidden facet impossible to filter on, and
+    /// it left a hidden column's filter applying with its control gone — measured on the products list, where
+    /// hiding a column removed the only way to see or clear a filter that still narrowed the result. A column
+    /// that should not be filterable says <c>FilterType="None"</c>.
+    /// </remarks>
     private List<IPolarisGridColumn> FilterableColumns()
-        => [.. State.Columns.Where(column => column.Visible && column.FilterType != PolarisGridFilterType.None)];
+        => [.. State.Columns.Where(column => column.FilterType != PolarisGridFilterType.None)];
 
     private List<(IPolarisGridColumn Column, PolarisGridFilterDescriptor Filter)> ActiveFilters()
     {

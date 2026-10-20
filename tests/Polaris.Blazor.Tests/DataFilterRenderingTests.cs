@@ -287,10 +287,12 @@ public sealed class DataFilterRenderingTests
     }
 
     [Fact]
-    public void A_hidden_column_offers_no_filter_but_keeps_the_one_it_has()
+    public void A_hidden_column_still_offers_its_filter_and_keeps_it()
     {
-        // A column picker that hides a column must not silently change the result by dropping its
-        // filter — the merchant would see fewer rows with nothing on screen to explain it.
+        // Visibility says what is DRAWN, not what can be filtered on — and the two being tied together was
+        // wrong in both directions. A hidden column's filter kept applying while its control disappeared, so
+        // the result was narrowed by something the merchant could neither see nor clear; and a facet behind
+        // a badge could not be filtered on at all, because it had no column.
         using var context = new PolarisTestContext();
         using var state = NewState();
         state.SetFilter(PolarisGridFilterDescriptor.In("Carat", [18]));
@@ -300,8 +302,43 @@ public sealed class DataFilterRenderingTests
 
         var filter = RenderFilter(context, state);
 
-        Assert.Empty(filter.FindAll("s-choice-list"));
+        Assert.NotEmpty(filter.FindAll("s-choice-list"));
         Assert.NotNull(state.Query.FilterFor("Carat"));
+    }
+
+    [Fact]
+    public void A_hidden_column_is_not_drawn_in_the_table_but_is_offered_a_filter()
+    {
+        // The products list's shape: "In Shopify" is a facet a merchant filters by and never needs as a
+        // column, because the cell already says so in words. Declared once, used by the filter bar only.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        state.RegisterColumn(new PolarisGridColumnDefinition<Alloy>
+        {
+            Id = "Gone",
+            Title = "Gone from Shopify",
+            ValueGetter = alloy => alloy.Carat > 18,
+            ValueType = typeof(bool),
+            Sortable = false,
+            FilterType = PolarisGridFilterType.Boolean,
+            Visible = false,
+        });
+
+        var filter = RenderFilter(context, state, PolarisGridFilterApplyMode.Immediate);
+
+        // A select labelled with the hidden column's title — the boolean control — and no chip yet.
+        var labels = filter.FindAll("s-select").Select(select => select.GetAttribute("label")).ToArray();
+
+        Assert.Contains("Gone from Shopify", labels);
+
+        // The filter reaches the query like any other, and shows up as a chip that can be removed.
+        state.SetFilter(PolarisGridFilterDescriptor.Equals("Gone", true));
+
+        filter = RenderFilter(context, state, PolarisGridFilterApplyMode.Immediate);
+
+        Assert.Contains("Gone from Shopify", filter.Markup, StringComparison.Ordinal);
+        Assert.NotEmpty(filter.FindAll("s-clickable-chip"));
     }
 
     [Fact]
@@ -318,6 +355,33 @@ public sealed class DataFilterRenderingTests
 
         Assert.Empty(filter.FindAll("s-search-field"));
         Assert.NotEmpty(filter.FindAll("s-popover"));
+    }
+
+    [Fact]
+    public async Task The_boolean_control_writes_a_real_boolean_and_reads_one_back()
+    {
+        // Two halves of one contract. A filter that stored the option's TEXT compared fine — the engine
+        // coerces — but anything that describes or formats it spoke about the string: measured, the chip on
+        // the products list read "In Shopify is false" beside a control offering Yes and No. And a boolean
+        // seeded by a page (`Equals(field, true)`) has to come back as the Yes option selected, or the
+        // panel shows no selection for a filter that is plainly applied.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        var filter = RenderFilter(context, state, PolarisGridFilterApplyMode.Immediate);
+
+        // The fixture has one boolean column, so its select is the only one that attached. The callback runs
+        // on the renderer's dispatcher, exactly as the real interop marshals it.
+        await filter.InvokeAsync(() => context.Interop.RaiseAsync("s-select", "change", "true"));
+
+        Assert.Equal(true, state.Query.FilterFor("Active")?.Value);
+
+        // Seeded rather than clicked: the control must adopt it. "True" would match no option, and a
+        // Polaris select takes its value as a DOM property, so the interop call is where the answer is.
+        filter = RenderFilter(context, state, PolarisGridFilterApplyMode.Immediate);
+
+        Assert.Single(filter.FindAll("s-select"));
+        Assert.Equal("true", context.Interop.SetProperties["s-select"][^1]["value"]);
     }
 
     [Fact]

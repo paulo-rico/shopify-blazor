@@ -51,7 +51,14 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
     [Parameter, EditorRequired]
     public Expression<Func<TItem, object?>> Field { get; set; } = default!;
 
-    /// <summary>The heading. Defaults to the property name.</summary>
+    /// <summary>
+    /// The heading. <c>null</c> — the default — uses the property name.
+    /// </summary>
+    /// <remarks>
+    /// An <em>empty</em> string is not the same as an absent one: it asks for a column with no heading at
+    /// all, which is what a thumbnail column wants. Treating the two alike put "ImageUrl" above a column of
+    /// pictures, and nothing in the markup said that was not what had been asked for.
+    /// </remarks>
     [Parameter] public string? Title { get; set; }
 
     /// <summary>
@@ -66,7 +73,16 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
     /// <summary>Whether the global search box looks inside this column.</summary>
     [Parameter] public bool Searchable { get; set; } = true;
 
-    /// <summary>Which filter control this column offers. <c>None</c> offers none.</summary>
+    /// <summary>
+    /// Which filter control this column offers. <c>None</c> offers none.
+    /// </summary>
+    /// <remarks>
+    /// Independent of <see cref="Visible"/> on purpose: this says the column's value can narrow the
+    /// result, and <see cref="Visible"/> says whether it is drawn. A column declared with a filter type
+    /// and <c>Visible="false"</c> is the way to filter on something the table has no room for — a facet
+    /// behind a badge, or a flag the cell already conveys in words — and it gets a control and a chip like
+    /// any other column.
+    /// </remarks>
     [Parameter] public PolarisGridFilterType FilterType { get; set; }
 
     /// <summary>
@@ -99,7 +115,15 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
     /// <summary>What the column becomes when the table collapses to a list on a narrow screen.</summary>
     [Parameter] public PolarisTableListSlot ListSlot { get; set; } = PolarisTableListSlot.Labeled;
 
-    /// <summary>Whether the column is drawn. A hidden column keeps its filter and its sort.</summary>
+    /// <summary>
+    /// Whether the column is drawn. A hidden column keeps its filter and its sort.
+    /// </summary>
+    /// <remarks>
+    /// Hiding a column is not a way to retire it: the filter it declares still reaches the filter bar, and
+    /// the chip for it is still shown, because a filter that narrows the result with nothing on screen to
+    /// explain it reads as missing data. To take a column out of the filters as well as the table, declare
+    /// it with <see cref="FilterType"/> <c>None</c>.
+    /// </remarks>
     [Parameter] public bool Visible { get; set; } = true;
 
     /// <summary>The definition this column registered, for tests and for the grid.</summary>
@@ -137,7 +161,7 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
         _definition = new PolarisGridColumnDefinition<TItem>
         {
             Id = id,
-            Title = string.IsNullOrWhiteSpace(Title) ? id : Title,
+            Title = Title ?? id,
             ValueGetter = item => access.Getter(item),
             ValueType = access.ValueType,
             Sortable = Sortable,
@@ -170,7 +194,7 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
         // column is declared — a column picker, or a template that renders the current row. They are
         // updated in place rather than re-registered, because re-registering on every parameter pass
         // would notify the state on every render and the grid would redraw for ever.
-        var title = string.IsNullOrWhiteSpace(Title) ? _definition.Id : Title;
+        var title = Title ?? _definition.Id;
         var changed = false;
 
         if (!string.Equals(_definition.Title, title, StringComparison.Ordinal))

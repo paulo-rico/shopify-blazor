@@ -302,6 +302,25 @@ public sealed class DataGridRenderingTests
     }
 
     [Fact]
+    public void An_empty_title_asks_for_no_heading_rather_than_the_property_name()
+    {
+        // A thumbnail column has no heading of its own, and deriving one from the property name printed
+        // "ImageUrl" above a column of pictures: markup nobody asked for, drawn as though they had.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        var grid = context.Render<PolarisDataGrid<Alloy>>(parameters => parameters
+            .Add(p => p.State, state)
+            .Add(p => p.Columns, Columns(title: string.Empty)));
+
+        Assert.All(state.Columns, column => Assert.Equal(string.Empty, column.Title));
+
+        // And nothing is left in the heading row to read out, so the column is decoration beside the
+        // data that follows it rather than a mislabelled field.
+        Assert.DoesNotContain("Name", grid.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_column_outside_a_grid_is_refused_rather_than_rendering_nothing()
     {
         // Declared in the wrong place, a column would register nowhere: no heading, no filter, and no
@@ -350,14 +369,14 @@ public sealed class DataGridRenderingTests
     private static IReadOnlyDictionary<string, object?> HeaderBox(PolarisTestContext context)
         => context.Interop.SetProperties["s-checkbox"][^4];
 
-    private static RenderFragment Columns(bool sortableName = true, RenderFragment<Alloy>? cellTemplate = null)
+    private static RenderFragment Columns(bool sortableName = true, RenderFragment<Alloy>? cellTemplate = null, string? title = null)
         => builder =>
         {
-            AddColumn(builder, 0, "Name", alloy => alloy.Name, PolarisGridFilterType.Text, sortable: sortableName, cellTemplate: cellTemplate);
-            AddColumn(builder, 10, "Carat", alloy => alloy.Carat, PolarisGridFilterType.MultiSelect);
-            AddColumn(builder, 20, "Silver %", alloy => alloy.Silver, PolarisGridFilterType.Range,
+            AddColumn(builder, 0, title ?? "Name", alloy => alloy.Name, PolarisGridFilterType.Text, sortable: sortableName, cellTemplate: cellTemplate);
+            AddColumn(builder, 10, title ?? "Carat", alloy => alloy.Carat, PolarisGridFilterType.MultiSelect);
+            AddColumn(builder, 20, title ?? "Silver %", alloy => alloy.Silver, PolarisGridFilterType.Range,
                 format: "N1", alignment: PolarisTableHeaderFormat.Numeric);
-            AddColumn(builder, 30, "Active", alloy => alloy.Active, PolarisGridFilterType.Boolean);
+            AddColumn(builder, 30, title ?? "Active", alloy => alloy.Active, PolarisGridFilterType.Boolean);
         };
 
     private static void AddColumn(
