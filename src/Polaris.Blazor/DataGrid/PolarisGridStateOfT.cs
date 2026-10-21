@@ -108,6 +108,74 @@ public sealed class PolarisGridState<TItem> : PolarisGridState
     }
 
     /// <summary>
+    /// Finds a record by its key, across the whole snapshot rather than the visible page.
+    /// </summary>
+    /// <param name="key">The row key.</param>
+    /// <returns>The record, or <c>default</c> when it is not in the snapshot.</returns>
+    /// <remarks>
+    /// The visible page is not enough: a merchant can edit a row, page away, and save the lot, and a
+    /// lookup that only saw the current page would silently drop the edit.
+    /// </remarks>
+    public TItem? FindItem(object key)
+    {
+        foreach (var item in _items)
+        {
+            if (Equals(KeySelector(item), key))
+            {
+                return item;
+            }
+        }
+
+        return default;
+    }
+
+    /// <summary>
+    /// Replaces records in the snapshot, one per row key, and recomputes the query once.
+    /// </summary>
+    /// <param name="updates">The replacement records, keyed by row key.</param>
+    /// <returns>How many records were found and replaced.</returns>
+    /// <remarks>
+    /// One call for a whole save, not one per row: every mutation of this state notifies its
+    /// subscribers, and a page saving twelve edited rows would otherwise redraw the table twelve times,
+    /// each time over a half-saved collection.
+    /// </remarks>
+    public int UpdateItems(IReadOnlyDictionary<object, TItem> updates)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+
+        if (updates.Count == 0)
+        {
+            return 0;
+        }
+
+        var replaced = 0;
+
+        for (var index = 0; index < _items.Count; index++)
+        {
+            var item = _items[index];
+
+            if (!updates.TryGetValue(KeySelector(item), out var updated))
+            {
+                continue;
+            }
+
+            _items[index] = updated;
+            replaced++;
+        }
+
+        if (replaced == 0)
+        {
+            return 0;
+        }
+
+        // A value that was edited can move a column's bounds or add a category, so the derived
+        // caches are stale in a way the shape of the dataset does not show.
+        InvalidateCaches();
+        Refresh();
+        return replaced;
+    }
+
+    /// <summary>
     /// Registers a column. Called by <see cref="PolarisGridColumn{TItem}"/> on behalf of its
     /// declaration; a duplicate id is a mistake in the declaration and is refused rather than
     /// silently shadowed.

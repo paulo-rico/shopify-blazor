@@ -464,13 +464,16 @@ The filter bar for a `PolarisDataGrid{TItem}`: a search box, a panel of per-colu
 
 ### `PolarisDataGrid` (composed)
 
-Renders one page of a local collection as a Polaris table, with sorting, selection and empty, loading and error states.
+Renders one page of a local collection as a Polaris table, with sorting, selection, spreadsheet editing and empty, loading and error states.
 
 | Parameter | Type | Notes |
 |---|---|---|
 | `State` | `PolarisGridState<TItem>` | The shared state. |
 | `Columns` | `RenderFragment?` | The column declarations, one `PolarisGridColumn{TItem}` each. |
 | `AllowSelection` | `bool` | Shows a checkbox column, and a header checkbox that selects the visible page. |
+| `Editable` | `bool` | Whether cells can be edited. |
+| `SaveMode` | `PolarisGridSaveMode` | When a committed edit reaches `SaveChanges`. |
+| `SaveChanges` | `Func<PolarisGridRowEdit<TItem>, CancellationToken, Task<PolarisGridSaveResult>>?` | Writes one edited row, and reports whether it was written. |
 | `SelectionChanged` | `EventCallback<IReadOnlyCollection<object>>` | Raised with the keys of the selected records after a selection change, including one caused by a chip or a keyboard. |
 | `EmptyHeading` | `string?` | A heading for the empty state. |
 | `EmptySubheading` | `string?` | Supporting text under the empty heading. |
@@ -668,6 +671,10 @@ Declares one column of a `PolarisDataGrid{TItem}`: how to read it, how to render
 | `Alignment` | `PolarisTableHeaderFormat` | How the header aligns the column and the cells beneath it. |
 | `ListSlot` | `PolarisTableListSlot` | What the column becomes when the table collapses to a list on a narrow screen. |
 | `Visible` | `bool` | Whether the column is drawn. |
+| `Editable` | `bool` | Whether the merchant can edit this column's cells, when the grid is editable too. |
+| `EditorType` | `PolarisGridEditorType` | Which editor a cell draws. |
+| `EditorOptions` | `IReadOnlyList<object?>?` | Choices for a `PolarisGridEditorType.Select` editor. |
+| `ValueSetter` | `Func<TItem, object?, TItem>?` | Writes a value onto a record, for a column whose property cannot simply be assigned. |
 
 ### `PolarisGridItem` → `<s-grid-item>`
 

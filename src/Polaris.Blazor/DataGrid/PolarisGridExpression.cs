@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Polaris.Blazor.DataGrid;
 
@@ -12,7 +13,7 @@ namespace Polaris.Blazor.DataGrid;
 /// </remarks>
 internal static class PolarisGridExpression
 {
-    /// <summary>The member name, value type and compiled getter of a column expression.</summary>
+    /// <summary>The member name, value type, compiled getter and setter of a column expression.</summary>
     /// <typeparam name="TItem">The row type.</typeparam>
     /// <param name="field">The declared column expression.</param>
     public static PolarisGridMemberAccess Analyse<TItem>(Expression<Func<TItem, object?>> field)
@@ -23,13 +24,15 @@ internal static class PolarisGridExpression
         var getter = field.Compile();
 
         string? memberName = null;
+        Action<object?, object?>? setter = null;
 
         if (body is MemberExpression member && RootedAtParameter(member, field.Parameters[0]))
         {
             memberName = BuildPath(member);
+            setter = BuildSetter<TItem>(member);
         }
 
-        return new PolarisGridMemberAccess(memberName, body.Type, item => getter((TItem)item!));
+        return new PolarisGridMemberAccess(memberName, body.Type, item => getter((TItem)item!), setter);
     }
 
     /// <summary>
@@ -62,4 +65,33 @@ internal static class PolarisGridExpression
         => member.Expression is MemberExpression inner
             ? string.Concat(BuildPath(inner), ".", member.Member.Name)
             : member.Member.Name;
+
+    /// <summary>
+    /// Builds the writer for a member expression, or <c>null</c> when the member cannot be written.
+    /// </summary>
+    /// <remarks>
+    /// Reflection, and only on commit — the getter is compiled because it runs once per cell per
+    /// render, while this runs once per keystroke-free commit. <c>init</c> accessors count as
+    /// writable: a positional record declares them, and a grid over records would otherwise have no
+    /// editable column at all. A caller that would rather produce a new record than mutate one says so
+    /// with <see cref="PolarisGridColumnDefinition{TItem}.ValueSetter"/>.
+    /// </remarks>
+    private static Action<object?, object?>? BuildSetter<TItem>(MemberExpression member)
+    {
+        if (member.Member is PropertyInfo property)
+        {
+            var setter = property.GetSetMethod(nonPublic: true);
+
+            return setter is null
+                ? null
+                : (item, value) => setter.Invoke(item, [value]);
+        }
+
+        if (member.Member is FieldInfo { IsInitOnly: false } field)
+        {
+            return (item, value) => field.SetValue(item, value);
+        }
+
+        return null;
+    }
 }

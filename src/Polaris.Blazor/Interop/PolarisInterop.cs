@@ -60,6 +60,30 @@ public interface IPolarisInterop : IAsyncDisposable
     ValueTask ClearPropertiesAsync(ElementReference element, string tagName, IEnumerable<string> names);
 
     /// <summary>
+    /// Moves keyboard focus into <paramref name="element"/>: onto the first field it contains, or onto
+    /// the element itself when it is the focusable thing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Blazor's own <c>ElementReference.FocusAsync</c> focuses the element it is given, and for a
+    /// Polaris host that is the wrong element: the host computes to <c>display: contents</c> and the box
+    /// that takes typing lives inside a shadow root. This helper crosses that boundary, which is what
+    /// makes "the editor appears where the merchant was typing" possible at all.
+    /// </para>
+    /// <para>
+    /// Returns <c>false</c> when nothing focusable was found, so a Polaris change that moves the markup
+    /// costs the focus rather than throwing into a component's lifetime.
+    /// </para>
+    /// </remarks>
+    /// <param name="element">The container to focus inside. It may be the field itself, or a wrapper.</param>
+    /// <param name="selector">
+    /// Narrows the search to the first descendant matching this CSS selector. Required whenever the
+    /// container holds more than one focusable thing — a grid holds a checkbox per row — because the
+    /// first one found is not necessarily the one the caller means.
+    /// </param>
+    ValueTask<bool> FocusWithinAsync(ElementReference element, string? selector = null);
+
+    /// <summary>
     /// Announces whether what an element controls is open, by writing <c>aria-expanded</c> onto the
     /// <c>&lt;button&gt;</c> it renders inside its own shadow root.
     /// </summary>
@@ -282,6 +306,37 @@ public sealed class PolarisInterop : IPolarisInterop
         }
         catch (Exception ex) when (IsRecoverable(ex))
         {
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> FocusWithinAsync(ElementReference element, string? selector = null)
+    {
+        if (!await EnsureInitializedAsync().ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        try
+        {
+            var focused = await _module!.InvokeAsync<bool>("focusWithin", element, selector).ConfigureAwait(false);
+
+            if (!focused)
+            {
+                // Reported rather than silent: a caller asked for the caret to move, and it did not. The
+                // failure has no other symptom — the editor appears, looking right, and the next
+                // keystroke goes to the page — so this line is the only place it can be seen.
+                _logger?.LogDebug(
+                    "Polaris interop: focusWithin found nothing to focus inside '{Selector}'.",
+                    selector ?? "(the element itself)");
+            }
+
+            return focused;
+        }
+        catch (Exception ex) when (IsRecoverable(ex))
+        {
+            _logger?.LogWarning(ex, "Polaris interop: focusWithin could not move focus.");
+            return false;
         }
     }
 

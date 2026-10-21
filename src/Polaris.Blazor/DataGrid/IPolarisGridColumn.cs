@@ -32,6 +32,20 @@ public interface IPolarisGridColumn
     /// <summary>Whether the column is rendered at all.</summary>
     bool Visible { get; }
 
+    /// <summary>Whether the merchant can edit this column's cells in the grid.</summary>
+    /// <remarks>
+    /// Only half the answer: the grid must also be editable, and the column must have somewhere to
+    /// write the value. A column that declares itself editable and cannot be written is refused when
+    /// it mounts rather than drawn as a control that silently loses what is typed into it.
+    /// </remarks>
+    bool Editable { get; }
+
+    /// <summary>Which editor the cell draws, or <c>Auto</c> to choose one from the value's type.</summary>
+    PolarisGridEditorType EditorType { get; }
+
+    /// <summary>Explicit choices for a <see cref="PolarisGridEditorType.Select"/> editor.</summary>
+    IReadOnlyList<object?>? EditorOptions { get; }
+
     /// <summary>Explicit choices for a <see cref="PolarisGridFilterType.MultiSelect"/> column.</summary>
     IReadOnlyList<object?>? FilterOptions { get; }
 

@@ -74,6 +74,72 @@ public sealed class PolarisGridColumnDefinition<TItem> : IPolarisGridColumn
     /// <summary>Whether the column is rendered. A hidden column keeps its filter and its sort.</summary>
     public bool Visible { get; set; } = true;
 
+    /// <summary>Whether the merchant can edit this column's cells.</summary>
+    /// <remarks>
+    /// <see cref="ValueSetter"/> is the other half: a column with no setter is only shown, whatever this
+    /// says, and a column component that asks for both without a settable property is refused when it
+    /// mounts.
+    /// </remarks>
+    public bool Editable { get; set; }
+
+    /// <summary>Which editor the cell draws.</summary>
+    public PolarisGridEditorType EditorType { get; set; }
+
+    /// <summary>
+    /// Choices for a <see cref="PolarisGridEditorType.Select"/> editor. <c>null</c> takes them from the
+    /// value's enum, or else from the dataset's distinct values.
+    /// </summary>
+    public IReadOnlyList<object?>? EditorOptions { get; set; }
+
+    /// <summary>
+    /// Writes a value onto a record and returns the record to store, or <c>null</c> when the column
+    /// cannot be written.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Derived from the column expression when it names a settable property or field, so an ordinary
+    /// column needs nothing said about it. This parameter is for the two cases that derivation cannot
+    /// reach: a computed value, and a type that should be <em>copied</em> rather than mutated — a
+    /// record updated with a <c>with</c> expression, which is what keeps the record the merchant is
+    /// editing untouched until the save succeeds.
+    /// </para>
+    /// <para>
+    /// The value arriving here is already converted to <see cref="ValueType"/>, so an implementation
+    /// can cast it rather than parse it.
+    /// </para>
+    /// </remarks>
+    public Func<TItem, object?, TItem>? ValueSetter { get; set; }
+
+    /// <summary>
+    /// Applies one change to a record, using this column's setter.
+    /// </summary>
+    /// <param name="item">The record to write to.</param>
+    /// <param name="value">The new value, already of the column's value type.</param>
+    /// <returns>The record to store: <paramref name="item"/> itself when the setter mutates.</returns>
+    /// <exception cref="InvalidOperationException">The column has no setter.</exception>
+    public TItem ApplyValue(TItem item, object? value)
+    {
+        if (ValueSetter is not null)
+        {
+            return ValueSetter(item, value);
+        }
+
+        if (CompiledSetter is null)
+        {
+            throw new InvalidOperationException(
+                $"The column '{Id}' cannot be written: it has neither a settable member nor a {nameof(ValueSetter)}.");
+        }
+
+        CompiledSetter(item, value);
+        return item;
+    }
+
+    /// <summary>The writer derived from the column expression, or <c>null</c>.</summary>
+    internal Action<object?, object?>? CompiledSetter { get; init; }
+
+    /// <summary>True when the column can be written at all.</summary>
+    internal bool CanWrite => ValueSetter is not null || CompiledSetter is not null;
+
     /// <inheritdoc />
     object? IPolarisGridColumn.ReadValue(object item) => ValueGetter((TItem)item);
 

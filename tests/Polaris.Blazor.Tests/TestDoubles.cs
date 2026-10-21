@@ -85,8 +85,26 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <summary>Tag names whose events were detached.</summary>
     public List<string> Detached { get; } = [];
 
-    /// <summary>Element methods invoked through interop, in the order they were called.</summary>
+    /// <summary>
+    /// Element methods invoked through interop, in the order they were called.
+    /// </summary>
     public List<string> Methods { get; } = [];
+
+    /// <summary>
+    /// How many times focus was moved into an element, and whether the caller was told it worked.
+    /// </summary>
+    /// <remarks>
+    /// Counted rather than recorded as an element, because an <see cref="ElementReference"/> outside a
+    /// browser is an empty struct: what a test can assert is that the grid asked, which is the half of
+    /// "the caret really is in the new editor" that a component test can own.
+    /// </remarks>
+    public int FocusWithinCount { get; private set; }
+
+    /// <summary>Whether <see cref="FocusWithinAsync"/> reports success.</summary>
+    public bool FocusWithinSucceeds { get; set; } = true;
+
+    /// <summary>The selector the last focus call was narrowed by, or <c>null</c> for the whole element.</summary>
+    public string? LastFocusSelector { get; private set; }
 
     /// <summary>
     /// The expanded states written onto a shadow button, in the order they were written.
@@ -212,6 +230,14 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
 
         list.AddRange(names);
         return ValueTask.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> FocusWithinAsync(ElementReference element, string? selector = null)
+    {
+        FocusWithinCount++;
+        LastFocusSelector = selector;
+        return ValueTask.FromResult(FocusWithinSucceeds);
     }
 
     /// <inheritdoc />

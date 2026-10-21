@@ -11,4 +11,13 @@ namespace Polaris.Blazor.DataGrid;
 /// </param>
 /// <param name="ValueType">The type of the value the expression produces.</param>
 /// <param name="Getter">The compiled accessor. Reflection never runs per cell.</param>
-internal readonly record struct PolarisGridMemberAccess(string? MemberName, Type ValueType, Func<object?, object?> Getter);
+/// <param name="Setter">
+/// Writes a value back onto the record, or <c>null</c> when the member cannot be written — a computed
+/// expression, or a get-only property. This is the difference between a column that can be edited and
+/// one that can only be shown.
+/// </param>
+internal readonly record struct PolarisGridMemberAccess(
+    string? MemberName,
+    Type ValueType,
+    Func<object?, object?> Getter,
+    Action<object?, object?>? Setter);

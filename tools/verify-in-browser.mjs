@@ -262,6 +262,100 @@ class DevTools {
         })()`);
     }
 
+    /**
+     * The text of one cell, addressed by column id and row key.
+     *
+     * Addressed rather than positional because the grid re-queries: renaming a product moves it in a
+     * sort that is by title, so "the first row" after a save is a different record — measured, and the
+     * reason an assertion written against the first row's text reported a working save as a revert.
+     *
+     * @param {string} columnId the column's id, as the cell's data attribute carries it
+     * @param {string} rowKey the row key
+     */
+    async cellText(columnId, rowKey) {
+        return this.evaluate(`(() => {
+            const cell = Array.from(document.querySelectorAll("[data-polaris-grid-cell]")).find((candidate) =>
+                candidate.getAttribute("data-polaris-grid-cell") === ${JSON.stringify(columnId)} &&
+                candidate.getAttribute("data-polaris-grid-row") === ${JSON.stringify(String(rowKey))});
+
+            return (cell?.textContent ?? "").replace(/\\s+/g, " ").trim();
+        })()`);
+    }
+
+    /**
+     * Waits until a condition the page reports becomes true, or gives up.
+     *
+     * The grid's edits cross a Blazor Server circuit, so nothing about them is synchronous: the editor
+     * appears a round trip after the click, and the row moves a round trip after the key. Polling is what
+     * a test of an asynchronous UI has to do; a fixed sleep is either too short or too slow.
+     *
+     * @param {() => Promise<boolean>} condition re-evaluated until it holds
+     * @param {number} timeoutMs how long to wait
+     * @returns {Promise<boolean>} whether it became true
+     */
+    async waitFor(condition, timeoutMs = 5000) {
+        const deadline = Date.now() + timeoutMs;
+
+        while (Date.now() < deadline) {
+            if (await condition()) return true;
+            await sleep(100);
+        }
+
+        return false;
+    }
+
+    /**
+     * Selects the focused field's whole value and types over it.
+     *
+     * Two steps because a merchant does two things: `select()` is what Ctrl+A does to the input inside
+     * the field's shadow root, and `Input.insertText` is what a keyboard produces. Setting the value
+     * from JavaScript instead would skip the `input` event the grid listens for, and a test that skips it
+     * proves nothing about typing.
+     *
+     * @param {string} text what to type
+     * @returns {Promise<boolean>} false when no field was focused, which is itself a finding
+     */
+    async replaceFocusedFieldText(text) {
+        const selected = await this.evaluate(`(() => {
+            const host = document.activeElement;
+            const input = host?.shadowRoot?.querySelector("input, textarea");
+            if (!input) return false;
+            input.focus();
+            input.select();
+            return true;
+        })()`);
+
+        if (!selected) {
+            return false;
+        }
+
+        await this.send("Input.insertText", { text });
+        return true;
+    }
+
+    /**
+     * Presses a key: a keydown and a keyup, as a hardware keyboard sends them.
+     *
+     * `Input.insertText` is not enough for Enter, Tab and Escape: those are keys, not text, and the
+     * grid's handler reads `event.key`. The virtual key codes are the Windows ones — a keydown without
+     * one carries `key` but not the `code` a browser derives from it.
+     *
+     * @param {string} key one of "Enter", "Tab" or "Escape"
+     */
+    async pressKey(key) {
+        const codes = { Enter: 13, Tab: 9, Escape: 27 };
+        const code = codes[key] ?? 0;
+        const shared = {
+            key,
+            code: key,
+            windowsVirtualKeyCode: code,
+            nativeVirtualKeyCode: code,
+        };
+
+        await this.send("Input.dispatchKeyEvent", { type: "keyDown", ...shared });
+        await this.send("Input.dispatchKeyEvent", { type: "keyUp", ...shared });
+    }
+
     close() {
         this.#socket.close();
     }
@@ -485,6 +579,53 @@ const gridStateExpression = `(() => {
     };
 })()`;
 
+/**
+ * Reads the data grid's editing state out of the page.
+ *
+ * Separate from the grid reader above because it is read at different moments — before a click, in the
+ * middle of an edit, after a save — and the interesting question changes each time. Everything here is
+ * something only a browser can answer: whether a click opened an editor, whether the caret is really
+ * inside it, and whether a key pressed in a Polaris field's shadow root ever reached the grid's handler.
+ */
+const editingStateExpression = `(() => {
+    const idle = document.querySelectorAll("[data-polaris-grid-cell][tabindex]");
+    const editor = document.querySelector("[data-polaris-grid-editing]");
+    const active = document.activeElement;
+    const bar = document.querySelector("[data-polaris-grid-save-bar]");
+    const banner = document.querySelector("[data-polaris-grid-root] s-banner");
+
+    // The caret inside a Polaris field is in its shadow root, so document.activeElement is the *host*:
+    // "is focus inside the editor" is a containment question, not an equality one.
+    const focusedInsideEditor = Boolean(editor && active && (editor.contains(active) || active === editor));
+
+    return {
+        present: document.querySelector("[data-polaris-grid-root]") !== null,
+        idleCells: idle.length,
+        // A table cell without an editable marker inside it: the selection column and the columns that
+        // declared themselves read-only. Counting markers alone cannot see those at all.
+        readOnlyCells: Array.from(document.querySelectorAll("s-table-cell"))
+            .filter((cell) => cell.querySelector("[data-polaris-grid-cell]") === null).length,
+        popoverOpen: (() => {
+            const track = document.querySelector("[data-polaris-range-track]");
+            return track ? Math.round(track.getBoundingClientRect().width) > 0 : null;
+        })(),
+        editing: editor !== null,
+        editorTag: editor?.firstElementChild?.tagName?.toLowerCase() ?? null,
+        editorRow: editor?.getAttribute("data-polaris-grid-row") ?? null,
+        editorColumn: editor?.getAttribute("data-polaris-grid-cell") ?? null,
+        focusedInsideEditor,
+        activeTag: active?.tagName?.toLowerCase() ?? null,
+        dirtyCells: document.querySelectorAll("[data-polaris-grid-dirty]").length,
+        saveBar: bar !== null,
+        saveBarText: (bar?.textContent ?? "").replace(/\\s+/g, " ").trim(),
+        bannerText: (banner?.textContent ?? "").replace(/\\s+/g, " ").trim(),
+        savedSummary: document.querySelector("[data-sample-saved-summary]")?.textContent?.trim() ?? null,
+        // The whole first row's text, so a committed value can be read back as the merchant sees it: the
+        // column's formatted value, not the editor's raw one.
+        firstRowText: (document.querySelector("s-table-row")?.textContent ?? "").replace(/\\s+/g, " ").trim(),
+    };
+})()`;
+
 const probe = markedElementHelper
  + `(async () => {
     // The list comes from the page, not from this file. Components.razor renders it, so a component    // added to the gallery is verified here without anyone remembering to update a second list — and
@@ -538,6 +679,7 @@ const probe = markedElementHelper
         "_content/Polaris.Blazor/polaris-interop.js",
         "_content/Polaris.Blazor/polaris-accordion.css",
         "_content/Polaris.Blazor/polaris-range-slider.css",
+        "_content/Polaris.Blazor/polaris-grid.css",
         "_content/Shopify.Blazor/app-bridge.js",
     ]) {
         try {
@@ -954,6 +1096,82 @@ function evaluateAssertions(result) {
         (grid.afterDrag?.rangeText ?? "") !== (grid.beforeDrag?.rangeText ?? ""),
         `the result is re-queried after the drag (${grid.beforeDrag?.rangeText ?? "?"} -> ${grid.afterDrag?.rangeText ?? "?"})`,
     );
+
+    // Spreadsheet editing. Every step below is driven with a real mouse and a real key, and read back
+    // from the page: a component test can prove that a handler was attached, and none of these can.
+    const opened = grid.editingOpened ?? {};
+    const committed = grid.editingCommitted ?? {};
+    const escaped = grid.editingEscaped ?? {};
+    const saved = grid.editingSaved ?? {};
+    const refused = grid.editingRefused ?? {};
+
+    if ((grid.editingBefore?.idleCells ?? 0) > 0) {
+        check(
+            (grid.editingBefore?.readOnlyCells ?? 0) > 0,
+            `only the editable columns get a clickable cell, so a read-only column stays text ` +
+            `(${grid.editingBefore.idleCells} editable, ${grid.editingBefore.readOnlyCells} read-only)`,
+        );
+        check(
+            opened.editing === true && opened.editorTag === "s-text-field",
+            `a click on a cell draws its editor (${opened.editorTag ?? "nothing appeared"})`,
+        );
+        check(
+            opened.focusedInsideEditor === true,
+            `the caret really lands in the editor, inside the field's shadow root ` +
+            `(document.activeElement is ${opened.activeTag ?? "nothing"})`,
+        );
+
+        // The typed value reached the cell — and as the stored value, not as the raw text the field
+        // reported. "AA Renamed" is what was typed over the old title, and the cell is addressed by its
+        // row key because a grid sorted by title moves the row as soon as it is renamed.
+        check(
+            (grid.editingCommittedCell ?? "").includes("AA Renamed"),
+            `Enter commits what was typed and the cell shows it ("${grid.editingCommittedCell ?? "?"}")`,
+        );
+        check(
+            committed.editorRow !== opened.editorRow && committed.editorColumn === opened.editorColumn,
+            `Enter moves down to the next row's cell, in the same column ` +
+            `(row ${opened.editorRow ?? "?"} -> ${committed.editorRow ?? "?"}, ${committed.editorColumn ?? "?"})`,
+        );
+        check(
+            committed.dirtyCells === 1 && committed.saveBar === true,
+            `a committed edit is a draft, marked on its cell and counted by the save bar ` +
+            `(${committed.dirtyCells ?? "?"} marked, bar: "${committed.saveBarText ?? "none"}")`,
+        );
+        check(
+            escaped.editing === false && escaped.dirtyCells === 1,
+            "Escape leaves the editor without committing the cell it was in, and without dropping another cell's draft",
+        );
+
+        check(
+            saved.saveBar === false && saved.dirtyCells === 0,
+            `the save button writes the row and clears the drafts ` +
+            `(${saved.dirtyCells ?? "?"} still marked, bar: ${saved.saveBar ?? "?"})`,
+        );
+        check(
+            (grid.editingSavedCell ?? "").includes("AA Renamed"),
+            `the saved value is what the store holds after the save, not reverted by a round trip ` +
+            `("${grid.editingSavedCell ?? "?"}")`,
+        );
+        check(
+            (grid.editingSavedSummary ?? "nothing yet") !== "nothing yet",
+            `the page's save callback really ran and reported what it wrote ("${grid.editingSavedSummary ?? "nothing yet"}")`,
+        );
+
+        // A refusal: the price floor is the sample's own rule, and the point is that a rejected save keeps
+        // the merchant's typing on screen with the reason beside it rather than dropping either.
+        check(
+            (refused.bannerText ?? "").toLowerCase().includes("lowest price"),
+            `a save the server refuses is shown with its reason ("${refused.bannerText ?? "no message"}")`,
+        );
+        check(
+            refused.dirtyCells === 1 && (grid.editingRefusedCell ?? "").includes("0.50"),
+            `a refused edit keeps its draft on screen (${refused.dirtyCells ?? "?"} marked, ` +
+            `"${grid.editingRefusedCell ?? "?"}")`,
+        );
+    } else {
+        console.log("  note  this grid is not editable, so the editing checks do not apply");
+    }
     }
 
     for (const [path, status] of Object.entries(assets)) {
@@ -1173,6 +1391,122 @@ try {
             await sleep(800);
             result.grid.beforeDrag = slider;
             result.grid.afterDrag = await devtools.evaluate(gridStateExpression);
+        }
+    }
+
+    // Spreadsheet editing, driven with real input, because every part of it is a browser question: a
+    // click that opens an editor, a caret that lands inside a shadow root, and a keydown pressed in a
+    // Polaris field that has to reach the grid's own handler. A component test can prove none of them.
+    if (result.grid?.present) {
+        result.grid.editingBefore = await devtools.evaluate(editingStateExpression);
+
+        if ((result.grid.editingBefore?.idleCells ?? 0) > 0) {
+            // The filter panel is still open from the checks above, anchored over the top of the table,
+            // and a click aimed at a cell lands on its backdrop instead — measured: the editor never
+            // opened and focus went to the `s-popover` host. Escape closes it; the paragraph click is the
+            // fallback for a popover that does not listen for Escape.
+            if (result.grid.editingBefore.popoverOpen) {
+                await devtools.pressKey("Escape");
+
+                const closed = await devtools.waitFor(
+                    async () => !(await devtools.evaluate(editingStateExpression)).popoverOpen,
+                    3000);
+
+                if (!closed) {
+                    const away = await devtools.centreOf("s-paragraph");
+
+                    if (away) {
+                        await devtools.clickAt(away.x, away.y);
+                        await devtools.waitFor(
+                            async () => !(await devtools.evaluate(editingStateExpression)).popoverOpen,
+                            3000);
+                    }
+                }
+            }
+
+            // The first editable cell of the first row. Measured immediately before the click, like every
+            // other point in this script.
+            const cellPoint = await devtools.centreOf("[data-polaris-grid-cell][tabindex]");
+
+            if (cellPoint) {
+                await devtools.clickAt(cellPoint.x, cellPoint.y);
+                await devtools.waitFor(async () => (await devtools.evaluate(editingStateExpression)).editing);
+                result.grid.editingOpened = await devtools.evaluate(editingStateExpression);
+
+                // What actually has focus, read separately from the editor's presence: an editor that
+                // appears without the caret in it is indistinguishable on screen from one that works, and
+                // it is exactly what a Polaris host plus Blazor's own FocusAsync produces.
+                result.grid.editingFocus = await devtools.evaluate(`(() => {
+                    const active = document.activeElement;
+                    return {
+                        tag: active?.tagName?.toLowerCase() ?? null,
+                        hasShadowRoot: Boolean(active?.shadowRoot),
+                        inner: active?.shadowRoot?.querySelector("input, textarea")?.tagName?.toLowerCase() ?? null,
+                        editorPresent: document.querySelector("[data-polaris-grid-editing]") !== null,
+                    };
+                })()`);
+
+                // Select what the editor holds and type over it, then commit with a key. `insertText`
+                // produces the same `input` event a keystroke does — it is what a hardware keyboard is
+                // translated into — and the selection is what Ctrl+A would do, so the value that lands is
+                // exactly the text below rather than the old value with the new one appended.
+                result.grid.editingTyped = await devtools.replaceFocusedFieldText("AA Renamed");
+                await devtools.pressKey("Enter");
+                const openedRow = result.grid.editingOpened?.editorRow;
+                await devtools.waitFor(async () => (await devtools.evaluate(editingStateExpression)).editorRow !== openedRow);
+                result.grid.editingCommitted = await devtools.evaluate(editingStateExpression);
+                result.grid.editingCommittedCell = await devtools.cellText("Title", openedRow);
+
+                // Escape out of the next cell. The draft committed above stays: it is a different cell.
+                await devtools.pressKey("Escape");
+                await devtools.waitFor(async () => !(await devtools.evaluate(editingStateExpression)).editing);
+                result.grid.editingEscaped = await devtools.evaluate(editingStateExpression);
+
+                // Save, through the grid's own button — measured from the shadow root, because an
+                // s-button host has no box of its own.
+                const savePoint = await devtools.shadowButtonCentre(
+                    `Array.from(document.querySelectorAll("[data-polaris-grid-save-bar] s-button"))
+                        .find((button) => (button.textContent ?? "").trim() === "Save changes") ?? null`);
+
+                if (savePoint) {
+                    await devtools.clickAt(savePoint.x, savePoint.y);
+                    await devtools.waitFor(async () => !(await devtools.evaluate(editingStateExpression)).saveBar);
+
+                    // Waited for, not merely read: the callback and the render that shows its answer are
+                    // two round trips, and reading between them reported a working save as "nothing yet".
+                    await devtools.waitFor(
+                        async () => (await devtools.evaluate(editingStateExpression)).savedSummary !== "nothing yet");
+
+                    result.grid.editingSaved = await devtools.evaluate(editingStateExpression);
+                    result.grid.editingSavedCell = await devtools.cellText("Title", openedRow);
+                    result.grid.editingSavedSummary = result.grid.editingSaved.savedSummary;
+                }
+
+                // A save the server refuses: the price floor is the sample's own rule, and the point of
+                // measuring it is that a refusal has to keep the merchant's typing on screen with the
+                // reason beside it.
+                const pricePoint = await devtools.centreOf('[data-polaris-grid-cell="Price"][tabindex]');
+
+                if (pricePoint) {
+                    await devtools.clickAt(pricePoint.x, pricePoint.y);
+                    await devtools.waitFor(async () => (await devtools.evaluate(editingStateExpression)).editing);
+                    const priceRow = (await devtools.evaluate(editingStateExpression)).editorRow;
+                    result.grid.editingPriceTyped = await devtools.replaceFocusedFieldText("0.50");
+                    await devtools.pressKey("Enter");
+                    await devtools.waitFor(async () => (await devtools.evaluate(editingStateExpression)).saveBar);
+
+                    const refusedPoint = await devtools.shadowButtonCentre(
+                        `Array.from(document.querySelectorAll("[data-polaris-grid-save-bar] s-button"))
+                            .find((button) => (button.textContent ?? "").trim() === "Save changes") ?? null`);
+
+                    if (refusedPoint) {
+                        await devtools.clickAt(refusedPoint.x, refusedPoint.y);
+                        await devtools.waitFor(async () => (await devtools.evaluate(editingStateExpression)).bannerText.length > 0);
+                        result.grid.editingRefused = await devtools.evaluate(editingStateExpression);
+                        result.grid.editingRefusedCell = await devtools.cellText("Price", priceRow);
+                    }
+                }
+            }
         }
     }
 

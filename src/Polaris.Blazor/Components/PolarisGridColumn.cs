@@ -126,6 +126,37 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
     /// </remarks>
     [Parameter] public bool Visible { get; set; } = true;
 
+    /// <summary>
+    /// Whether the merchant can edit this column's cells, when the grid is editable too.
+    /// </summary>
+    /// <remarks>
+    /// An editable column needs somewhere to write the value: a settable property or field, or
+    /// <see cref="ValueSetter"/>. Asking for both without one is refused when the column mounts, because
+    /// the alternative is a cell that accepts typing and quietly throws it away.
+    /// </remarks>
+    [Parameter] public bool Editable { get; set; }
+
+    /// <summary>
+    /// Which editor a cell draws. <c>Auto</c> — the default — chooses one from the property's type.
+    /// </summary>
+    [Parameter] public PolarisGridEditorType EditorType { get; set; }
+
+    /// <summary>
+    /// Choices for a <see cref="PolarisGridEditorType.Select"/> editor. <c>null</c> takes them from an
+    /// enum's values, or else from the values the dataset contains.
+    /// </summary>
+    [Parameter] public IReadOnlyList<object?>? EditorOptions { get; set; }
+
+    /// <summary>
+    /// Writes a value onto a record, for a column whose property cannot simply be assigned.
+    /// </summary>
+    /// <remarks>
+    /// Needed for a computed column, and for a record that should be replaced rather than mutated:
+    /// <c>(alloy, value) =&gt; alloy with { Name = (string)value! }</c>. The value has already been
+    /// converted to the property's type when it arrives.
+    /// </remarks>
+    [Parameter] public Func<TItem, object?, TItem>? ValueSetter { get; set; }
+
     /// <summary>The definition this column registered, for tests and for the grid.</summary>
     public PolarisGridColumnDefinition<TItem>? Definition => _definition;
 
@@ -158,6 +189,13 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
                 nameof(FilterTemplate));
         }
 
+        if (Editable && access.Setter is null && ValueSetter is null)
+        {
+            throw new ArgumentException(
+                $"The column '{id}' asks to be editable but its expression names nothing that can be written, and no {nameof(ValueSetter)} was supplied. A cell nobody can save is worse than a read-only one: it takes the merchant's typing and discards it without a word.",
+                nameof(Editable));
+        }
+
         _definition = new PolarisGridColumnDefinition<TItem>
         {
             Id = id,
@@ -175,6 +213,11 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
             Alignment = Alignment,
             ListSlot = ListSlot,
             Visible = Visible,
+            Editable = Editable,
+            EditorType = EditorType,
+            EditorOptions = EditorOptions,
+            ValueSetter = ValueSetter,
+            CompiledSetter = access.Setter,
         };
 
         Grid.State.RegisterColumn(_definition);
@@ -218,6 +261,33 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
         if (!ReferenceEquals(_definition.FilterTemplate, FilterTemplate))
         {
             _definition.FilterTemplate = FilterTemplate;
+            changed = true;
+        }
+
+        // Editability and the editor's shape are read from the definition on every cell render, so a
+        // page that turns a column editable — or a column picker that swaps an editor — is honoured
+        // without re-registering the column.
+        if (_definition.Editable != Editable)
+        {
+            _definition.Editable = Editable;
+            changed = true;
+        }
+
+        if (_definition.EditorType != EditorType)
+        {
+            _definition.EditorType = EditorType;
+            changed = true;
+        }
+
+        if (!ReferenceEquals(_definition.EditorOptions, EditorOptions))
+        {
+            _definition.EditorOptions = EditorOptions;
+            changed = true;
+        }
+
+        if (!ReferenceEquals(_definition.ValueSetter, ValueSetter))
+        {
+            _definition.ValueSetter = ValueSetter;
             changed = true;
         }
 

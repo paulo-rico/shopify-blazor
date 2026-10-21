@@ -331,6 +331,49 @@ Read these before changing anything in `src/`.
     The probe grew a `--screenshot <path>` option with all of this: a layout fault and a behaviour fault
     report identically through numbers, and an image answers "what does it look like" in one look.
 
+27. **The grid edits cells like a spreadsheet, and every part of that failed at least once before it
+    worked.** `Editable` on the grid plus `Editable` on a column, `EditorType`/`EditorOptions` for the
+    control, and `ValueSetter` for a column whose expression is not a settable property. Drafts live in a
+    session keyed by row; a save applies them through `PolarisGridState.UpdateItems` and asks
+    `SaveChanges` whether the store took them. Six things found by running it, in the order they bit:
+    - **`EventCallback.Factory.Create<T>(this, _ => SomeAsyncMethod())` quietly binds to the `Action<T>`
+      overload.** The returned `Task` is dropped and the handler is fire-and-forget, so an exception
+      inside it goes nowhere: measured, clicking from one cell into another did nothing at all, with no
+      error in the page, the console or the server log. Every handler whose method returns `Task` is
+      written `async args => await …` for exactly that reason.
+    - **A frame's sequence numbers must not go backwards inside one scope, and the renderer does not
+      check.** Cell content numbered below the cell's attributes threw
+      `NotImplementedException: Unexpected frame type during RemoveOldFrame` — from an
+      `ElementReferenceCapture` frame that the diff was then asked to remove. Content after attributes
+      means numbering it above them; a capture is emitted *after* an element's children, as the Razor
+      compiler emits it, and the grid keeps its one capture on an element it always renders (the
+      `data-polaris-grid-root` wrapper it adds when `Editable`) rather than on a cell that comes and goes.
+    - **`ElementReference.FocusAsync` on a Polaris host focuses nothing.** The host computes to
+      `display: contents`, so the editor appeared correctly with `document.activeElement` on `body` and
+      the next keystroke went to the page. `IPolarisInterop.FocusWithinAsync(element, selector)` searches
+      *inside* one shadow boundary, and — measured — must search the shadow root **whole**
+      (`shadowRoot.querySelector("input, textarea, select, [tabindex]")`) rather than descend from its
+      `firstElementChild`: a Polaris shadow root begins with a `<style>`, so the descent found nothing and
+      the focus call reported "nothing to focus". It also needs the selector: the grid's first focusable
+      thing is the select-all checkbox in the header, not the editor.
+    - **`mousedown` opens the editor, not `click`.** Committing the cell the merchant left re-renders the
+      row, and a click whose mousedown and mouseup landed on different elements never fires — so clicking
+      straight from one edited cell into another silently did nothing.
+    - **Records are edited in place unless the column says otherwise.** A compiled property setter
+      (including a positional record's `init` accessor, which reflection calls happily) mutates the
+      instance, so `PolarisGridRowEdit.Original` is only pristine for a column that supplies a
+      `ValueSetter` returning a copy — which is what the sample does (`product with { … }`). Two tests
+      sharing one static record fixture each saw the other's edits before this was understood.
+    - **A renamed row moves.** The demo sorts by title, so saving a rename re-queries and the row leaves
+      the page it was on; an assertion that read "the first row's text" reported a working save as a
+      revert. The browser check addresses cells by row key and types a title that sorts first, and waits
+      for the page's own "written:" badge rather than reading it once — the callback and the render that
+      shows its answer are two separate round trips.
+    The probe drives all of it with real input: a click on the cell, `Input.insertText` over a selection
+    (which produces the same `input` event a keystroke does), `Input.dispatchKeyEvent` for Enter, Tab and
+    Escape, and a click on the save bar's shadow button — then asserts the draft, the dirty mark, the
+    save bar, the saved value, and a save the sample's own price rule refuses.
+
 ## Resetting the build tree
 
 To force a from-scratch build, remove **only** .NET build output. Do not reach for

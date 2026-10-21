@@ -83,6 +83,70 @@ public enum PolarisGridSortDirection
     Descending,
 }
 
+/// <summary>Which editor a cell draws while the merchant is editing it.</summary>
+/// <remarks>
+/// Declared rather than inferred for the same reason <see cref="PolarisGridFilterType"/> is: a string
+/// column may be free text or one of five categories, and only the caller knows which.
+/// <see cref="Auto"/> reads the column's value type, which is right for most columns and wrong for
+/// exactly those.
+/// </remarks>
+public enum PolarisGridEditorType
+{
+    /// <summary>Chosen from the column's value type. The default.</summary>
+    Auto,
+
+    /// <summary>A single-line text field.</summary>
+    Text,
+
+    /// <summary>A numeric field. The value is converted back to the column's own type on commit.</summary>
+    Number,
+
+    /// <summary>A date field. The value is written as an ISO date, which is what the element reads.</summary>
+    Date,
+
+    /// <summary>
+    /// A checkbox, which commits the moment it is ticked rather than on Enter — a tick that did nothing
+    /// until a key was pressed would be indistinguishable from a broken one.
+    /// </summary>
+    Boolean,
+
+    /// <summary>
+    /// A select. Its options are <see cref="PolarisGridColumnDefinition{TItem}.EditorOptions"/> when the
+    /// column declares them, otherwise an enum's values, otherwise the dataset's distinct values.
+    /// </summary>
+    Select,
+}
+
+/// <summary>When a committed edit reaches the caller's store.</summary>
+/// <remarks>
+/// <para>
+/// This decides <em>when</em> the edit is written, never <em>whether</em>: an editable grid always
+/// edits the records it was given. Without a <c>SaveChanges</c> callback a committed edit reaches
+/// <see cref="PolarisGridState{TItem}"/> and stops there, which is what a screen over local data
+/// wants.
+/// </para>
+/// <para>
+/// Neither mode is a database dependency. The grid asks the caller to persist a row; what the caller
+/// does with it — SQL Server, a service, a file — is not the grid's business.
+/// </para>
+/// </remarks>
+public enum PolarisGridSaveMode
+{
+    /// <summary>
+    /// After every committed cell, so the store and the grid agree at all times. A row that the change
+    /// pushes out of the current filter or sort leaves the page as soon as it is saved, which is what
+    /// "saved immediately" means.
+    /// </summary>
+    Immediate,
+
+    /// <summary>
+    /// When the merchant presses the grid's Save button, or the page calls the grid's <c>SaveAsync</c>.
+    /// Edits are drafts until then: the table keeps the row where it is, so the merchant can finish a
+    /// row without it moving under the cursor.
+    /// </summary>
+    Manual,
+}
+
 /// <summary>When a filter change reaches the query.</summary>
 public enum PolarisGridFilterApplyMode
 {

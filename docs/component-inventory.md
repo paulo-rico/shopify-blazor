@@ -27,7 +27,7 @@ The record for each element joins two sources that cannot drift apart: the wrapp
 | `<s-badge>` | Badge | `PolarisBadge` | feedback-and-status-indicators | 1.1 | browser-verified | 1 |
 | `<s-banner>` | Banner | `PolarisBanner` | feedback-and-status-indicators | 1.1 | browser-verified | 1 |
 | `<s-box>` | Box | `PolarisBox` | layout-and-structure | 1.1 | browser-verified | 1 |
-| `<s-button>` | Button | `PolarisButton` | actions | 1.1 | browser-verified | 9 |
+| `<s-button>` | Button | `PolarisButton` | actions | 1.1 | browser-verified | 10 |
 | `<s-button-group>` | Button group | `PolarisButtonGroup` | actions | 1.1 | browser-verified | 1 |
 | `<s-checkbox>` | Checkbox | `PolarisCheckbox` | forms | 1.1 | browser-verified | 1 |
 | `<s-chip>` | Chip | `PolarisChip` | typography-and-content | 1.1 | browser-verified | 1 |
@@ -294,6 +294,7 @@ Accessibility requirements:
 Exercised by:
 
 - `A_button_announces_the_expanded_state_as_a_dom_property`
+- `A_manual_grid_keeps_edits_as_drafts_until_save_and_shows_them_meanwhile`
 - `Button_forwards_command_for_so_a_modal_opens_without_javascript`
 - `Button_omits_a_false_boolean_entirely`
 - `Button_registers_an_interop_listener_only_for_supplied_callbacks`

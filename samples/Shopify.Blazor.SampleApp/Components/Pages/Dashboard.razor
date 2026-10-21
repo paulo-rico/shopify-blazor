@@ -35,7 +35,7 @@
     <PolarisSection Heading="Products data grid (composed)">
         <PolarisStack Gap="PolarisGap.Base">
             <PolarisParagraph>
-                Polaris has a table, and nothing that sorts, filters, pages or selects it. These four
+                Polaris has a table, and nothing that sorts, filters, pages, selects or edits it. These four
                 components are composed from what does exist: a sortable heading is an
                 <code>s-button</code>, a selected row is an <code>s-checkbox</code> in a cell, the
                 filter panel is an <code>s-popover</code> opened declaratively with
@@ -61,9 +61,21 @@
                 </Actions>
             </PolarisDataFilter>
 
+            <PolarisParagraph>
+                The grid is editable: click a cell, or Tab into it, and it becomes a Polaris field. Enter
+                saves the cell and moves down, Tab saves and moves right, Escape throws the cell's change
+                away. This one saves when you press Save rather than on every keystroke, so a whole row
+                can be filled in before anything is written — and a price below £1 is refused by the save,
+                on purpose, so a refusal is visible.
+            </PolarisParagraph>
+
             <PolarisDataGrid TItem="SampleProduct"
+                             @ref="_grid"
                              State="_gridState"
                              AllowSelection="true"
+                             Editable="true"
+                             SaveMode="PolarisGridSaveMode.Manual"
+                             SaveChanges="SaveProductAsync"
                              EmptyHeading="No product matches those filters"
                              EmptySubheading="Clear a filter, or search for something else."
                              SelectionChanged="SelectionChangedAsync">
@@ -71,12 +83,18 @@
                     <PolarisGridColumn TItem="SampleProduct"
                                        Field="product => product.Title"
                                        Title="Product"
+                                       Editable="true"
+                                       ValueSetter="@((product, value) => product with { Title = (string)value! })"
                                        ListSlot="PolarisTableListSlot.Primary"
-                                       FilterType="PolarisGridFilterType.Text" />
+                                       FilterType="PolarisGridFilterType.None" />
 
                     <PolarisGridColumn TItem="SampleProduct"
                                        Field="product => product.Status"
                                        Title="Status"
+                                       Editable="true"
+                                       EditorType="PolarisGridEditorType.Select"
+                                       EditorOptions="@Statuses"
+                                       ValueSetter="@((product, value) => product with { Status = (string)value! })"
                                        FilterType="PolarisGridFilterType.MultiSelect">
                         <CellTemplate Context="product">
                             <PolarisBadge Tone="@StatusTone(product.Status)">@product.Status</PolarisBadge>
@@ -91,11 +109,15 @@
                     <PolarisGridColumn TItem="SampleProduct"
                                        Field="product => product.Vendor"
                                        Title="Vendor"
-                                       FilterType="PolarisGridFilterType.Text" />
+                                       Editable="true"
+                                       ValueSetter="@((product, value) => product with { Vendor = (string)value! })"
+                                       FilterType="PolarisGridFilterType.MultiSelect" />
 
                     <PolarisGridColumn TItem="SampleProduct"
                                        Field="product => product.Price"
                                        Title="Price"
+                                       Editable="true"
+                                       ValueSetter="@((product, value) => product with { Price = (decimal)value! })"
                                        Format="C2"
                                        FormatProvider="@UkPounds"
                                        Alignment="PolarisTableHeaderFormat.Currency"
@@ -104,6 +126,8 @@
                     <PolarisGridColumn TItem="SampleProduct"
                                        Field="product => product.Inventory"
                                        Title="Inventory"
+                                       Editable="true"
+                                       ValueSetter="@((product, value) => product with { Inventory = (int)value! })"
                                        Alignment="PolarisTableHeaderFormat.Numeric"
                                        FilterType="PolarisGridFilterType.Range" />
 
@@ -123,6 +147,13 @@
                 <PolarisBadge Tone="PolarisTone.Neutral">@_sortSummary</PolarisBadge>
                 <PolarisText Color="PolarisColor.Subdued">· loaded:</PolarisText>
                 <PolarisBadge Tone="PolarisTone.Neutral">@_loadedSummary</PolarisBadge>
+                <PolarisText Color="PolarisColor.Subdued">· written:</PolarisText>
+                @* Marked for tools/verify-in-browser.mjs: what a save callback actually wrote is this
+                   page's own answer, and the only one that says the callback ran rather than the grid
+                   merely clearing a draft. *@
+                <PolarisBadge Tone="PolarisTone.Success">
+                    <span data-sample-saved-summary>@_savedSummary</span>
+                </PolarisBadge>
             </PolarisStack>
         </PolarisStack>
     </PolarisSection>
@@ -279,13 +310,31 @@
         "s-table", "s-table-header-row", "s-table-header", "s-table-body", "s-table-row", "s-table-cell",
     ];
 
+    /// <summary>The statuses the catalogue uses, offered by the Status column's select editor.</summary>
+    /// <remarks>
+    /// Declared rather than derived from the loaded rows: a status that no product currently has is
+    /// still a status a merchant may want to set, and options taken from the data would lose it.
+    /// </remarks>
+    private static readonly string[] Statuses = ["Active", "Draft", "Archived"];
+
+    /// <summary>The grid, for the page to read what is unsaved from — and to save it, if it wanted to.</summary>
+    private PolarisDataGrid<SampleProduct>? _grid;
+
     private bool _checking = true;
     private bool _minting;
     private bool? _embedded;
     private string? _openSection;
     private string? _tokenSummary;
     private int _selectedCount;
-    private string? _loadedSummary;
+    private string? _loadedSummary = "nothing yet";
+
+    /// <summary>What the save callback last wrote, and when.</summary>
+    /// <remarks>
+    /// The grid keeps its own count of unsaved drafts; this is the page's answer to a different
+    /// question — what has actually been written — which is what a save callback is for. It is on the
+    /// page, not in the grid, because only the application knows where the data went.
+    /// </remarks>
+    private string _savedSummary = "nothing yet";
 
     /// <summary>What the grid is ordered by, read from the shared state rather than tracked separately.</summary>
     private string _sortSummary => _gridState.Query.Sorts.Count == 0
@@ -367,6 +416,47 @@
     };
 
     private void OnGridStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// Writes one edited row, the way an application would.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the whole of the grid's contract with a database: it hands over the changed columns, in
+    /// their own types, and asks whether they were written. What happens here is a stand-in — the demo
+    /// has no store to write to — but the shape is the real one: validate, write, and report what
+    /// happened. The grid applies nothing to the collection until this returns success.
+    /// </para>
+    /// <para>
+    /// The price check is deliberate. A save that can only ever succeed demonstrates nothing about
+    /// refusals, and the refusal path is the one that has to keep the merchant's typing on screen.
+    /// </para>
+    /// </remarks>
+    private async Task<PolarisGridSaveResult> SaveProductAsync(
+        PolarisGridRowEdit<SampleProduct> edit,
+        CancellationToken cancellationToken)
+    {
+        if (edit.Changes.TryGetValue("Price", out var price) && price is decimal amount && amount < 1m)
+        {
+            return PolarisGridSaveResult.Failure(
+                $"“{edit.Original.Title}” cannot be priced at {amount.ToString("C2", UkPounds)}. The lowest price is £1.00.");
+        }
+
+        if (edit.Changes.TryGetValue("Title", out var title) && string.IsNullOrWhiteSpace(title as string))
+        {
+            return PolarisGridSaveResult.Failure("A product needs a title.");
+        }
+
+        // The stand-in for a round trip to a store. Slow enough to see the button's spinner, and
+        // cancellable the way a request is when the page goes away.
+        await Task.Delay(300, cancellationToken);
+
+        _savedSummary = edit.ChangedColumns.Count() == 1
+            ? string.Create(CultureInfo.InvariantCulture, $"{edit.ChangedColumns.First()} at {DateTime.Now:HH:mm:ss}")
+            : string.Create(CultureInfo.InvariantCulture, $"{edit.ChangedColumns.Count()} fields at {DateTime.Now:HH:mm:ss}");
+
+        return PolarisGridSaveResult.Success();
+    }
 
     /// <summary>
     /// The grid reports what is selected by key: the records themselves are the page's, and a list of

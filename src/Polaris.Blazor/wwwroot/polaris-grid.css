@@ -1,0 +1,47 @@
+/*
+ * Polaris.Blazor — the editable data grid's own affordances.
+ *
+ * Polaris has no editable table, so the three things that tell a merchant "this cell can be edited"
+ * have no element to attach to: the pointer cursor, the focus ring on a cell that is focused but not
+ * being edited, and the mark on a cell whose draft has not been saved. Everything visible in the grid
+ * is still a Polaris element; this file only draws the states Polaris does not have.
+ *
+ * No colours are declared. A custom property such as `--p-color-text` is not defined on :root or on
+ * light-DOM content — those tokens live inside Polaris's shadow roots and do not inherit out of them —
+ * so a hard-coded palette would be a colour that looks right in the Admin and wrong everywhere else.
+ * `currentColor` is the merchant's own text colour, whatever the theme has decided it is.
+ */
+
+/* A cell a merchant can click into. Without it the cell reads as ordinary text. */
+[data-polaris-grid-cell] {
+    cursor: pointer;
+    border-radius: 2px;
+    /* The cell is focusable by keyboard, so its ring has to be visible when it is focused — and the
+       browser's default ring is suppressed by nothing here on purpose. */
+    outline-offset: -2px;
+}
+
+/* Focused but not being edited: the caret is on the cell, not in a field yet. */
+[data-polaris-grid-cell]:focus-visible {
+    outline: 2px solid currentColor;
+}
+
+/* A committed draft that has not been saved. Underlined rather than coloured, so it is still legible
+   to a merchant who cannot tell one colour from another — and still distinguishable from a saved
+   value, which is plain. */
+[data-polaris-grid-cell][data-polaris-grid-dirty] {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+}
+
+/* A failed conversion keeps the editor open. Polaris draws the message; this keeps it from stretching
+   the row to the width of the sentence. */
+[data-polaris-grid-editor] {
+    min-width: 8rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-polaris-grid-cell] {
+        transition: none;
+    }
+}

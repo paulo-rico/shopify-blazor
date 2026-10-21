@@ -48,7 +48,9 @@ function requestRender(element) {
 //
 //   polaris-accordion.css     — the accordion's motion, which a media query has to govern.
 //   polaris-range-slider.css  — the slider's track and thumbs, which Polaris has no element for.
-const stylesheets = ["./polaris-accordion.css", "./polaris-range-slider.css"];
+//   polaris-grid.css          — the data grid's editing affordances: the pointer cursor and the
+//                               focus ring on a cell, which no Polaris element provides.
+const stylesheets = ["./polaris-accordion.css", "./polaris-range-slider.css", "./polaris-grid.css"];
 
 /**
  * Loads this package's stylesheets into the document, once.
@@ -154,6 +156,80 @@ export async function setProperties(element, tagName, values) {
     }
 
     if (needsRender) requestRender(element);
+}
+
+/**
+ * Focuses the first thing inside an element that can actually take keyboard focus.
+ *
+ * `HTMLElement.focus()` on a Polaris host does nothing useful: the host computes to
+ * `display: contents` and the input that receives typing lives inside its shadow root. So the search
+ * descends — through the element's children and through one shadow boundary — for a real control, and
+ * falls back to the element itself for the case where the container is the focusable thing (a grid
+ * cell with a tabindex).
+ *
+ * Measured while building the editable data grid: passing the `s-text-field` host to Blazor's own
+ * `ElementReference.FocusAsync` leaves `document.activeElement` on `body`, so the editor appeared with
+ * the caret nowhere, and the next keystroke went to the page.
+ *
+ * @param {HTMLElement} element the container to search
+ * @param {string|null} selector narrows the search to the first matching descendant, for a container
+ *   that holds more than one focusable thing
+ * @returns {Promise<boolean>} true when focus landed inside the element
+ */
+export async function focusWithin(element, selector = null) {
+    requireElement(element, "focusWithin");
+
+    const focusableSelector = "input:not([type=hidden]), textarea, select, [tabindex]:not([tabindex='-1'])";
+
+    const focusable = (node, depth = 0) => {
+        if (!node || depth > 8) return null;
+
+        // A shadow root is opaque to querySelector from outside, and for a Polaris field it is the only
+        // place the input is. It is searched *whole* rather than from its first element child: measured,
+        // a Polaris shadow root begins with a `<style>`, so descending into the first child found nothing
+        // and the editor appeared with the caret on `body` — the next keystroke went to the page.
+        if (node.shadowRoot) {
+            const inside = node.shadowRoot.querySelector(focusableSelector);
+
+            if (inside) return inside;
+
+            for (const child of node.shadowRoot.children) {
+                const found = focusable(child, depth + 1);
+
+                if (found) return found;
+            }
+        }
+
+        if (node.matches?.(focusableSelector)) return node;
+
+        for (const child of node.children ?? []) {
+            const found = focusable(child, depth + 1);
+
+            if (found) return found;
+        }
+
+        return null;
+    };
+
+    // The element may still be upgrading: an element that has no shadow root yet has nothing to focus,
+    // and giving up on the first frame would leave the editor unreachable for exactly one keystroke.
+    for (let attempt = 0; attempt < 10; attempt++) {
+        const container = selector ? element.querySelector(selector) : element;
+        const target = container ? focusable(container) : null;
+
+        if (target) {
+            target.focus();
+
+            // `document.activeElement` is the outermost host of a focused shadow tree, so the proof
+            // that focus arrived is the *root* of the target the caret is in.
+            const root = target.getRootNode();
+            return (root.activeElement ?? document.activeElement) === target;
+        }
+
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+
+    return false;
 }
 
 /**
