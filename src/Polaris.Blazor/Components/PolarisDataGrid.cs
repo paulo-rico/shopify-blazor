@@ -364,6 +364,11 @@ public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
         BuildSection(builder, 0);
     }
 
+    // The section's frames are numbered from a parameter because it is a sibling of the wrapper's
+    // attribute in one case and the grid's own root in the other, and every frame of a scope has to be
+    // in non-decreasing sequence order — the rule the whole editing path was broken by. The analyzer
+    // wants literals; this is the one case where a literal is wrong.
+#pragma warning disable ASP0006
     private void BuildSection(RenderTreeBuilder builder, int sequence)
     {
         // s-section padding="none" is Shopify's own guidance for wrapping a table: a section pads its
@@ -384,6 +389,7 @@ public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
         builder.AddAttribute(sequence + 3, nameof(PolarisSection.ChildContent), (RenderFragment)BuildSectionContent);
         builder.CloseComponent();
     }
+#pragma warning restore ASP0006
 
     private void BuildSectionContent(RenderTreeBuilder builder)
     {
@@ -588,6 +594,11 @@ public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
     {
         var template = column is PolarisGridColumnDefinition<TItem> typed ? typed.CellTemplate : null;
 
+        // Suppressed rather than worked around: a literal is right for a cell that renders its value
+        // alone and wrong for the editable one, whose content follows attributes numbered above zero. The
+        // two branches cannot be one expression — an object-typed ternary hands the fragment to
+        // AddContent as text, and the cell renders "System.Func`2[…]" instead of the template.
+#pragma warning disable ASP0006
         if (template is not null)
         {
             builder.AddContent(sequence, template(item));
@@ -595,6 +606,7 @@ public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
         }
 
         builder.AddContent(sequence, column.FormatValue(value));
+#pragma warning restore ASP0006
     }
 
     /// <summary>
