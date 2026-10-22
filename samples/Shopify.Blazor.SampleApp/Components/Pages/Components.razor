@@ -211,6 +211,44 @@
         </PolarisStack>
     </PolarisSection>
 
+    <PolarisSection Heading="Composed: the select-shaped suggest field">
+        <PolarisStack Gap="PolarisGap.Base">
+            @*
+                The third composed component: the same problem — no combobox anywhere in Polaris 1 — with
+                the other shape. The field stays a search box, the known values are rows beneath it, the
+                last row is whatever has been typed, and the picked value becomes a removable chip in the
+                field's place. Both shapes share one list here, so adding through either shows up in
+                both, which is the property a caller relies on.
+            *@
+            <PolarisParagraph>
+                Type to narrow the rows; the last row is always the thing you just typed. Press it, or
+                press a row above it, and the choice becomes a removable chip. A native <c>s-select</c>
+                cannot be typed into, which is why this is not one.
+            </PolarisParagraph>
+
+            <PolarisGrid GridTemplateColumns="repeat(2, 1fr)" Gap="base">
+                <PolarisSuggestFieldInline Label="Supplier"
+                                           Value="@_galleryPickedSupplier"
+                                           Suggestions="@_gallerySuppliers"
+                                           CollectionName="your suppliers"
+                                           Placeholder="Search or add a supplier"
+                                           ValueAccessibilityLabelFormat="Supplier: {0}"
+                                           EmptyLabel="No suppliers yet — type a name to add one."
+                                           ValueChanged="@(value => _galleryPickedSupplier = value)"
+                                           SuggestionAdded="@AddGallerySupplierAsync" />
+
+                <PolarisTextField Label="SKU"
+                                  Value="@_gallerySku"
+                                  Placeholder="Their code, for example AC-114"
+                                  OnInput="@(args => _gallerySku = args.Value ?? string.Empty)" />
+            </PolarisGrid>
+
+            <PolarisText Color="PolarisColor.Subdued">
+                C# holds picked supplier "@(_galleryPickedSupplier ?? "none")".
+            </PolarisText>
+        </PolarisStack>
+    </PolarisSection>
+
     @*
         Every remaining wrapper, rendered once each so the browser verification can prove the element
         is defined, upgraded and present. This is deliberately broad rather than pretty: a component
@@ -467,6 +505,13 @@
     private string _gallerySku = "AC-114";
 
     private List<string> _gallerySuppliers = ["Cookson Gold", "Rio Grande"];
+
+    /// <summary>The select-shaped field's own choice; null means the picker is showing.</summary>
+    /// <remarks>
+    /// Deliberately null to begin with, so the gallery section opens in the state a merchant meets on a
+    /// record that has no supplier yet — the list of choices, not a chip.
+    /// </remarks>
+    private string? _galleryPickedSupplier;
 
     private IReadOnlyDictionary<string, PolarisComponentStatus>? _runtimeStatus;
 

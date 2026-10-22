@@ -6,7 +6,7 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
-8 more are composed from those wrappers, for behaviour Polaris does not
+9 more are composed from those wrappers, for behaviour Polaris does not
 provide in an element of its own. They add structure and interaction; they do not add
 appearance either, because everything visible in them is still a Polaris element.
 
@@ -70,6 +70,7 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisSpinner` | `<s-spinner>` | — | yes |
 | `PolarisStack` | `<s-stack>` | — | yes |
 | `PolarisSuggestField` | — composed | — | yes |
+| `PolarisSuggestFieldInline` | — composed | — | yes |
 | `PolarisSwitch` | `<s-switch>` | `Change`, `Input` | yes |
 | `PolarisTable` | `<s-table>` | `NextPage`, `PreviousPage` | yes |
 | `PolarisTableBody` | `<s-table-body>` | — | yes |
@@ -1083,6 +1084,26 @@ A free-text field with a list of already-known values beneath it, drawn as remov
 | `SuggestionChosen` | `EventCallback<string>` | Raised with the chip's value when the merchant picks one. |
 | `SuggestionAdded` | `EventCallback<string>` | Raised with the typed value when the merchant asks for it to be remembered. |
 | `SuggestionRemoved` | `EventCallback<string>` | Raised with the chip's value when the merchant removes it from the list. |
+
+### `PolarisSuggestFieldInline` (composed)
+
+A pick-a-known-value-or-type-a-new-one field: a search box over a list of the values already known, with an "Add..." entry appended for whatever has been typed, and the chosen value shown as a removable chip.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Label` | `string?` | The field's accessible label, used as the search box's label and the chip's caption. |
+| `Details` | `string?` | Help text below the search box. |
+| `Placeholder` | `string?` | Placeholder shown while the search box is empty. |
+| `Value` | `string?` | The chosen value, which the caller owns. |
+| `Suggestions` | `IReadOnlyList<string>` | The known values, offered as rows. |
+| `CollectionName` | `string?` | What the list is called in the add entry's accessible name — "Add the supplier <em>Acme to <em>your suppliers ". |
+| `AllowAdd` | `bool` | Offers the "Add..." entry for a value the list has not got. |
+| `Removable` | `bool` | Gives the chosen value's chip a remove control, which clears the value. |
+| `Disabled` | `bool` | Prevents the search box and every row from being used. |
+| `EmptyLabel` | `string?` | Shown when there is nothing to choose from and nothing typed. |
+| `ValueAccessibilityLabelFormat` | `string?` | Replaces the chosen chip's accessible name, formatted with the value. |
+| `ValueChanged` | `EventCallback<string?>` | Raised with the chosen value, or with null when the chip is removed. |
+| `SuggestionAdded` | `EventCallback<string>` | Raised with the typed value when the merchant asks for it to be remembered. |
 
 ### `PolarisSwitch` → `<s-switch>`
 
