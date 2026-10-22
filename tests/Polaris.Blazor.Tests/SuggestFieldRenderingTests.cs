@@ -182,6 +182,32 @@ public sealed class SuggestFieldRenderingTests
     }
 
     [Fact]
+    public async Task Text_the_merchant_typed_survives_a_re_render_that_carries_the_same_value()
+    {
+        // A caller that ignores ValueChanged leaves the field uncontrolled, and the page it sits on
+        // re-renders for its own reasons — a filter, a flash message, another field. If the field adopted
+        // the parameter whenever it differed from what was on screen, every keystroke would be undone by
+        // the next render. Asserted through the chips, which are the only view of the field's own text.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisSuggestField>(parameters => parameters
+            .Add(p => p.Value, "Cookson Gold")
+            .Add(p => p.Suggestions, ["Cookson Gold"]));
+
+        Assert.Single(component.FindAll("s-clickable-chip"));
+
+        await component.InvokeAsync(() => context.Interop.RaiseAsync("s-text-field", "input", "Cookson Gold Ltd"));
+
+        // "Cookson Gold Ltd" matches nothing in the list, so an empty chip row means the typed text is
+        // still in force.
+        Assert.Empty(component.FindAll("s-clickable-chip"));
+
+        component.Render(parameters => parameters.Add(p => p.Value, "Cookson Gold"));
+
+        Assert.Empty(component.FindAll("s-clickable-chip"));
+    }
+
+    [Fact]
     public void Matching_shows_everything_for_a_blank_query_and_matches_any_part_otherwise()
     {
         // "Contains", not "starts with": a merchant looking for Cookson types "cook", but one looking

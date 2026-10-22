@@ -27,6 +27,15 @@ namespace Polaris.Blazor.Components;
 /// component's stand-in for a search box. A blank field shows the whole list, so the chips double as
 /// a picker; typing narrows them.
 /// </para>
+/// <para>
+/// <strong>Not verified in a real browser.</strong> What the component tests can prove is the markup
+/// and that every callback is wired; what they cannot is how Polaris's own chip behaves when its remove
+/// control is pressed. If that press also raises <c>click</c> on the chip — which the element's
+/// documentation does not say either way — the field would end up holding the name that was just
+/// removed from the list. That is harmless (the value is free text, and the supplier-plus-code rule is
+/// enforced on save), but it is the first thing to check with
+/// <c>tools/verify-in-browser.mjs</c> on the sample gallery's section for this control.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -43,8 +52,8 @@ namespace Polaris.Blazor.Components;
 /// </example>
 public sealed class PolarisSuggestField : ComponentBase
 {
-    /// <summary>The text last adopted from <see cref="Value"/>, so a caller's change is told apart from an echo.</summary>
-    private string? _lastValue;
+    /// <summary>The <see cref="Value"/> the previous parameter pass carried, so a caller's change is told apart from an echo.</summary>
+    private string? _lastParameter;
 
     /// <summary>What is in the field. Kept locally so filtering does not wait for a round trip.</summary>
     private string _query = string.Empty;
@@ -160,10 +169,12 @@ public sealed class PolarisSuggestField : ComponentBase
         // The caller's value is adopted when the PARAMETER changes, not when it differs from what was
         // last reported. A parent that applies changes lazily re-renders with its previous value while a
         // new one is in flight, and treating that stale echo as an instruction resets the field — measured
-        // in this library's range slider, where the handle jumped back on every second key press.
-        if (!string.Equals(_lastValue, Value, StringComparison.Ordinal))
+        // in this library's range slider, where the handle jumped back on every second key press. This is
+        // also what lets a caller leave the field uncontrolled: run it with no Value binding at all and
+        // nothing here ever overwrites what the merchant typed.
+        if (!string.Equals(_lastParameter, Value, StringComparison.Ordinal))
         {
-            _lastValue = Value;
+            _lastParameter = Value;
             _query = Value ?? string.Empty;
         }
     }
@@ -282,7 +293,6 @@ public sealed class PolarisSuggestField : ComponentBase
     private async Task OnTypedAsync(PolarisEventArgs args)
     {
         _query = args.Value ?? string.Empty;
-        _lastValue = null;
 
         await ValueChanged.InvokeAsync(_query);
     }
@@ -293,7 +303,6 @@ public sealed class PolarisSuggestField : ComponentBase
         // through ValueChanged, which every other field raises, and through SuggestionChosen for callers
         // that want to do more than store it.
         _query = suggestion;
-        _lastValue = suggestion;
 
         await ValueChanged.InvokeAsync(suggestion);
         await SuggestionChosen.InvokeAsync(suggestion);
