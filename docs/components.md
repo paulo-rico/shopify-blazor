@@ -1087,7 +1087,7 @@ A free-text field with a list of already-known values beneath it, drawn as remov
 
 ### `PolarisSuggestFieldInline` (composed)
 
-A pick-a-known-value-or-type-a-new-one field: a search box over a list of the values already known, with an "Add..." entry appended for whatever has been typed, and the chosen value shown as a removable chip.
+A pick-a-known-value-or-type-a-new-one field: a search box over a list of the values already known, with an "Add..." entry appended for whatever has been typed, and either the chosen value as a removable chip in the field's place or the value kept in the field itself.
 
 | Parameter | Type | Notes |
 |---|---|---|
@@ -1099,6 +1099,7 @@ A pick-a-known-value-or-type-a-new-one field: a search box over a list of the va
 | `CollectionName` | `string?` | What the list is called in the add entry's accessible name — "Add the supplier <em>Acme to <em>your suppliers ". |
 | `AllowAdd` | `bool` | Offers the "Add..." entry for a value the list has not got. |
 | `Removable` | `bool` | Gives the chosen value's chip a remove control, which clears the value. |
+| `ShowValueAsChip` | `bool` | Shows the chosen value as a removable chip in the field's place. |
 | `Disabled` | `bool` | Prevents the search box and every row from being used. |
 | `EmptyLabel` | `string?` | Shown when there is nothing to choose from and nothing typed. |
 | `ValueAccessibilityLabelFormat` | `string?` | Replaces the chosen chip's accessible name, formatted with the value. |

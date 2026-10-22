@@ -212,6 +212,118 @@ public sealed class SuggestFieldInlineRenderingTests
     }
 
     [Fact]
+    public void With_the_value_in_the_field_a_settled_value_sits_in_the_box_and_no_list_is_shown()
+    {
+        // The mode Shopify's own product-type field uses: the value stays where it was typed, so the list
+        // has to close once it is settled — otherwise every edit of a material opens with the whole
+        // supplier directory hanging under the field.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisSuggestFieldInline>(parameters => parameters
+            .Add(p => p.Label, "Supplier")
+            .Add(p => p.ShowValueAsChip, false)
+            .Add(p => p.Value, "Cookson Gold")
+            .Add(p => p.Suggestions, ["Cookson Gold", "Rio Grande"]));
+
+        Assert.Equal("Cookson Gold", component.Find("s-search-field").GetAttribute("defaultValue"));
+        Assert.Empty(component.FindAll("s-clickable-chip"));
+        Assert.Empty(component.FindAll("s-button"));
+    }
+
+    [Fact]
+    public async Task Typing_into_the_field_reports_the_text_as_the_value_and_reopens_the_list()
+    {
+        // In this mode the text IS the value, so a caller binding Value gets every keystroke — that is what
+        // makes it behave like a text field with suggestions rather than a picker with a chip.
+        using var context = new PolarisTestContext();
+
+        string? reported = null;
+
+        var component = context.Render<PolarisSuggestFieldInline>(parameters => parameters
+            .Add(p => p.ShowValueAsChip, false)
+            .Add(p => p.Suggestions, ["Cookson Gold"])
+            .Add(p => p.ValueChanged, value => reported = value));
+
+        await component.InvokeAsync(() => context.Interop.RaiseAsync("s-search-field", "input", "co"));
+
+        Assert.Equal("co", reported);
+        Assert.Equal(
+            ["Cookson Gold", "Add \u201cco\u201d"],
+            component.FindAll("s-button").Select(row => row.TextContent));
+    }
+
+    [Fact]
+    public async Task Choosing_a_row_puts_the_name_in_the_field_and_closes_the_list()
+    {
+        using var context = new PolarisTestContext();
+
+        string? reported = null;
+
+        var component = context.Render<PolarisSuggestFieldInline>(parameters => parameters
+            .Add(p => p.ShowValueAsChip, false)
+            .Add(p => p.Suggestions, ["Cookson Gold"])
+            .Add(p => p.ValueChanged, value => reported = value));
+
+        await component.InvokeAsync(() => context.Interop.RaiseAsync("s-button", "click"));
+
+        Assert.Equal("Cookson Gold", reported);
+        Assert.Equal("Cookson Gold", component.Find("s-search-field").GetAttribute("defaultValue"));
+
+        // Settled: the choice is made, so the list has done its job until the merchant types again.
+        Assert.Empty(component.FindAll("s-button"));
+    }
+
+    [Fact]
+    public async Task Adding_a_new_name_keeps_it_in_the_field()
+    {
+        // The name the merchant just typed is the value in this mode, so pressing Add must not blank the
+        // box the way chip mode does — that would erase the very thing that was saved.
+        using var context = new PolarisTestContext();
+
+        string? added = null;
+
+        var component = context.Render<PolarisSuggestFieldInline>(parameters => parameters
+            .Add(p => p.ShowValueAsChip, false)
+            .Add(p => p.Suggestions, ["Cookson Gold"])
+            .Add(p => p.SuggestionAdded, value => added = value));
+
+        await component.InvokeAsync(() => context.Interop.RaiseAsync("s-search-field", "input", "Acme Metals"));
+        await component.InvokeAsync(() => context.Interop.RaiseAsync("s-button", "click"));
+
+        Assert.Equal("Acme Metals", added);
+        Assert.Equal("Acme Metals", component.Find("s-search-field").GetAttribute("defaultValue"));
+        Assert.Empty(component.FindAll("s-button"));
+    }
+
+    [Fact]
+    public async Task A_caller_that_echoes_the_typed_text_back_does_not_close_the_list()
+    {
+        // Found in a browser, not here: a page binds Value to what it is told, so every keystroke comes
+        // back as a new value. Treating that echo as an instruction settled the field on the first
+        // character and closed the list, so typing narrowed nothing and the panel vanished — the exact
+        // opposite of what the control is for. Only a value that differs from the text in the box may
+        // settle it.
+        using var context = new PolarisTestContext();
+
+        var typed = string.Empty;
+
+        var component = context.Render<PolarisSuggestFieldInline>(parameters => parameters
+            .Add(p => p.ShowValueAsChip, false)
+            .Add(p => p.Suggestions, ["Cookson Gold"])
+            .Add(p => p.Value, typed)
+            .Add(p => p.ValueChanged, value => typed = value ?? string.Empty));
+
+        await component.InvokeAsync(() => context.Interop.RaiseAsync("s-search-field", "input", "co"));
+
+        // The caller now re-renders with the text it was told, exactly as a bound page does.
+        component.Render(parameters => parameters.Add(p => p.Value, "co"));
+
+        Assert.Equal(
+            ["Cookson Gold", "Add \u201cco\u201d"],
+            component.FindAll("s-button").Select(row => row.TextContent));
+    }
+
+    [Fact]
     public void Filtering_is_the_same_rule_the_chip_field_uses()
     {
         // Delegated on purpose: the two controls offer the same vocabulary, and a filter that differed

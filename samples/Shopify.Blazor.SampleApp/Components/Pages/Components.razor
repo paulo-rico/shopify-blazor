@@ -246,6 +246,30 @@
             <PolarisText Color="PolarisColor.Subdued">
                 C# holds picked supplier "@(_galleryPickedSupplier ?? "none")".
             </PolarisText>
+
+            @*
+                The same control with the value kept in the field instead of chipped, which is what
+                Shopify's own product-type field does. The list is closed while the field holds a settled
+                value and reopens the moment the merchant types.
+            *@
+            <PolarisParagraph>
+                The same control with <c>ShowValueAsChip="false"</c>: the value stays in the field, the
+                list closes once it is settled, and typing reports the text as the value.
+            </PolarisParagraph>
+
+            <PolarisSuggestFieldInline Label="Supplier type"
+                                       ShowValueAsChip="false"
+                                       Value="@_galleryTypedSupplier"
+                                       Suggestions="@_gallerySuppliers"
+                                       CollectionName="your suppliers"
+                                       Placeholder="Search or add a supplier"
+                                       EmptyLabel="No suppliers yet — type a name and press Add to save it."
+                                       ValueChanged="@(value => _galleryTypedSupplier = value ?? string.Empty)"
+                                       SuggestionAdded="@AddGallerySupplierAsync" />
+
+            <PolarisText Color="PolarisColor.Subdued">
+                C# holds typed supplier "@_galleryTypedSupplier".
+            </PolarisText>
         </PolarisStack>
     </PolarisSection>
 
@@ -512,6 +536,9 @@
     /// record that has no supplier yet — the list of choices, not a chip.
     /// </remarks>
     private string? _galleryPickedSupplier;
+
+    /// <summary>The value-in-field instance's text, which is the value itself in that mode.</summary>
+    private string _galleryTypedSupplier = string.Empty;
 
     private IReadOnlyDictionary<string, PolarisComponentStatus>? _runtimeStatus;
 

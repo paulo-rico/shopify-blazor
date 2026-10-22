@@ -6,33 +6,38 @@ namespace Polaris.Blazor.Components;
 
 /// <summary>
 /// A pick-a-known-value-or-type-a-new-one field: a search box over a list of the values already known,
-/// with an "Add ..." entry appended for whatever has been typed, and the chosen value shown as a
-/// removable chip.
+/// with an "Add ..." entry appended for whatever has been typed, and either the chosen value as a
+/// removable chip in the field's place or the value kept in the field itself.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This is the select-shaped sibling of <see cref="PolarisSuggestField"/>, and the difference is what
 /// the merchant is looking at. That one draws the known values as chips and keeps the field as the
 /// value; this one keeps the field as a search box, draws the values as a list of rows underneath, and
-/// shows the picked value as a chip in the field's place. Both exist because the right shape depends on
+/// then either chips the choice (<see cref="ShowValueAsChip"/>) or leaves it in the field — which is
+/// what Shopify's own product-type field does. Both shapes exist because the right one depends on
 /// whether the list is a handful of tags or a directory of suppliers.
 /// </para>
 /// <para>
-/// <b>Why it is not an <c>s-select</c>.</b> A native select cannot be typed into, so it cannot offer
-/// "add the thing I have just typed" — which is the whole point of a field whose list is learned from
-/// use. Polaris 1 has no combobox and no programmatic popover opening (a popover is opened by a
-/// button's <c>commandFor</c>), so the list is drawn inline, beneath the field, in a bordered panel.
-/// That is also why this component's name says "inline": the panel pushes the page down instead of
-/// floating over it, and it never needs a focus trap or a click-outside handler to dismiss.
+/// <b>Why it is not an <c>s-select</c>, and why the panel does not float.</b> A native select cannot be
+/// typed into, so it cannot offer "add the thing I have just typed" — the whole point of a field whose
+/// list is learned from use. Floating the list under the field the way the Admin's own product-type
+/// field does is also out of reach in this layer, and not by guesswork: the shipped Polaris runtime was
+/// measured in Chrome, and <c>s-popover</c> has <em>no</em> methods at all (<c>show</c>, <c>hide</c>,
+/// <c>toggle</c>, <c>showOverlay</c> are all <c>undefined</c>), so it cannot be opened from code; and
+/// <c>s-search-field</c> exposes no <c>interestFor</c>, no <c>commandFor</c> and no slots, so nothing
+/// can anchor a panel to it. What <em>does</em> work — also measured — is a <b>button</b> whose
+/// <c>commandFor</c> opens a popover that contains a search field: the panel opened 320×156 below the
+/// trigger, focus moved into the field inside it, and typing left it open. That is a different control
+/// (a button that opens a picker) and not this one, which is why this panel is drawn inline: it pushes
+/// the page down, never needs a focus trap, and cannot be lost behind a stacking context.
 /// </para>
 /// <para>
 /// The rows are buttons, not <see cref="PolarisClickable"/>s: a clickable surface is not focusable and is
 /// not announced as interactive, and a list of choices a keyboard cannot reach is not a list. The add
 /// entry is a button for the same reason, and it reads as an action rather than as another choice.
-/// </para>
-/// <para>
-/// <b>Not verified in a real browser.</b> The panel's appearance in particular — a bordered box of
-/// full-width tertiary buttons — is the part a component test cannot judge.
+/// Arrow-key navigation and <c>aria-activedescendant</c> are not implemented — there is no ARIA combobox
+/// in this library, and inventing one in the interop layer would be interaction Polaris does not ship.
 /// </para>
 /// </remarks>
 /// <example>
@@ -53,6 +58,17 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
 
     /// <summary>What is in the search box. Kept locally so filtering does not wait for a round trip.</summary>
     private string _query = string.Empty;
+
+    /// <summary>
+    /// Whether the field is showing a value the merchant has settled on, which is what closes the list.
+    /// </summary>
+    /// <remarks>
+    /// Only <see cref="ShowValueAsChip"/> = false needs it. The list has to be able to close while the
+    /// field still holds the chosen text, and it has to reopen the moment the merchant edits it — and a
+    /// caller that binds the field's text to the value gives the component no way to tell those two apart
+    /// from the parameter alone.
+    /// </remarks>
+    private bool _settled;
 
     /// <summary>The field's accessible label, used as the search box's label and the chip's caption.</summary>
     [Parameter] public string? Label { get; set; }
@@ -84,6 +100,25 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
     /// <summary>Gives the chosen value's chip a remove control, which clears the value.</summary>
     [Parameter] public bool Removable { get; set; } = true;
 
+    /// <summary>
+    /// Shows the chosen value as a removable chip in the field's place. False keeps it in the field
+    /// instead, which is how Shopify's own product-type field behaves.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The two differ in more than appearance. With a chip, the field is a search box that is empty once
+    /// something is chosen, and clearing it is the chip's job. Without one, the field is the value: typing
+    /// reports every keystroke through <see cref="ValueChanged"/>, choosing a row puts that name in the
+    /// field and closes the list, and clearing it is simply deleting the text.
+    /// </para>
+    /// <para>
+    /// In this mode the list is closed while the field shows a settled value and reopens as soon as the
+    /// merchant types, so a form that loads with a supplier already set does not open with a list of every
+    /// supplier in the shop hanging under it.
+    /// </para>
+    /// </remarks>
+    [Parameter] public bool ShowValueAsChip { get; set; } = true;
+
     /// <summary>Prevents the search box and every row from being used.</summary>
     [Parameter] public bool Disabled { get; set; }
 
@@ -111,11 +146,37 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
         // Adopted when the PARAMETER changes, never when it differs from what was typed — the rule the
         // suggest field and the range slider both paid for: a caller that leaves the field unbound, or
         // re-renders with a stale value while a new one is in flight, must not have its text reset.
-        if (!string.Equals(_lastParameter, Value, StringComparison.Ordinal))
+        if (string.Equals(_lastParameter, Value, StringComparison.Ordinal))
         {
-            _lastParameter = Value;
-            _query = string.Empty;
+            return;
         }
+
+        _lastParameter = Value;
+
+        if (ShowValueAsChip)
+        {
+            // The chip is the value, so the search box starts empty every time one is chosen or replaced.
+            _query = string.Empty;
+            _settled = false;
+
+            return;
+        }
+
+        // The field IS the value, so what arrives from the caller either imposes a value — first paint, an
+        // edit form, a reset — or echoes the text that was just typed. Only the first settles the field
+        // and closes the list. Comparing against the text in the box is what tells them apart, and getting
+        // this wrong was measured in a browser rather than guessed: with a bound caller, every keystroke
+        // echoed back as a new value, which settled the field and closed the list on the first character —
+        // so typing narrowed nothing and the merchant saw their own text with no list under it.
+        var incoming = Value ?? string.Empty;
+
+        if (string.Equals(incoming, _query, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _query = incoming;
+        _settled = !string.IsNullOrWhiteSpace(incoming);
     }
 
     /// <inheritdoc />
@@ -127,14 +188,21 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
         builder.AddAttribute(1, nameof(PolarisStack.Gap), PolarisGap.Base);
         builder.AddAttribute(2, nameof(PolarisStack.ChildContent), (RenderFragment)(stack =>
         {
-            if (chosen is not null)
+            if (ShowValueAsChip)
             {
-                RenderChosen(stack, chosen);
+                if (chosen is not null)
+                {
+                    RenderChosen(stack, chosen);
+                }
+                else
+                {
+                    RenderPicker(stack);
+                }
+
+                return;
             }
-            else
-            {
-                RenderPicker(stack);
-            }
+
+            RenderPicker(stack);
         }));
         builder.CloseComponent();
     }
@@ -180,6 +248,11 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
         // accumulating two spellings.
         var canAdd = AllowAdd && !Disabled && IsNew(Suggestions, _query);
 
+        // With the value in the field, the list closes once the merchant has settled on one and reopens
+        // as soon as they type. Without this, a form that loads with a supplier already set would open
+        // under a list of every supplier the shop has, which is a panel the merchant did not ask for.
+        var listOpen = ShowValueAsChip || !_settled;
+
         stack.OpenComponent<PolarisSearchField>(30);
         stack.AddAttribute(31, nameof(PolarisSearchField.Label), Label);
         stack.AddAttribute(32, nameof(PolarisSearchField.Details), Details);
@@ -189,6 +262,11 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
         stack.AddAttribute(36, nameof(PolarisSearchField.OnInput), TypedCallback());
         stack.AddAttribute(37, nameof(PolarisSearchField.OnChange), TypedCallback());
         stack.CloseComponent();
+
+        if (!listOpen)
+        {
+            return;
+        }
 
         if (matches.Count == 0 && !canAdd)
         {
@@ -292,22 +370,30 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
         EventCallback.Factory.Create<PolarisEventArgs>(this, async _ => await AddAsync());
 
     /// <summary>
-    /// Keeps the search box's text. It is deliberately not reported to the caller: this component's
-    /// value is the CHOSEN supplier, and a half-typed name is not a value. <see cref="SuggestionAdded"/>
-    /// is what tells the caller about a new one.
+    /// Takes what was typed.
     /// </summary>
+    /// <remarks>
+    /// With a chip, the field is a search box and its text is deliberately not reported: this component's
+    /// value is the CHOSEN supplier, and a half-typed name is not a value — <see cref="SuggestionAdded"/>
+    /// is what tells the caller about a new one. With the value in the field, the text <em>is</em> the
+    /// value, so every keystroke is reported and the list reopens, exactly as a text field with
+    /// suggestions behaves.
+    /// </remarks>
     private Task OnTypedAsync(PolarisEventArgs args)
     {
         _query = args.Value ?? string.Empty;
+        _settled = false;
 
-        return Task.CompletedTask;
+        return ShowValueAsChip ? Task.CompletedTask : ValueChanged.InvokeAsync(_query);
     }
 
     private async Task ChooseAsync(string suggestion)
     {
-        // The search box is emptied as the value is taken: if the chip is later removed, the picker comes
-        // back with the whole list rather than with the last search still in it.
-        _query = string.Empty;
+        // With a chip the search box is emptied as the value is taken, so removing the chip brings the
+        // whole list back rather than the last search. With the value in the field, the row's name goes
+        // into the field and the list closes behind it.
+        _query = ShowValueAsChip ? string.Empty : suggestion;
+        _settled = !ShowValueAsChip;
 
         await ValueChanged.InvokeAsync(suggestion);
     }
@@ -322,8 +408,10 @@ public sealed class PolarisSuggestFieldInline : ComponentBase
         }
 
         // The caller persists the name and sets Value; this component does not add to its own list, so
-        // there is exactly one place that owns the vocabulary.
-        _query = string.Empty;
+        // there is exactly one place that owns the vocabulary. With the value in the field the text is
+        // already what was typed, so only the chip mode clears the box.
+        _query = ShowValueAsChip ? string.Empty : _query;
+        _settled = true;
 
         await SuggestionAdded.InvokeAsync(trimmed);
     }

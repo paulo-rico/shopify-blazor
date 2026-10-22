@@ -374,6 +374,31 @@ Read these before changing anything in `src/`.
     Escape, and a click on the save bar's shadow button — then asserts the draft, the dirty mark, the
     save bar, the saved value, and a save the sample's own price rule refuses.
 
+28. **The combo-box question is settled by measurement, and the answer is not what the docs imply.**
+    The Shopify Admin's own product-type field floats a suggestion list under a text input. It is built
+    with **Polaris React** (`Autocomplete` + `Popover`, whose `active` prop is React state), not with the
+    `s-*` web components this toolkit wraps, and the difference was measured in headless Chrome against
+    the sample gallery rather than read anywhere:
+    - **`s-popover` has no methods at all.** `show`, `hide`, `toggle`, `showOverlay`, `hideOverlay` and
+      `toggleOverlay` are all `undefined` on the element. It cannot be opened from code, so a panel cannot
+      be driven by focus or by typing.
+    - **`s-search-field` exposes no anchor.** No `interestFor`, no `commandFor`, no suffix or accessory
+      property, and its shadow root has **no slots**; setting `interestFor` on it does nothing. Nothing
+      can hang a panel off a text field.
+    - **A button's `commandFor` is the one way in, and it works.** Measured: a trigger `s-button` opened
+      its popover as a 320×156 panel positioned below the trigger, focus went into the `s-search-field`
+      inside it (`activeElement` = that input), and typing left the panel open with the field's value
+      intact. So an overlay picker is reachable as *button-that-opens-a-picker*, which is a different
+      control from *input-with-a-list*, and it is why `PolarisSuggestFieldInline` draws its panel inline.
+    - **There is no listbox, combobox or autocomplete element** (`s-listbox`, `s-combobox`,
+      `s-autocomplete`, `s-option-list`, `s-searchable-list` are all undefined).
+    Two followings for any future field: arrow keys and `aria-activedescendant` are ours to write if
+    wanted (the interop layer already exists), and a control whose value is the text must tell a caller's
+    **echo** from an instruction — a page that binds the field's value echoes every keystroke back, and
+    treating that as an instruction settled the field on the first character and closed its list. That
+    one was found by driving the gallery in Chrome, not by a component test: bUnit asserted the callbacks,
+    and the panel's disappearing was only visible on screen.
+
 ## Resetting the build tree
 
 To force a from-scratch build, remove **only** .NET build output. Do not reach for
