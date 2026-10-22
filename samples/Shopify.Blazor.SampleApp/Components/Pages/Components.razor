@@ -174,6 +174,43 @@
         </PolarisStack>
     </PolarisSection>
 
+    <PolarisSection Heading="Composed: the suggest field">
+        <PolarisStack Gap="PolarisGap.Base">
+            @*
+                The second composed component, and for the same reason as the accordion: Polaris 1 has no
+                combobox, no autocomplete and no way to open a list from a text field. This one keeps a
+                free-text field and draws the values it already knows as removable chips beneath it.
+            *@
+            <PolarisParagraph>
+                Type to narrow the chips, or type something new and add it: Polaris has no combobox
+                element, so this is composed from a text field, an auto-filling grid of clickable chips
+                and a button.
+            </PolarisParagraph>
+
+            <PolarisGrid GridTemplateColumns="repeat(2, 1fr)" Gap="base">
+                <PolarisSuggestField Label="Supplier"
+                                     Value="@_gallerySupplier"
+                                     Suggestions="@_gallerySuppliers"
+                                     SuggestionsLabel="Your suppliers"
+                                     CollectionName="your suppliers"
+                                     Placeholder="Search or add a supplier"
+                                     ValueChanged="@(value => _gallerySupplier = value ?? string.Empty)"
+                                     SuggestionChosen="@(name => _gallerySupplier = name)"
+                                     SuggestionAdded="@AddGallerySupplierAsync"
+                                     SuggestionRemoved="@RemoveGallerySupplierAsync" />
+
+                <PolarisTextField Label="SKU"
+                                  Value="@_gallerySku"
+                                  Placeholder="Their code, for example AC-114"
+                                  OnInput="@(args => _gallerySku = args.Value ?? string.Empty)" />
+            </PolarisGrid>
+
+            <PolarisText Color="PolarisColor.Subdued">
+                C# holds supplier "@_gallerySupplier" and code "@_gallerySku".
+            </PolarisText>
+        </PolarisStack>
+    </PolarisSection>
+
     @*
         Every remaining wrapper, rendered once each so the browser verification can prove the element
         is defined, upgraded and present. This is deliberately broad rather than pretty: a component
@@ -419,6 +456,18 @@
     private string _selectedStatus = "draft";
     private string? _lastChange;
     private string? _openAccordionSection;
+
+    /// <summary>The suggest field's own value, and the list it draws its chips from.</summary>
+    /// <remarks>
+    /// Local state rather than a service, because what the gallery proves is that the control reports
+    /// what the merchant did — a list that lived anywhere else would hide whether the callbacks fired.
+    /// </remarks>
+    private string _gallerySupplier = "Cookson Gold";
+
+    private string _gallerySku = "AC-114";
+
+    private List<string> _gallerySuppliers = ["Cookson Gold", "Rio Grande"];
+
     private IReadOnlyDictionary<string, PolarisComponentStatus>? _runtimeStatus;
 
     private async Task CountClickAsync(PolarisEventArgs args)
@@ -478,6 +527,29 @@
     /// The accordion's own event: which section is open now, or null when the open one was closed.
     /// </summary>
     private void AccordionSectionChangedAsync(string? value) => _openAccordionSection = value;
+
+    /// <summary>
+    /// Remembers a supplier the merchant typed. Case-insensitively deduplicated here, because the
+    /// control only offers the button when the value is new — a list that accepted a second spelling
+    /// would show two chips the caller cannot tell apart.
+    /// </summary>
+    private Task AddGallerySupplierAsync(string name)
+    {
+        if (!_gallerySuppliers.Contains(name, StringComparer.OrdinalIgnoreCase))
+        {
+            _gallerySuppliers.Add(name);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Forgets a supplier from the gallery's list, leaving the field's text alone.</summary>
+    private Task RemoveGallerySupplierAsync(string name)
+    {
+        _gallerySuppliers.RemoveAll(supplier => string.Equals(supplier, name, StringComparison.OrdinalIgnoreCase));
+
+        return Task.CompletedTask;
+    }
 
     private async Task CheckAsync(PolarisEventArgs args)
     {

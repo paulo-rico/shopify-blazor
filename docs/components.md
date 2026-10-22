@@ -6,7 +6,7 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
-7 more are composed from those wrappers, for behaviour Polaris does not
+8 more are composed from those wrappers, for behaviour Polaris does not
 provide in an element of its own. They add structure and interaction; they do not add
 appearance either, because everything visible in them is still a Polaris element.
 
@@ -69,6 +69,7 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisSelect` | `<s-select>` | `Change`, `Input` | yes |
 | `PolarisSpinner` | `<s-spinner>` | — | yes |
 | `PolarisStack` | `<s-stack>` | — | yes |
+| `PolarisSuggestField` | — composed | — | yes |
 | `PolarisSwitch` | `<s-switch>` | `Change`, `Input` | yes |
 | `PolarisTable` | `<s-table>` | `NextPage`, `PreviousPage` | yes |
 | `PolarisTableBody` | `<s-table-body>` | — | yes |
@@ -1060,6 +1061,28 @@ Wraps `<s-stack>`, the layout primitive for a single axis of spacing.
 | `JustifyContent` | `string?` | Main-axis alignment. |
 | `AlignItems` | `string?` | Cross-axis alignment. |
 | `AlignContent` | `string?` | Cross-axis alignment for wrapping content. |
+
+### `PolarisSuggestField` (composed)
+
+A free-text field with a list of already-known values beneath it, drawn as removable chips.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Label` | `string?` | The field's accessible label. |
+| `Details` | `string?` | Help text below the field. |
+| `Placeholder` | `string?` | Placeholder shown while the field is empty. |
+| `Value` | `string?` | The field's value, which the caller owns. |
+| `Suggestions` | `IReadOnlyList<string>` | The known values offered as chips. |
+| `SuggestionsLabel` | `string?` | Caption above the chips, for example "Your suppliers". |
+| `CollectionName` | `string?` | What the list is called on the add button, in a sentence such as Add "Acme" to your suppliers. |
+| `AllowAdd` | `bool` | Offers a button that adds the typed value to the list. |
+| `Removable` | `bool` | Gives each chip a remove control. |
+| `Disabled` | `bool` | Prevents the field and the add button from being used. |
+| `SuggestionAccessibilityLabelFormat` | `string?` | Replaces each chip's accessible name. |
+| `ValueChanged` | `EventCallback<string?>` | Raised with the field's text as it is typed and as it is committed. |
+| `SuggestionChosen` | `EventCallback<string>` | Raised with the chip's value when the merchant picks one. |
+| `SuggestionAdded` | `EventCallback<string>` | Raised with the typed value when the merchant asks for it to be remembered. |
+| `SuggestionRemoved` | `EventCallback<string>` | Raised with the chip's value when the merchant removes it from the list. |
 
 ### `PolarisSwitch` → `<s-switch>`
 
