@@ -210,6 +210,7 @@ A select of the values a record can carry, with an "Add new" button beside it th
 | `DialogFieldLabel` | `string?` | The label of the dialog's text field. |
 | `DialogFieldDetails` | `string?` | Help text below the dialog's text field. |
 | `DialogConfirmLabel` | `string?` | The label of the dialog's confirm button. |
+| `DialogContent` | `RenderFragment?` | Extra content at the top of the dialog's body, for a caller that needs to manage the values themselves — an editable grid of what is already saved, for instance. |
 | `CancelLabel` | `string?` | The label of the dialog's cancel button. |
 | `BlankMessage` | `string?` | Shown on the field when the confirm button is pressed with it empty. |
 | `ValueChanged` | `EventCallback<string?>` | Raised when the select changes, or when the dialog settles on a value. |

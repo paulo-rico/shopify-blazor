@@ -23,6 +23,12 @@ namespace Polaris.Blazor.Components;
 /// own <c>hideOverlay()</c>, since that is code rather than a gesture.
 /// </para>
 /// <para>
+/// <b>OK and Cancel are direct children of the modal, not of its body.</b> Polaris assigns a
+/// <c>slot</c> attribute to the host's named slot only for the host's own children, so a button nested
+/// inside the dialog body's stack has its slot attribute ignored and the dialog renders with no actions
+/// at all — measured in a browser, and the reason those two buttons are siblings of the body.
+/// </para>
+/// <para>
 /// <b>A name that already exists is not added twice.</b> Comparison ignores case and surrounding spaces
 /// — the same rule the database and the service apply — and the existing spelling is selected instead,
 /// so "acme metals" typed by hand lands on "Acme Metals" rather than beside it. The caller is told
@@ -120,7 +126,18 @@ public sealed class PolarisAddableSelect : ComponentBase
     [Parameter] public string? DialogFieldDetails { get; set; }
 
     /// <summary>The label of the dialog's confirm button.</summary>
-    [Parameter] public string? DialogConfirmLabel { get; set; } = "Add";
+    [Parameter] public string? DialogConfirmLabel { get; set; } = "OK";
+
+    /// <summary>
+    /// Extra content at the top of the dialog's body, for a caller that needs to manage the values
+    /// themselves — an editable grid of what is already saved, for instance.
+    /// </summary>
+    /// <remarks>
+    /// A fragment rather than a slot: the modal body is an ordinary container, so content placed here
+    /// lands inside it. The component takes no interest in what the content does; anything it changes is
+    /// the caller's to persist, and the dialog reads whatever <see cref="Options"/> the caller passes next.
+    /// </remarks>
+    [Parameter] public RenderFragment? DialogContent { get; set; }
 
     /// <summary>The label of the dialog's cancel button.</summary>
     [Parameter] public string? CancelLabel { get; set; } = "Cancel";
@@ -241,6 +258,14 @@ public sealed class PolarisAddableSelect : ComponentBase
             dialog.AddAttribute(61, nameof(PolarisStack.Gap), PolarisGap.Base);
             dialog.AddAttribute(62, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
             {
+                // Whatever the caller wants above the field: a grid of the saved values, a note, nothing.
+                // It is here rather than in a slot because the modal body is a plain container and a
+                // fragment carries no slot attribute of its own.
+                if (DialogContent is not null)
+                {
+                    content.AddContent(65, DialogContent);
+                }
+
                 content.OpenComponent<PolarisText>(70);
                 content.AddAttribute(71, nameof(PolarisText.Color), PolarisColor.Subdued);
                 content.AddAttribute(72, nameof(PolarisText.ChildContent), (RenderFragment)(caption =>
@@ -281,26 +306,28 @@ public sealed class PolarisAddableSelect : ComponentBase
                 content.AddAttribute(115, nameof(PolarisTextField.OnInput), TypedCallback());
                 content.AddAttribute(116, nameof(PolarisTextField.OnChange), TypedCallback());
                 content.CloseComponent();
-
-                // The dialog's own actions are Polaris slots, and a validated slot rejects a wrapper, so
-                // the Slot attribute goes on the button itself — never on a div around it. Cancel is
-                // declarative (the closing press is a gesture); confirm runs in C#, because saving is not.
-                content.OpenComponent<PolarisButton>(120);
-                content.AddAttribute(121, nameof(PolarisButton.Slot), "primary-action");
-                content.AddAttribute(122, nameof(PolarisButton.Variant), PolarisButtonVariant.Primary);
-                content.AddAttribute(123, nameof(PolarisButton.OnClick), ConfirmCallback());
-                content.AddAttribute(124, nameof(PolarisButton.ChildContent), (RenderFragment)(label =>
-                    label.AddContent(125, DialogConfirmLabel)));
-                content.CloseComponent();
-
-                content.OpenComponent<PolarisButton>(130);
-                content.AddAttribute(131, nameof(PolarisButton.Slot), "secondary-actions");
-                content.AddAttribute(132, nameof(PolarisButton.CommandFor), DialogId);
-                content.AddAttribute(133, nameof(PolarisButton.Command), PolarisCommand.Hide);
-                content.AddAttribute(134, nameof(PolarisButton.ChildContent), (RenderFragment)(label =>
-                    label.AddContent(135, CancelLabel)));
-                content.CloseComponent();
             }));
+            dialog.CloseComponent();
+
+            // The actions are Polaris slots, and BOTH halves of that matter: the slot attribute goes on
+            // the button itself (a validated slot rejects a wrapper), and the button must be a DIRECT CHILD
+            // of the modal. A slot attribute on a button nested inside the body's stack is ignored, so the
+            // dialog renders with no OK and no Cancel at all — measured, and the reason this block is a
+            // sibling of the stack above rather than part of it.
+            dialog.OpenComponent<PolarisButton>(120);
+            dialog.AddAttribute(121, nameof(PolarisButton.Slot), "primary-action");
+            dialog.AddAttribute(122, nameof(PolarisButton.Variant), PolarisButtonVariant.Primary);
+            dialog.AddAttribute(123, nameof(PolarisButton.OnClick), ConfirmCallback());
+            dialog.AddAttribute(124, nameof(PolarisButton.ChildContent), (RenderFragment)(label =>
+                label.AddContent(125, DialogConfirmLabel)));
+            dialog.CloseComponent();
+
+            dialog.OpenComponent<PolarisButton>(130);
+            dialog.AddAttribute(131, nameof(PolarisButton.Slot), "secondary-actions");
+            dialog.AddAttribute(132, nameof(PolarisButton.CommandFor), DialogId);
+            dialog.AddAttribute(133, nameof(PolarisButton.Command), PolarisCommand.Hide);
+            dialog.AddAttribute(134, nameof(PolarisButton.ChildContent), (RenderFragment)(label =>
+                label.AddContent(135, CancelLabel)));
             dialog.CloseComponent();
         }));
 

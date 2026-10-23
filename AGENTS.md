@@ -455,6 +455,30 @@ Read these before changing anything in `src/`.
       `window.scrollY` — so a probe that must press something far down the page clicks the element's own
       shadow `<button>` instead.
 
+31. **A dialog's actions, and an editable grid inside it, fail in ways that look like nothing at all.**
+    Found while building `PolarisAddableSelect`, by bisecting the Add-material page after it stopped
+    answering requests while spinning at full CPU:
+    - **A slot attribute only counts on the HOST's own children.** The modal's buttons were first put
+      inside the dialog body's stack; `slot="primary-action"` there is ignored, so the dialog rendered
+      with **no OK and no Cancel** and nothing logged. They are now siblings of the body — direct
+      children of `s-modal` — and a test asserts that, plus that nothing with a slot is nested in the
+      body.
+    - **A Polaris component WITH an event handler inside an editable grid's `CellTemplate` hangs the
+      page.** Measured by bisection, one variable at a time: plain text in the template rendered;
+      `PolarisButton` with no `OnClick` rendered; `PolarisButton` with `OnClick` made every request to
+      the page hang while the process burned a core, with no exception and no log line. Deleting a grid
+      row therefore goes through `AllowSelection="true"` and a button *below* the grid, never through a
+      button in a cell.
+    - **`mousedown` opens the grid editor, and it must land on the cell's own
+      `[data-polaris-grid-cell]` div.** Dispatching it at the enclosing `s-table-cell` does nothing:
+      the handler is on the div, which is also the element carrying `tabindex="0"`. That is how the
+      rename path was driven in Chrome.
+    - **A page's copy of a grid selection goes stale after a programmatic reload.** The state drops keys
+      that no longer exist without raising `SelectionChanged`, so a page that keeps the last
+      `SelectionChanged` payload goes on saying "1 selected" with a live Delete button after the row it
+      named has been deleted. `PolarisGridState.ClearSelection()` and clearing the page's own copy is the
+      fix.
+
 ## Resetting the build tree
 
 To force a from-scratch build, remove **only** .NET build output. Do not reach for

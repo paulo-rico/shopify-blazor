@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
 using Polaris.Blazor.Components;
 using Polaris.Blazor.Events;
 using Xunit;
@@ -238,27 +239,79 @@ public sealed class AddableSelectRenderingTests
     }
 
     [Fact]
-    public void The_dialogs_actions_are_in_their_polaris_slots_and_cancel_closes_declaratively()
+    public void The_dialogs_actions_are_direct_children_of_the_modal_in_their_polaris_slots()
     {
-        // A validated slot rejects a wrapper element, so the slot attribute has to be on the button itself.
-        // Cancel is declarative because closing is a gesture; confirm runs in C# because saving is not.
+        // Two things have to be true at once, and both were wrong at first: a validated slot rejects a
+        // wrapper element, so the slot attribute goes on the button itself; and Polaris only assigns a
+        // slot for the HOST's own children, so a button nested inside the body's stack is ignored and the
+        // dialog shows no OK and no Cancel at all. The buttons are therefore siblings of the body.
         using var context = new PolarisTestContext();
 
         var component = context.Render<PolarisAddableSelect>(parameters => parameters
             .Add(p => p.Options, ["Cookson Gold"])
-            .Add(p => p.DialogConfirmLabel, "Add supplier"));
+            .Add(p => p.DialogConfirmLabel, "OK")
+            .Add(p => p.CancelLabel, "Cancel"));
 
-        var buttons = component.FindAll("s-button");
-        var confirm = buttons[1];
-        var cancel = buttons[2];
+        var dialog = component.Find("s-modal");
 
-        Assert.Equal("primary-action", confirm.GetAttribute("slot"));
-        Assert.Equal("Add supplier", confirm.TextContent);
+        var directButtons = dialog.Children
+            .Where(child => child.LocalName == "s-button")
+            .ToList();
 
-        Assert.Equal("secondary-actions", cancel.GetAttribute("slot"));
-        Assert.Equal("Cancel", cancel.TextContent);
-        Assert.Equal(component.Find("s-modal").GetAttribute("id"), cancel.GetAttribute("commandFor"));
-        Assert.Equal("--hide", cancel.GetAttribute("command"));
+        Assert.Equal(2, directButtons.Count);
+        Assert.Equal("primary-action", directButtons[0].GetAttribute("slot"));
+        Assert.Equal("OK", directButtons[0].TextContent);
+        Assert.Equal("secondary-actions", directButtons[1].GetAttribute("slot"));
+        Assert.Equal("Cancel", directButtons[1].TextContent);
+
+        // Cancel closes declaratively; confirm runs in C#, because saving is not a gesture.
+        Assert.Equal(dialog.GetAttribute("id"), directButtons[1].GetAttribute("commandFor"));
+        Assert.Equal("--hide", directButtons[1].GetAttribute("command"));
+
+        // And nothing that looks like an action is buried in the body, where its slot would be ignored.
+        Assert.Empty(dialog.QuerySelectorAll("s-stack s-button[slot]"));
+    }
+
+    [Fact]
+    public void The_dialog_has_OK_and_Cancel_by_default()
+    {
+        // A dialog with a field and no way to finish it is a dialog the merchant has to escape from with
+        // the backdrop, which is not a decision they can see.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAddableSelect>(parameters => parameters
+            .Add(p => p.Options, ["Cookson Gold"]));
+
+        var labels = component.Find("s-modal").Children
+            .Where(child => child.LocalName == "s-button")
+            .Select(child => child.TextContent)
+            .ToList();
+
+        Assert.Equal(["OK", "Cancel"], labels);
+    }
+
+    [Fact]
+    public void A_caller_can_put_its_own_content_in_the_dialog()
+    {
+        // The component owns the select, the add field and the actions; whatever manages the saved values
+        // — an editable grid, a warning, nothing — is the caller's, because only it knows what a rename
+        // or a delete should do to the records that already use the value.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAddableSelect>(parameters => parameters
+            .Add(p => p.Options, ["Cookson Gold"])
+            .Add(p => p.DialogContent, (RenderFragment)(content =>
+                content.AddMarkupContent(0, "<s-table data-managed=\"true\"></s-table>"))));
+
+        var dialog = component.Find("s-modal");
+        var managed = dialog.QuerySelector("s-table[data-managed='true']");
+
+        Assert.NotNull(managed);
+
+        // Above the field, so the merchant reads what exists before adding to it.
+        var field = dialog.QuerySelector("s-text-field");
+        Assert.NotNull(field);
+        Assert.True(managed!.CompareDocumentPosition(field!) == AngleSharp.Dom.DocumentPositions.Following);
     }
 
     [Fact]
