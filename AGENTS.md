@@ -214,12 +214,12 @@ Read these before changing anything in `src/`.
     `variant.price` arrives as a **string** (that is how Shopify states money), so the DTO carries it as one
     and the caller parses it — binding it to a decimal would fail at runtime rather than at compile time.
 
-25. **Polaris 1 has no accordion, and the two ways to announce an expanded state both need care.**
+25. **Polaris has no accordion, and the two ways to announce an expanded state both need care.**
     `PolarisAccordion`/`PolarisAccordionItem` are the first components here that are *composed*
     rather than wrappers, because there is no element to wrap: the shipped runtime defines 74 tag
-    names and none is an accordion, collapsible or details element (checked in `polaris-1.js` itself,
-    and the App Home docs 404 for `details`). Wiring the disclosure semantics produced four measured
-    facts, and all four are silent failures:
+    names and none is an accordion, collapsible or details element (checked in `polaris-1.js` and
+    re-checked in `polaris-2.js`, and the App Home docs 404 for `details`). Wiring the disclosure
+    semantics produced four measured facts, and all four are silent failures:
     - **`s-button` has `accessibilityExpanded`, and it takes `"expanded"` / `"collapsed"` (strings),
       not a boolean.** Polaris derives `aria-expanded` from `"expanded" === value`, so `true` renders
       `aria-expanded="false"` — the *opposite* of the intent, with nothing to see. That is why
@@ -398,6 +398,62 @@ Read these before changing anything in `src/`.
     treating that as an instruction settled the field on the first character and closed its list. That
     one was found by driving the gallery in Chrome, not by a component test: bUnit asserted the callbacks,
     and the panel's disappearing was only visible on screen.
+
+29. **The Polaris channel is one constant, and moving it changes the theme, not the component set.**
+    Neither app hard-codes a Polaris `<script>` tag: both get it from
+    `DesignSystemDefaults.PolarisScriptUrl` through `<ShopifyAppBridgeHead />`, as do the sample and
+    every generated project. So "add the script to each project" is the wrong model — a second,
+    hand-placed tag would load the bundle twice and one of the two would be the stale one. Edit the
+    constant. Measured from the CDN with `HEAD`/`GET`, the channels are:
+    - `polaris-2.js` — **v2.0.0**, the stable channel that Shopify's versioning reference names for
+      production. This is the default. It advances within Polaris 2, so fixes arrive without a code
+      change.
+    - `polaris-2.0.js` — v2.0.0, the same bundle frozen. `polaris-2.1.js` is a **404**: there is no
+      2.1 to pin yet.
+    - `polaris-2.0-rc.js` — **v2.0.0-rc.3**, the superseded release candidate. It is still served,
+      which is exactly why it gets picked up by mistake from old notes: it will never receive a fix,
+      because its name says "candidate" and the release that shipped is `polaris-2.js`.
+    - `polaris-1.js` — v1.1.0, the previous default.
+    **What a 2.0 bundle does and does not do.** It carries both the current admin theme and Admin
+    Next and follows whichever theme the merchant's admin is using — one URL, no flag, no per-theme
+    path. It does **not** restyle markup we wrote ourselves: the library's own stylesheets
+    (`polaris-accordion.css`, `polaris-grid.css`, `polaris-range-slider.css`) are ours and are
+    untouched by the channel, and a page built from plain `<div>`s looks the same either way.
+    **The element surface did not move with the major version.** Diffing the shipped bundles,
+    `polaris-1.js` (1.1.0) and `polaris-2.js` (2.0.0) define the *same 74* `s-*` names, and neither
+    defines an accordion. That has two consequences worth keeping: no wrapper here is orphaned by the
+    move, and `minPolarisVersion` in `tools/polaris-elements.json` stays at each element's true floor
+    of **1.1** — bumping it to 2.0 would claim the element was introduced in 2.0, which is false and
+    would make the inventory lie about the compatibility it exists to record.
+    **The behaviour was re-verified, and it holds.** `tools/verify-in-browser.mjs --assert` was run
+    against both the gallery (`/components`, 60 listed elements) and the dashboard's data grid (`/`)
+    with `polaris-2.js` loaded: 0 undefined, 0 unupgraded, every element with a shadow root, and all
+    39 assertions passing on each page — the accordion's `aria-expanded` written into `s-clickable`'s
+    shadow button, the popover opened by declarative `commandFor`, the slider re-querying on `change`
+    rather than on `input`, and cell editing with Enter/Tab/Escape and a server-refused save. So the
+    1.x property semantics this file documents survive the major version. What did **not** change with
+    it: the toolkit's own stylesheets, the 74-name element set, and `minPolarisVersion`'s floor.
+    `App Bridge Next: missing required configuration fields: shop` on the console is expected and is
+    not a regression — App Bridge only completes configuration inside a real Admin.
+
+30. **An `s-option` with an empty `value` reports its own LABEL, so "nothing chosen" needs a sentinel.**
+    Measured in the add dialog: the "No supplier" option carried `value=""`, and once it was chosen the
+    select reported `"No supplier"` — the merchant's supplier would have been saved as the words "No
+    supplier". Polaris substitutes the label when the value is empty, so
+    `PolarisAddableSelect.EmptyOptionValue` is an explicit sentinel and `ValueChanged` reports `null` for
+    it. The select is also *given* the sentinel when nothing is chosen, so its own state says "none"
+    rather than going blank — a third state nobody asked for. Three smaller things learned alongside it:
+    - **A component reference capture is a frame of its own.** `AddComponentReferenceCapture` followed by
+      `AddAttribute` throws `Attributes may only be added immediately after frames of type Element or
+      Component`, at render time. Every attribute goes first, then the capture, and the sequence numbers
+      still have to increase.
+    - **A validated slot takes its name from the child, not the parent.** The modal's `primary-action` and
+      `secondary-actions` are set with `PolarisButton Slot="…"` inside the modal's own `ChildContent`;
+      there is no `PrimaryAction` fragment parameter to set, because a wrapper element would be rejected.
+    - **The gallery page is longer than the viewport and its scroll container is not the window.** A CDP
+      mouse click at a measured point below the fold lands on nothing — `scrollIntoView` did not move
+      `window.scrollY` — so a probe that must press something far down the page clicks the element's own
+      shadow `<button>` instead.
 
 ## Resetting the build tree
 

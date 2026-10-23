@@ -6,7 +6,7 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
-9 more are composed from those wrappers, for behaviour Polaris does not
+10 more are composed from those wrappers, for behaviour Polaris does not
 provide in an element of its own. They add structure and interaction; they do not add
 appearance either, because everything visible in them is still a Polaris element.
 
@@ -16,6 +16,7 @@ appearance either, because everything visible in them is still a Polaris element
 |---|---|---|---|
 | `PolarisAccordion` | — composed | — | yes |
 | `PolarisAccordionItem` | — composed | — | yes |
+| `PolarisAddableSelect` | — composed | — | yes |
 | `PolarisAppNav` | `<s-app-nav>` | — | yes |
 | `PolarisAppWindow` | `<s-app-window>` | `Hide`, `Show` | yes |
 | `PolarisAvatar` | `<s-avatar>` | `Error`, `Load` | yes |
@@ -189,6 +190,32 @@ One section of a `PolarisAccordion`: a header that opens and closes the content 
 | `ContentPadding` | `string?` | Padding inside the content area, in Polaris's spacing scale. |
 | `ShowDivider` | `bool` | Draws a rule above the section. |
 | `IsOpenChanged` | `EventCallback<bool>` | Raised with the new open state, whether the merchant opened it or a sibling closed it. |
+
+### `PolarisAddableSelect` (composed)
+
+A select of the values a record can carry, with an "Add new" button beside it that opens a dialog holding the list of values already saved and a field for a new one.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Label` | `string?` | The select's accessible label. |
+| `Details` | `string?` | Help text below the select. |
+| `EmptyOptionLabel` | `string?` | The label of the "nothing chosen" option, which is also how a chosen value is cleared. |
+| `Value` | `string?` | The chosen value, which the caller owns. |
+| `Options` | `IReadOnlyList<string>` | The values already saved, in the order the select should offer them. |
+| `Disabled` | `bool` | Prevents both the select and the add button from being used. |
+| `AddButtonLabel` | `string?` | The add button's visible label. |
+| `DialogHeading` | `string?` | The dialog's heading. |
+| `DialogListLabel` | `string?` | The caption above the list of values already saved. |
+| `DialogEmptyLabel` | `string?` | Shown in the dialog when nothing has been saved yet. |
+| `DialogFieldLabel` | `string?` | The label of the dialog's text field. |
+| `DialogFieldDetails` | `string?` | Help text below the dialog's text field. |
+| `DialogConfirmLabel` | `string?` | The label of the dialog's confirm button. |
+| `CancelLabel` | `string?` | The label of the dialog's cancel button. |
+| `BlankMessage` | `string?` | Shown on the field when the confirm button is pressed with it empty. |
+| `ValueChanged` | `EventCallback<string?>` | Raised when the select changes, or when the dialog settles on a value. |
+| `OptionAdded` | `EventCallback<string>` | Raised with the trimmed new value when the dialog confirms one that is not already in `Options`. |
+| `DuplicateIgnored` | `EventCallback<string>` | Raised with the existing value when the dialog is given something already in `Options` — which is selected and not added. |
+| `Id` | `string?` | The dialog's element id. |
 
 ### `PolarisAppNav` → `<s-app-nav>`
 

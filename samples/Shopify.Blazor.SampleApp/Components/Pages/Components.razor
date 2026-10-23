@@ -273,6 +273,41 @@
         </PolarisStack>
     </PolarisSection>
 
+    <PolarisSection Heading="Composed: the addable select">
+        <PolarisStack Gap="PolarisGap.Base">
+            @*
+                The plainest of the three shapes: a real s-select, and an "Add new" button that opens a
+                dialog listing what is already saved beside a field for a new one. The dialog is opened
+                declaratively — a modal cannot be opened from code — and closed through the element's own
+                hideOverlay() once a value has been saved.
+            *@
+            <PolarisParagraph>
+                Choose from the dropdown, or press Add new: the dialog shows what is saved and takes a
+                new name. Type a name that is already saved and it is selected rather than added twice.
+            </PolarisParagraph>
+
+            <PolarisAddableSelect Label="Supplier"
+                                  Value="@_gallerySelectedSupplier"
+                                  Options="_gallerySuppliers"
+                                  EmptyOptionLabel="No supplier"
+                                  AddButtonLabel="Add new"
+                                  DialogHeading="Add a supplier"
+                                  DialogListLabel="Your suppliers"
+                                  DialogEmptyLabel="No suppliers saved yet — add the first one below."
+                                  DialogFieldLabel="New supplier"
+                                  DialogFieldDetails="Type the name exactly as your price list writes it."
+                                  DialogConfirmLabel="Add supplier"
+                                  BlankMessage="Enter a supplier name first."
+                                  ValueChanged="@(value => _gallerySelectedSupplier = value)"
+                                  OptionAdded="@AddGallerySupplierAsync"
+                                  DuplicateIgnored="@(name => _galleryDuplicate = name)" />
+
+            <PolarisText Color="PolarisColor.Subdued">
+                C# holds selected supplier "@(_gallerySelectedSupplier ?? "none")"@(string.IsNullOrEmpty(_galleryDuplicate) ? "." : $", and was told \"{_galleryDuplicate}\" was already saved.")
+            </PolarisText>
+        </PolarisStack>
+    </PolarisSection>
+
     @*
         Every remaining wrapper, rendered once each so the browser verification can prove the element
         is defined, upgraded and present. This is deliberately broad rather than pretty: a component
@@ -539,6 +574,15 @@
 
     /// <summary>The value-in-field instance's text, which is the value itself in that mode.</summary>
     private string _galleryTypedSupplier = string.Empty;
+
+    /// <summary>The addable select's choice, and the last duplicate its dialog reported.</summary>
+    /// <remarks>
+    /// The duplicate is kept separately because it is the one thing the control reports that is not a
+    /// selection: a list that did not grow is otherwise indistinguishable from a broken dialog.
+    /// </remarks>
+    private string? _gallerySelectedSupplier;
+
+    private string? _galleryDuplicate;
 
     private IReadOnlyDictionary<string, PolarisComponentStatus>? _runtimeStatus;
 
