@@ -170,7 +170,7 @@ Polaris did not load. Check that all three are in the page head and that the bro
 
 - `<meta name="shopify-api-key" content="…" />`
 - `<script src="…/app-bridge.js"></script>`
-- `<script src="…/polaris-1.js"></script>`
+- `<script src="…/polaris-2.js"></script>`
 
 ## A modal never opens
 

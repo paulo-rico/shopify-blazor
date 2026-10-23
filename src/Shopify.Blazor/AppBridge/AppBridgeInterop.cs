@@ -16,9 +16,10 @@ public sealed class AppBridgeOptions
     /// The versioned Polaris script to load, from Shopify's CDN.
     /// </summary>
     /// <remarks>
-    /// <c>polaris-1.js</c> tracks the newest stable release inside Polaris 1; pin
-    /// <c>polaris-1.1.js</c> instead to control exactly when the app moves. There is no
-    /// equivalent channel for App Bridge: that URL always serves the current version.
+    /// <c>polaris-2.js</c> tracks the newest stable release inside Polaris 2, the channel Shopify
+    /// documents for production; pin <c>polaris-2.0.js</c> instead to control exactly when the app
+    /// moves. There is no equivalent channel for App Bridge: that URL always serves the current
+    /// version.
     /// </remarks>
     public string PolarisScriptUrl { get; set; } = DesignSystemDefaults.PolarisScriptUrl;
 
@@ -32,8 +33,8 @@ public static class DesignSystemDefaults
     /// <summary>App Bridge 4. Unversioned by design — Shopify serves the current release.</summary>
     public const string AppBridgeScriptUrl = "https://cdn.shopify.com/shopifycloud/app-bridge.js";
 
-    /// <summary>Polaris web components, tracking the newest stable release in Polaris 1.</summary>
-    public const string PolarisScriptUrl = "https://cdn.shopify.com/shopifycloud/polaris-1.js";
+    /// <summary>Polaris web components, tracking the newest stable release in Polaris 2.</summary>
+    public const string PolarisScriptUrl = "https://cdn.shopify.com/shopifycloud/polaris-2.js";
 }
 
 /// <summary>What a call to the app's own backend returned.</summary>

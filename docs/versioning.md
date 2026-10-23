@@ -32,7 +32,7 @@ Current, as of `0.1.0-preview.1`:
 | Component | Pinned to | Notes |
 |---|---|---|
 | `Polaris.Blazor`, `Shopify.Blazor` | this repository's version | The two packages version together and are tested together |
-| Shopify Polaris web components | `polaris-1.js` (Polaris 1.1 at the time of writing) | Loaded from Shopify's CDN by `ShopifyAppBridgeHead`; see below |
+| Shopify Polaris web components | `polaris-2.js` (Polaris 2.0 at the time of writing) | Loaded from Shopify's CDN by `ShopifyAppBridgeHead`; see below |
 | Shopify App Bridge | 4 (`app-bridge.js`, unversioned URL) | Shopify serves the current release from that URL |
 | .NET | `net10.0` | Pinned in `global.json` and in the template's `--framework` choice |
 | Admin API | `2026-10` | `ShopifyOptions.DefaultAdminApiVersion`, overridable per app |
@@ -45,29 +45,45 @@ The library is loaded from Shopify's CDN, not from a NuGet package, so the toolk
 you. The default is:
 
 ```csharp
-AppBridgeOptions.PolarisScriptUrl = "https://cdn.shopify.com/shopifycloud/polaris-1.js";
+AppBridgeOptions.PolarisScriptUrl = "https://cdn.shopify.com/shopifycloud/polaris-2.js";
 ```
 
-`polaris-1.js` tracks the newest stable release **inside** Polaris 1, which means Shopify can add
-components and attributes under a running app without a toolkit release. That is usually what you
-want. To freeze the release instead, set the mutable URL to a pinned one:
+`polaris-2.js` tracks the newest stable release **inside** Polaris 2, which is the channel Shopify's
+[versioning reference](https://shopify.dev/docs/api/app-home/latest/web-components/versioning) names
+for production: it means Shopify can ship bug fixes, accessibility improvements and new components
+under a running app without a toolkit release. That is usually what you want. To freeze the release
+instead, set the mutable URL to a pinned one:
 
 ```csharp
 builder.Services.Configure<Shopify.Blazor.AppBridge.AppBridgeOptions>(options =>
 {
-    // Polaris 1.1, frozen. Bug fixes and new components do not arrive until this changes.
-    options.PolarisScriptUrl = "https://cdn.shopify.com/shopifycloud/polaris-1.1.js";
+    // Polaris 2.0, frozen. Bug fixes and new components do not arrive until this changes.
+    options.PolarisScriptUrl = "https://cdn.shopify.com/shopifycloud/polaris-2.0.js";
 });
 ```
+
+**Why Polaris 2 and not 1.** A 2.0 bundle carries both the current admin theme and Admin Next and
+follows whichever theme the merchant's admin is using, so one bundle serves both looks; there is no
+per-theme URL and no flag. That is the whole of the change: measured by diffing the shipped bundles,
+`polaris-1.js` (1.1.0) and `polaris-2.js` (2.0.0) define **the same 74 `s-*` element names** — so no
+wrapper in this toolkit is orphaned by the move, and `minPolarisVersion` stays at each element's true
+floor of 1.1 rather than being bumped to 2.0, which would claim the element was introduced there.
+
+**Do not load `polaris-2.0-rc.js`.** It is a frozen release candidate (2.0.0-rc.3) that
+`polaris-2.js` has superseded: it receives no fixes, and its tag names the candidate rather than the
+release that shipped. If a source suggested it, the stable channel above is what that source meant.
 
 The component inventory records the Polaris version each wrapper was verified against, per element:
 [docs/component-inventory.md](component-inventory.md).
 
-**Keep the wrapper and the runtime in step.** If a pinned `polaris-1.1.js` is in use, every component
-in this toolkit has been verified against 1.1 and nothing else. If you advance to a newer Polaris
-release, run `tools/verify-in-browser.mjs` against the component gallery before shipping: it asserts
-that each element is defined, upgraded and has a shadow root, which is the difference between a
-working control and a perfectly rendered inert one.
+**Keep the wrapper and the runtime in step.** The move to the 2.0 channel was verified with
+`tools/verify-in-browser.mjs --assert` against both the component gallery (`/components`, 60 listed
+elements) and the dashboard's composed data grid (`/`): every listed element was defined, upgraded and
+had a shadow root — 0 undefined, 0 unupgraded — and every behavioural assertion passed, including the
+accordion's `aria-expanded` in `s-clickable`'s shadow root, the popover's declarative `commandFor`
+open, the range slider's drag-then-`change` re-query, and spreadsheet-style cell editing. Re-run it
+after **any** change to the Polaris channel: it asserts the difference between a working control and a
+perfectly rendered inert one, which no component test can see.
 
 ## Admin API versions
 

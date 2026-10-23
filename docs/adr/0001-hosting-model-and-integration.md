@@ -42,7 +42,7 @@ cost real debugging time here; it is the first thing to check when "the componen
 ```html
 <meta name="shopify-api-key" content="…" />
 <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-<script src="https://cdn.shopify.com/shopifycloud/polaris-1.js"></script>
+<script src="https://cdn.shopify.com/shopifycloud/polaris-2.js"></script>
 ```
 
 **Why.** Polaris React (`@shopify/polaris`) is deprecated and unmaintained; web components are its
@@ -50,10 +50,16 @@ supported successor and are plain custom elements, which is what makes a non-Jav
 viable. Both are CDN-only — there is no npm package for App Bridge 4 — so the app has no bundler, no
 `package.json` and no build step.
 
-**`polaris-1.js`, not a pinned `polaris-1.1.js`.** The channel advances within Polaris 1, so
-component fixes arrive without a script-tag change. Pin a `polaris-1.x.js` release instead when a
+**`polaris-2.js`, not a pinned `polaris-2.0.js`.** The channel advances within Polaris 2, so
+component fixes arrive without a script-tag change. Pin a `polaris-2.x.js` release instead when a
 specific runtime must be frozen. There is no equivalent choice for App Bridge: that URL always
 serves the current release.
+
+**Why 2 rather than 1.** The 2.0 bundle carries both the current admin theme and Admin Next and
+follows the merchant's admin theme, so one URL serves both looks. The element surface did not move
+with it — `polaris-1.js` and `polaris-2.js` define the same 74 `s-*` names — so this decision changes
+the theme, not the component set. (`polaris-2.0-rc.js` is the superseded release candidate, not a
+channel; see [versioning](../versioning.md).)
 
 **Rejected:** npm-installed Polaris React (deprecated), hand-written HTML/CSS approximating Polaris
 (defeats the purpose, drifts from the admin's look), and App Bridge 3 packages (`createApp`,

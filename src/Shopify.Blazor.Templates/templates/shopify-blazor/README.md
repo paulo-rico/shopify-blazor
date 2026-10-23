@@ -158,7 +158,7 @@ dotnet pack Shopify.Blazor.slnx -c Release -o artifacts
 | Symptom | Cause and fix |
 |---|---|
 | The page renders but no control does anything | The render mode is missing. Check `@rendermode InteractiveServer` on the router. |
-| Polaris elements are unstyled or inert | `polaris-1.js` did not load, or App Bridge's meta tag has no API key. Check the browser console and the `<head>`. |
+| Polaris elements are unstyled or inert | `polaris-2.js` did not load, or App Bridge's meta tag has no API key. Check the browser console and the `<head>`. |
 | Every request is 401 | A token arrived and was rejected, or none arrived. In Development, open `/api/diagnostics/session-token` and `/api/diagnostics/rejections`. |
 | "Shopify request failed" while the API returned 200 | A missing scope: Shopify answers an unauthorised field with HTTP 200 and an `errors` array. Add the scope and reopen the app. |
 | The Admin shows a blank frame | The app is refusing to be framed. `UseShopifyEmbeddedFraming` must be registered **before** `UseAntiforgery`, because `OnStarting` callbacks run last-registered-first. |

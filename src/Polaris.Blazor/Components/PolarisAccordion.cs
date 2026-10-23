@@ -9,9 +9,10 @@ namespace Polaris.Blazor.Components;
 /// <remarks>
 /// <para>
 /// <b>Polaris has no accordion.</b> That is a measured fact, not an omission here: the element list
-/// in the Polaris 1 runtime that this toolkit wraps (60 elements) contains no accordion, collapsible
-/// or details component, and the App Home documentation has no such page. So this is the first
-/// component in the library that is <em>composed</em> rather than a wrapper: it is built from
+/// of the Polaris runtime that this toolkit wraps (74 tag names, checked in both the 1.x and the 2.x
+/// bundle) contains no accordion, collapsible or details component, and the App Home documentation
+/// has no such page. So this is the first component in the library that is <em>composed</em> rather
+/// than a wrapper: it is built from
 /// <see cref="PolarisAccordionItem"/>, which in turn is an <c>s-clickable</c> surface holding an
 /// <c>s-section</c> (heading and supporting line) and an <c>s-icon</c> chevron, with an <c>s-box</c>
 /// for the content. Nothing here reimplements a Polaris look; what it adds is the structure and the

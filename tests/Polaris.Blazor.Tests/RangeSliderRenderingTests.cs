@@ -172,7 +172,11 @@ public sealed class RangeSliderRenderingTests
                 .ToList();
 
             Assert.NotEmpty(values);
-            Assert.Equal("92.5", slider.FindAll("s-number-field")[1].GetAttribute("defaultValue"));
+
+            // Invariant and two decimals: "92,50" would be a broken number on a German server, and the
+            // field states the same rounding the control uses for both ends. See
+            // The_two_typed_fields_show_two_decimal_places for why that rounding exists at all.
+            Assert.Equal("92.50", slider.FindAll("s-number-field")[1].GetAttribute("defaultValue"));
 
             // The unit is a suffix rather than part of the value, so submitting the field submits a
             // number.
@@ -377,6 +381,100 @@ public sealed class RangeSliderRenderingTests
         Assert.True(range.Contains(80m));
         Assert.False(range.Contains(80.1m));
         Assert.Equal(60m, range.Span);
+    }
+
+    [Fact]
+    public void The_two_typed_fields_show_two_decimal_places()
+    {
+        // A range filter's domain is the cheapest and dearest row in the data, not a number anybody typed:
+        // a lower bound of 4.1666667m is what "the least expensive piece costs 4.17" looks like when it is
+        // shown raw, and the Min field then reads like a bug rather than like a limit. Two decimals is the
+        // default, and it is stated by this control because a caller cannot know the field exists.
+        using var context = new PolarisTestContext();
+
+        var slider = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 4.1666667m)
+            .Add(p => p.Maximum, 480m)
+            .Add(p => p.Step, 0.0001m));
+
+        var fields = slider.FindAll("s-number-field");
+
+        Assert.Equal("4.17", fields[0].GetAttribute("defaultValue"));
+        Assert.Equal("480.00", fields[1].GetAttribute("defaultValue"));
+
+        // Not only a first-paint attribute: `value` is not reflected by the element, so the same string is
+        // also written to it as a DOM property once it has upgraded.
+        Assert.Equal("480.00", context.Interop.SetProperties["s-number-field"][^1]["value"]);
+    }
+
+    [Fact]
+    public void A_halfway_value_is_shown_rounded_away_from_zero()
+    {
+        // `decimal.ToString("F2")` rounds to even, so a 4.165 lower bound would read "4.16" — a penny
+        // short of the number a merchant would write down, and the exact class of mistake the toolkit
+        // pins elsewhere with an explicit MidpointRounding. 4.175 rounds to "4.18" either way, so it is
+        // asserted too: a fix that simply rounded every value up would pass the first half and fail here.
+        using var context = new PolarisTestContext();
+
+        var slider = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 4.165m)
+            .Add(p => p.Maximum, 4.175m)
+            .Add(p => p.Step, 0.001m));
+
+        var fields = slider.FindAll("s-number-field");
+
+        Assert.Equal("4.17", fields[0].GetAttribute("defaultValue"));
+        Assert.Equal("4.18", fields[1].GetAttribute("defaultValue"));
+    }
+
+    [Fact]
+    public void A_display_format_does_not_leak_into_the_typed_values()
+    {
+        // PolarisDataFilter hands this control the column's format, which for a price is "C2". That is right
+        // for the announced value and wrong for a field's: a currency symbol and a group separator are not
+        // a number, and s-number-field parses what it shows. So the two formats stay separate, and the
+        // field keeps a plain number while the handle still announces the formatted one.
+        using var context = new PolarisTestContext();
+
+        var slider = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 2000m)
+            // Off-step on purpose: a step of 1 would round 1234.567 to 1235 before the field saw it, and
+            // the assertion would then pass for the wrong reason.
+            .Add(p => p.Step, 0.001m)
+            .Add(p => p.Value, new PolarisNumberRange(1234.567m, 2000m))
+            .Add(p => p.Format, "N2"));
+
+        Assert.Equal("1234.57", slider.FindAll("s-number-field")[0].GetAttribute("defaultValue"));
+        Assert.Equal(
+            "1,234.57",
+            slider.Find("input[data-polaris-range-handle=lower]").GetAttribute("aria-valuetext"));
+    }
+
+    [Fact]
+    public void The_typed_fields_can_be_given_another_format_or_none()
+    {
+        // Two decimals is the default, not the law: a count is not money, and a caller that needs the exact
+        // value back — a tolerance band in a CAD screen — turns the rounding off entirely.
+        using var context = new PolarisTestContext();
+
+        var whole = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 12.6m)
+            .Add(p => p.Step, 0.1m)
+            .Add(p => p.ShowInputs, true)
+            .Add(p => p.InputFormat, "N0"));
+
+        Assert.Equal("13", whole.FindAll("s-number-field")[1].GetAttribute("defaultValue"));
+
+        var raw = context.Render<PolarisRangeSlider>(parameters => parameters
+            .Add(p => p.Minimum, 0m)
+            .Add(p => p.Maximum, 12.6m)
+            .Add(p => p.Step, 0.1m)
+            .Add(p => p.ShowInputs, true)
+            .Add(p => p.InputFormat, string.Empty));
+
+        Assert.Equal("12.6", raw.FindAll("s-number-field")[1].GetAttribute("defaultValue"));
     }
 
     private static IRenderedComponent<PolarisRangeSlider> RenderSlider(

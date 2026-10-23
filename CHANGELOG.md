@@ -85,6 +85,32 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Changed
 
+- **`PolarisRangeSlider` shows its two typed values to two decimal places** — the Min and Max fields,
+  via a new `InputFormat` parameter (`"F2"` by default; an empty string shows the raw value). A range
+  filter's domain is the cheapest and dearest row in the data rather than a number anybody typed, so a
+  lower bound of `4.1666667m` was being shown verbatim and read as a bug rather than as a limit. It is
+  separate from `Format` on purpose: that one is a *display* format and may be `C2`, and a currency
+  symbol or group separator is not a number — `s-number-field` parses the value it is given. Only the
+  display is rounded; the reported interval keeps its full precision unless the merchant retypes it, so
+  a filter never moves a bound nobody touched. The rounding is stated rather than left to the format
+  string, because `decimal.ToString` rounds a halfway value to even and a control that shows money
+  rounds halves away from zero: a `4.165` bound reads `4.17`, not `4.16`.
+- **The default Polaris channel is now Polaris 2 (`polaris-2.js`), up from Polaris 1 (`polaris-1.js`).**
+  A 2.0 bundle carries both the current admin theme and Admin Next and follows whichever theme the
+  merchant's admin is using, so one URL serves both looks with no flag and no per-theme path. Nothing
+  else about the toolkit changes: measured by diffing the shipped bundles, `polaris-1.js` (1.1.0) and
+  `polaris-2.js` (2.0.0) define the **same 74 `s-*` element names**, so no wrapper is orphaned and
+  `minPolarisVersion` stays at each element's true floor of 1.1 rather than being bumped to 2.0.
+  Consumers who load Polaris through `<ShopifyAppBridgeHead />` get this by updating; anyone who set
+  `AppBridgeOptions.PolarisScriptUrl` explicitly keeps their own URL. Note that `polaris-2.0-rc.js` is
+  **not** the channel — it is the superseded release candidate (2.0.0-rc.3), which receives no fixes.
+  The element *names* are provably unchanged, and the behaviour was re-verified rather than assumed:
+  `tools/verify-in-browser.mjs --assert` passes against both the component gallery (60 elements) and
+  the composed data grid on `polaris-2.js`, with 0 undefined and 0 unupgraded elements and all 39
+  assertions green on each page.
+- **`check-admin-install.mjs` recognises any Polaris channel.** It looked for the literal string
+  `polaris-1`, so an app correctly configured for Polaris 2 reported its design system as MISSING.
+
 - **The accordion rounds its own corners and the sections round none.** One clipped, rounded `s-box`
   wraps the whole list, so it reads as a single card; a radius on each header made it a stack of
   separate cards. The first section's divider is dropped by the stylesheet, because above it sits the

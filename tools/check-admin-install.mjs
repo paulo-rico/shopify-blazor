@@ -83,10 +83,13 @@ if (metaKey === undefined) {
 
 const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/gi)].map((m) => m[1]);
 const hasAppBridge = scripts.some((s) => s.includes("app-bridge.js"));
-const hasPolaris = scripts.some((s) => s.includes("polaris-1"));
+// Any Polaris channel counts: the stable channel (polaris-2.js), a pinned release
+// (polaris-2.0.js) and the superseded Polaris 1 channel all define the same elements, so a
+// check that named one URL would report a correctly configured app as broken.
+const hasPolaris = scripts.some((s) => /polaris-[12](?:\.\d+)?\.js/.test(s));
 
 console.log(`app-bridge.js    -> ${hasAppBridge ? "present" : "MISSING"}`);
-console.log(`polaris-1.js     -> ${hasPolaris ? "present" : "MISSING"}`);
+console.log(`polaris (-2.js)  -> ${hasPolaris ? "present" : "MISSING"}`);
 
 if (!hasAppBridge) {
     problems.push("app-bridge.js is not in the page. window.shopify will be undefined and no token can be minted.");

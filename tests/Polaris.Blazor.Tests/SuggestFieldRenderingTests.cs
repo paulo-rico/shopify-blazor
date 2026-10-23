@@ -6,7 +6,7 @@ namespace Polaris.Blazor.Tests;
 
 /// <summary>
 /// Tests for the suggest field, the free-text-plus-chips control that stands in for the combobox
-/// Polaris 1 does not have.
+/// Polaris does not have.
 /// </summary>
 /// <remarks>
 /// <para>

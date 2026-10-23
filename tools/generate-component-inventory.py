@@ -582,7 +582,8 @@ def build_inventory(records: list[dict]) -> dict:
         "specProvenance": (
             "Slots, events and accessibility notes hand-maintained from "
             "https://shopify.dev/docs/api/app-home/latest/web-components/<category>/<slug>.md "
-            "(Polaris 1.1), cross-checked against the polaris-web-components DSH skill."
+            "(authored against Polaris 1.1; the element set is unchanged in 2.0), "
+            "cross-checked against the polaris-web-components DSH skill."
         ),
         "browserVerifiedBy": "tools/verify-in-browser.mjs",
         "browserVerifiedElementsSource": "samples/Shopify.Blazor.SampleApp/Components/Pages/Components.razor (ProbedElements)",
@@ -591,9 +592,10 @@ def build_inventory(records: list[dict]) -> dict:
         "counts": {
             "elements": len(records),
             # Polaris and App Bridge are two different sources. A Polaris component comes from
-            # polaris-1.js and is versioned with that release; an App Bridge component configures the
-            # admin that surrounds the app, comes from app-bridge.js, and is not versioned with Polaris
-            # at all. Counting them together would make "top-level components" mean two things at once.
+            # the Polaris bundle and is versioned with that release; an App Bridge component configures
+            # the admin that surrounds the app, comes from app-bridge.js, and is not versioned with
+            # Polaris at all. Counting them together would make "top-level components" mean two things
+            # at once.
             "topLevel": sum(
                 1 for r in records if r["composedInside"] is None and r["category"] != APP_BRIDGE_CATEGORY
             ),

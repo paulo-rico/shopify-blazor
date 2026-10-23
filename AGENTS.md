@@ -323,6 +323,17 @@ Read these before changing anything in `src/`.
       and a range filter that matched everything and could not be dragged. `PolarisRangeSlider` now tracks
       the domain it was given and re-opens to a full range when the domain grows (a `null` `Value` means
       "the whole domain", so that is the correct reading), and a test holds it.
+    - **A display format is not a field value, and a field's value is a number.** The two numeric fields
+      are given a *plain* number, so `PolarisRangeSlider.InputFormat` (`"F2"`, two decimals) is separate
+      from `Format` (which may be `"C2"`): a currency symbol and a group separator are not a number, and
+      `s-number-field` parses the string it is handed, so `£1,234.57` there is a broken value with
+      nothing logged. A domain bound is the cheapest and dearest row, so it is routinely a value nobody
+      typed — `4.1666667` as a lower limit reads as a bug, which is why the field format exists at all.
+      Two details are invisible as errors: `decimal.ToString("F2")` rounds a halfway value **to even**
+      (`4.165` reads "4.16", a penny under the number a merchant writes down), so the rounding is stated
+      with `MidpointRounding.AwayFromZero` against a scale parsed out of the format; and only the
+      *display* is rounded — the interval the control reports keeps its full precision, so a filter
+      never moves a bound nobody touched.
     - **A Polaris popover clips its content; it does not scroll it.** With six filter controls the panel
       is capped and the controls below the cap are painted beyond its edge, in space it does not occupy —
       `elementsFromPoint` there returns an empty list, and every drag aimed at one missed. `MaxBlockSize`

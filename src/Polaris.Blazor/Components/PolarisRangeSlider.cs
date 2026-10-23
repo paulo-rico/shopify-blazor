@@ -107,8 +107,37 @@ public sealed class PolarisRangeSlider : ComponentBase
     /// <summary>A unit shown after each numeric input, such as <c>%</c> or <c>ct</c>.</summary>
     [Parameter] public string? Unit { get; set; }
 
-    /// <summary>A standard or custom numeric format for the displayed values.</summary>
+    /// <summary>A standard or custom numeric format for the displayed values, such as <c>N2</c> or <c>C2</c>.</summary>
+    /// <remarks>
+    /// This is a <em>display</em> format and may be a currency one, so it is not what the two numeric
+    /// fields receive — see <see cref="InputFormat"/>. It is used for the handles' announced value.
+    /// </remarks>
     [Parameter] public string? Format { get; set; }
+
+    /// <summary>
+    /// The numeric format of the two typed values — the Min and Max fields. Two decimal places by
+    /// default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A range filter's domain is whatever the cheapest and dearest row cost, so it is routinely a value
+    /// nobody typed: <c>4.1666667</c> as a lower bound reads as a bug rather than as a limit. Two
+    /// decimals is the answer for money, which is what most range filters bound.
+    /// </para>
+    /// <para>
+    /// It is deliberately separate from <see cref="Format"/>, which is a display format and may be
+    /// <c>C2</c>: a currency symbol and a group separator are not a number, and <c>s-number-field</c>
+    /// parses the value it is given, so <c>£1,234.57</c> in that field would be rejected or read as
+    /// nonsense. This one must stay a plain numeric format — <c>F2</c>, <c>N0</c>, <c>0.##</c> — and is
+    /// formatted with the invariant culture, so a comma never becomes a decimal separator.
+    /// </para>
+    /// <para>
+    /// Only the display is rounded. The interval the control reports keeps its full precision unless the
+    /// merchant retypes it, so a filter never silently moves a bound nobody touched. An empty string
+    /// turns the rounding off and shows the raw invariant value.
+    /// </para>
+    /// </remarks>
+    [Parameter] public string InputFormat { get; set; } = "F2";
 
     /// <summary>The current interval, clamped to the domain.</summary>
     public PolarisNumberRange Current => _current;
@@ -358,7 +387,7 @@ public sealed class PolarisRangeSlider : ComponentBase
         builder.OpenComponent<PolarisNumberField>(0);
         builder.AddAttribute(1, nameof(PolarisNumberField.Label), label);
         builder.AddAttribute(2, nameof(PolarisNumberField.LabelAccessibilityVisibility), PolarisAccessibilityVisibility.Exclusive);
-        builder.AddAttribute(3, nameof(PolarisNumberField.Value), Invariant(lower ? Lower : Upper));
+        builder.AddAttribute(3, nameof(PolarisNumberField.Value), FieldValue(lower ? Lower : Upper));
         builder.AddAttribute(4, nameof(PolarisNumberField.Min), (double)DomainMinimum);
         builder.AddAttribute(5, nameof(PolarisNumberField.Max), (double)DomainMaximum);
         builder.AddAttribute(6, nameof(PolarisNumberField.Step), Step > 0m ? (double)Step : null);
@@ -499,8 +528,76 @@ public sealed class PolarisRangeSlider : ComponentBase
 
     private string ValueText(decimal value)
     {
-        var number = value.ToString(Format, CultureInfo.InvariantCulture);
+        // The announced value follows the field's own format unless the caller named a display one, so a
+        // screen reader does not read "4.1666667" beside a field showing "4.17" — and it is rounded the
+        // same way, or the two could disagree on a halfway value.
+        var number = Numeric(value, Format ?? InputFormat);
         return Unit is null ? number : string.Concat(number, " ", Unit);
+    }
+
+    /// <summary>
+    /// One end as the numeric field shows it: a plain number, rounded by <see cref="InputFormat"/>.
+    /// </summary>
+    private string FieldValue(decimal value) => Numeric(value, InputFormat);
+
+    /// <summary>
+    /// A value in the given numeric format, rounding a halfway value away from zero.
+    /// </summary>
+    /// <remarks>
+    /// The rounding is explicit rather than left to the format, because <c>decimal.ToString</c> rounds to
+    /// even — a 4.165 bound would read "4.16" — while a control that shows money rounds halves away from
+    /// zero, so 4.165 is 4.17, the number a merchant would write down.
+    /// </remarks>
+    private static string Numeric(decimal value, string? format)
+    {
+        if (string.IsNullOrEmpty(format))
+        {
+            return Invariant(value);
+        }
+
+        var shown = ScaleOf(format) is int scale
+            ? Math.Round(value, scale, MidpointRounding.AwayFromZero)
+            : value;
+
+        return shown.ToString(format, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// How many decimal places a numeric format can show, or <c>null</c> when it does not fix a number of
+    /// them — a general or round-trip format, where pre-rounding would throw away precision the caller
+    /// asked to keep.
+    /// </summary>
+    private static int? ScaleOf(string format)
+    {
+        // A standard format is one letter and an optional precision: "F2", "N0", "C2", "E3". A letter
+        // alone means the specifier's own default, which for F, N, C and P is two decimals.
+        if (char.IsAsciiLetter(format[0]) && format.AsSpan(1).IndexOfAnyExceptInRange('0', '9') < 0)
+        {
+            if (format.Length > 1)
+            {
+                return int.Parse(format.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture);
+            }
+
+            return format[0] is 'F' or 'f' or 'N' or 'n' or 'C' or 'c' or 'P' or 'p' ? 2 : null;
+        }
+
+        // A custom format says it with placeholders: "0.00" and "0.##" both show two decimals, and the
+        // section handling the rounding is the one that carries the decimal point.
+        var point = format.IndexOf('.', StringComparison.Ordinal);
+        if (point < 0)
+        {
+            return format.Contains('0', StringComparison.Ordinal) || format.Contains('#', StringComparison.Ordinal)
+                ? 0
+                : null;
+        }
+
+        var placeholders = 0;
+        for (var index = point + 1; index < format.Length && format[index] is '0' or '#'; index++)
+        {
+            placeholders++;
+        }
+
+        return placeholders;
     }
 
     private static string Invariant(decimal value) => value.ToString(CultureInfo.InvariantCulture);

@@ -1013,7 +1013,8 @@ A dual-handle numeric range control: one track, two handles and the interval bet
 | `LowerLabel` | `string` | The accessible name of the lower handle. |
 | `UpperLabel` | `string` | The accessible name of the upper handle. |
 | `Unit` | `string?` | A unit shown after each numeric input, such as % or ct. |
-| `Format` | `string?` | A standard or custom numeric format for the displayed values. |
+| `Format` | `string?` | A standard or custom numeric format for the displayed values, such as N2 or C2. |
+| `InputFormat` | `string` | The numeric format of the two typed values — the Min and Max fields. |
 
 ### `PolarisSearchField` → `<s-search-field>`
 
