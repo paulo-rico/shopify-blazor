@@ -104,19 +104,33 @@ public sealed class PolarisAddableSelect : ComponentBase
     /// <summary>The values already saved, in the order the select should offer them.</summary>
     [Parameter] public IReadOnlyList<string> Options { get; set; } = [];
 
-    /// <summary>Prevents both the select and the add button from being used.</summary>
+    /// <summary>Prevents both the select and the dialog's button from being used.</summary>
     [Parameter] public bool Disabled { get; set; }
 
-    /// <summary>The add button's visible label.</summary>
-    [Parameter] public string? AddButtonLabel { get; set; } = "Add new";
+    /// <summary>
+    /// The label of the button that opens the dialog.
+    /// </summary>
+    /// <remarks>
+    /// Named for what it opens rather than for what the dialog does, because that is the caller's to
+    /// decide: a dialog that only adds says "Add new", and one that manages the list as well says
+    /// "Manage suppliers". The component itself only knows it opens a dialog.
+    /// </remarks>
+    [Parameter] public string? DialogButtonLabel { get; set; } = "Add new";
 
     /// <summary>The dialog's heading. It is also the dialog's accessible name.</summary>
     [Parameter] public string? DialogHeading { get; set; } = "Add a new value";
 
-    /// <summary>The caption above the list of values already saved.</summary>
+    /// <summary>
+    /// The caption above the built-in list of values already saved.
+    /// </summary>
+    /// <remarks>
+    /// Only drawn when the caller passes no <see cref="DialogContent"/>: a caller that supplies its own
+    /// management UI has already said what the saved values are, and a list underneath it would be the
+    /// same thing twice.
+    /// </remarks>
     [Parameter] public string? DialogListLabel { get; set; } = "Already saved";
 
-    /// <summary>Shown in the dialog when nothing has been saved yet.</summary>
+    /// <summary>Shown in place of the built-in list when nothing has been saved yet. Same condition as <see cref="DialogListLabel"/>.</summary>
     [Parameter] public string? DialogEmptyLabel { get; set; } = "Nothing has been saved yet.";
 
     /// <summary>The label of the dialog's text field.</summary>
@@ -241,7 +255,7 @@ public sealed class PolarisAddableSelect : ComponentBase
             grid.AddAttribute(43, nameof(PolarisButton.CommandFor), DialogId);
             grid.AddAttribute(44, nameof(PolarisButton.Command), PolarisCommand.Show);
             grid.AddAttribute(45, nameof(PolarisButton.ChildContent), (RenderFragment)(label =>
-                label.AddContent(46, AddButtonLabel)));
+                label.AddContent(46, DialogButtonLabel)));
             grid.CloseComponent();
         }));
         builder.CloseComponent();
@@ -265,37 +279,43 @@ public sealed class PolarisAddableSelect : ComponentBase
                 {
                     content.AddContent(65, DialogContent);
                 }
-
-                content.OpenComponent<PolarisText>(70);
-                content.AddAttribute(71, nameof(PolarisText.Color), PolarisColor.Subdued);
-                content.AddAttribute(72, nameof(PolarisText.ChildContent), (RenderFragment)(caption =>
-                    caption.AddContent(73, DialogListLabel)));
-                content.CloseComponent();
-
-                if (Options.Count == 0)
-                {
-                    content.OpenComponent<PolarisText>(80);
-                    content.AddAttribute(81, nameof(PolarisText.ChildContent), (RenderFragment)(empty =>
-                        empty.AddContent(82, DialogEmptyLabel)));
-                    content.CloseComponent();
-                }
                 else
                 {
-                    // A list, not another control: the select behind the dialog is where a value is
-                    // chosen, and a second chooser in a dialog that also creates would be two ways to
-                    // answer one question. The modal body scrolls when the list outgrows it.
-                    content.OpenComponent<PolarisUnorderedList>(90);
-                    content.AddAttribute(91, nameof(PolarisUnorderedList.ChildContent), (RenderFragment)(list =>
-                    {
-                        foreach (var option in Options)
-                        {
-                            list.OpenComponent<PolarisListItem>(100);
-                            list.AddAttribute(101, nameof(PolarisListItem.ChildContent), (RenderFragment)(item =>
-                                item.AddContent(102, option)));
-                            list.CloseComponent();
-                        }
-                    }));
+                    // The built-in list is the fallback for a caller with nothing to manage: it says what
+                    // already exists so the field below is not the only thing on screen. A caller that
+                    // passes its own content has already drawn that — usually as an editable grid — and a
+                    // second copy underneath would be the same list twice, one of them read-only.
+                    content.OpenComponent<PolarisText>(70);
+                    content.AddAttribute(71, nameof(PolarisText.Color), PolarisColor.Subdued);
+                    content.AddAttribute(72, nameof(PolarisText.ChildContent), (RenderFragment)(caption =>
+                        caption.AddContent(73, DialogListLabel)));
                     content.CloseComponent();
+
+                    if (Options.Count == 0)
+                    {
+                        content.OpenComponent<PolarisText>(80);
+                        content.AddAttribute(81, nameof(PolarisText.ChildContent), (RenderFragment)(empty =>
+                            empty.AddContent(82, DialogEmptyLabel)));
+                        content.CloseComponent();
+                    }
+                    else
+                    {
+                        // A list, not another control: the select behind the dialog is where a value is
+                        // chosen, and a second chooser in a dialog that also creates would be two ways to
+                        // answer one question. The modal body scrolls when the list outgrows it.
+                        content.OpenComponent<PolarisUnorderedList>(90);
+                        content.AddAttribute(91, nameof(PolarisUnorderedList.ChildContent), (RenderFragment)(list =>
+                        {
+                            foreach (var option in Options)
+                            {
+                                list.OpenComponent<PolarisListItem>(100);
+                                list.AddAttribute(101, nameof(PolarisListItem.ChildContent), (RenderFragment)(item =>
+                                    item.AddContent(102, option)));
+                                list.CloseComponent();
+                            }
+                        }));
+                        content.CloseComponent();
+                    }
                 }
 
                 content.OpenComponent<PolarisTextField>(110);

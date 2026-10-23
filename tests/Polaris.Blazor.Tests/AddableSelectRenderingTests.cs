@@ -105,16 +105,16 @@ public sealed class AddableSelectRenderingTests
     }
 
     [Fact]
-    public void The_dialog_shows_every_saved_value_and_a_field_for_a_new_one()
+    public void With_no_caller_content_the_dialog_lists_what_is_already_saved()
     {
-        // The list is there so the merchant can see what exists before typing; it is not a second chooser,
-        // because the select behind the dialog is where a value is chosen.
+        // The built-in list is the fallback for a caller that has nothing to manage: it is there so the
+        // field below is not the only thing on screen. It is a read-only record of what exists, not a
+        // second chooser, because the select behind the dialog is where a value is chosen.
         using var context = new PolarisTestContext();
 
         var component = context.Render<PolarisAddableSelect>(parameters => parameters
             .Add(p => p.Options, ["Cookson Gold", "Rio Grande"])
-            .Add(p => p.DialogListLabel, "Your suppliers")
-            .Add(p => p.DialogFieldLabel, "New supplier"));
+            .Add(p => p.DialogListLabel, "Your suppliers"));
 
         var dialog = component.Find("s-modal");
         Assert.Equal("Your suppliers", dialog.QuerySelector("s-text")!.TextContent);
@@ -122,7 +122,29 @@ public sealed class AddableSelectRenderingTests
             ["Cookson Gold", "Rio Grande"],
             dialog.QuerySelectorAll("s-list-item").Select(item => item.TextContent));
 
-        Assert.Equal("New supplier", dialog.QuerySelector("s-text-field")!.GetAttribute("label"));
+        // The field below the list is always there: the list says what exists, the field is how a new one
+        // is added, and a dialog with one of the two is a dialog that cannot do the half it is missing.
+        Assert.NotNull(dialog.QuerySelector("s-text-field"));
+    }
+
+    [Fact]
+    public void A_caller_that_draws_its_own_list_does_not_get_the_built_in_one_as_well()
+    {
+        // The same list twice, one of them read-only, is what the merchant sees when both are drawn.
+        // Supplying DialogContent is the caller saying it has the saved values covered — usually with an
+        // editable grid, which can also rename and delete.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAddableSelect>(parameters => parameters
+            .Add(p => p.Options, ["Cookson Gold", "Rio Grande"])
+            .Add(p => p.DialogListLabel, "Your suppliers")
+            .Add(p => p.DialogContent, (RenderFragment)(content =>
+                content.AddMarkupContent(0, "<s-table data-managed=\"true\"></s-table>"))));
+
+        var dialog = component.Find("s-modal");
+        Assert.NotNull(dialog.QuerySelector("s-table[data-managed='true']"));
+        Assert.Empty(dialog.QuerySelectorAll("s-list-item"));
+        Assert.Null(dialog.QuerySelector("s-unordered-list"));
     }
 
     [Fact]

@@ -202,11 +202,11 @@ A select of the values a record can carry, with an "Add new" button beside it th
 | `EmptyOptionLabel` | `string?` | The label of the "nothing chosen" option, which is also how a chosen value is cleared. |
 | `Value` | `string?` | The chosen value, which the caller owns. |
 | `Options` | `IReadOnlyList<string>` | The values already saved, in the order the select should offer them. |
-| `Disabled` | `bool` | Prevents both the select and the add button from being used. |
-| `AddButtonLabel` | `string?` | The add button's visible label. |
+| `Disabled` | `bool` | Prevents both the select and the dialog's button from being used. |
+| `DialogButtonLabel` | `string?` | The label of the button that opens the dialog. |
 | `DialogHeading` | `string?` | The dialog's heading. |
-| `DialogListLabel` | `string?` | The caption above the list of values already saved. |
-| `DialogEmptyLabel` | `string?` | Shown in the dialog when nothing has been saved yet. |
+| `DialogListLabel` | `string?` | The caption above the built-in list of values already saved. |
+| `DialogEmptyLabel` | `string?` | Shown in place of the built-in list when nothing has been saved yet. |
 | `DialogFieldLabel` | `string?` | The label of the dialog's text field. |
 | `DialogFieldDetails` | `string?` | Help text below the dialog's text field. |
 | `DialogConfirmLabel` | `string?` | The label of the dialog's confirm button. |
