@@ -398,6 +398,97 @@ public sealed class DataFilterRenderingTests
         Assert.Contains("an action", filter.Markup, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_range_chip_writes_both_bounds_to_two_decimals()
+    {
+        // The chip and the range control's Min and Max fields are the only two places a bound is shown, and
+        // the two must agree: fields reading "4.17" beside a chip reading "4.1666667" look like the filter
+        // is not what the panel said. A filter's bounds are the cheapest and dearest row in the data, so
+        // they are rarely numbers anybody typed — which is why an unformatted column needs a default at all.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        RegisterCostColumn(state);
+
+        state.SetFilter(PolarisGridFilterDescriptor.InRange("Cost", new PolarisNumberRange(4.1666667m, 480m)));
+
+        var filter = RenderFilter(context, state);
+
+        Assert.Contains("Cost is 4.17 to 480.00", filter.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_range_chip_rounds_a_halfway_bound_away_from_zero()
+    {
+        // `decimal.ToString("F2")` rounds to even, so 4.165 would read "4.16" — a penny under the number a
+        // merchant writes down, and the same rule the range control's own fields follow.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        RegisterCostColumn(state);
+
+        state.SetFilter(PolarisGridFilterDescriptor.InRange("Cost", new PolarisNumberRange(4.165m, 4.175m)));
+
+        var filter = RenderFilter(context, state);
+
+        Assert.Contains("Cost is 4.17 to 4.18", filter.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_range_chip_keeps_the_format_the_column_states()
+    {
+        // Filling in a default must not overrule a stated intent: this column asks for one decimal, and a
+        // currency or whole-number format would be just as deliberate. The chip describes the cell, so the
+        // column's format is the one that wins.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        state.SetFilter(PolarisGridFilterDescriptor.InRange("Silver", new PolarisNumberRange(0m, 15m)));
+
+        var filter = RenderFilter(context, state);
+
+        Assert.Contains("Silver % is 0.0 to 15.0", filter.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_date_range_chip_is_not_a_number_and_keeps_its_own_text()
+    {
+        // The same code path draws a date range, whose bounds are dates: running those through the number
+        // formatter would have to fail somehow — an exception, or a fabricated 0. So the chip must write
+        // exactly what the column's own formatter writes, which is what the cells show.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        var added = state.ColumnDefinitions.Single(column => column.Id == "Added");
+
+        state.SetFilter(PolarisGridFilterDescriptor.Between(
+            "Added",
+            new DateOnly(2024, 1, 1),
+            new DateOnly(2024, 2, 1)));
+
+        var filter = RenderFilter(context, state);
+
+        Assert.Contains(
+            string.Concat(
+                "Added is ",
+                added.FormatValue(new DateOnly(2024, 1, 1)),
+                " to ",
+                added.FormatValue(new DateOnly(2024, 2, 1))),
+            filter.Markup,
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A decimal range column that states no format — the shape most grids declare, because the cell draws
+    /// its own currency text in a template.
+    /// </summary>
+    private static void RegisterCostColumn(PolarisGridState<Alloy> state)
+        => state.RegisterColumn(new PolarisGridColumnDefinition<Alloy>
+        {
+            Id = "Cost",
+            Title = "Cost",
+            ValueGetter = alloy => alloy.Silver * 2,
+            ValueType = typeof(decimal),
+            FilterType = PolarisGridFilterType.Range,
+        });
+
     // ── Fixtures ─────────────────────────────────────────────────────────────────────────────
 
     private static readonly List<Alloy> SampleRows =

@@ -333,7 +333,10 @@ Read these before changing anything in `src/`.
       (`4.165` reads "4.16", a penny under the number a merchant writes down), so the rounding is stated
       with `MidpointRounding.AwayFromZero` against a scale parsed out of the format; and only the
       *display* is rounded — the interval the control reports keeps its full precision, so a filter
-      never moves a bound nobody touched.
+      never moves a bound nobody touched. Both places a bound is shown go through the one helper
+      (`PolarisNumberText`) — the fields and the filter's own chip — because they are read side by side,
+      and a chip reading `4.1666667` beside fields reading `4.17` looks like the filter is not what the
+      panel said.
     - **A Polaris popover clips its content; it does not scroll it.** With six filter controls the panel
       is capped and the controls below the cap are painted beyond its edge, in space it does not occupy —
       `elementsFromPoint` there returns an empty list, and every drag aimed at one missed. `MaxBlockSize`

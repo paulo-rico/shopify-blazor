@@ -98,6 +98,14 @@ def parse(path: Path) -> dict:
     tests = (ROOT / "tests" / "Polaris.Blazor.Tests").glob("*.cs")
     covered = any(path.stem in test.read_text(encoding="utf-8") for test in tests)
 
+    # A static class is a helper, not a component, and it has none of what this reference documents: no
+    # element, no parameters, no events. The library keeps its shared number formatting beside the
+    # controls that use it (`PolarisNumberText`), so the glob picks it up — and documenting it would
+    # claim a control that renders nothing. Skipped here rather than by renaming the file, because a
+    # name that dodges the glob is a trap for the next helper.
+    if re.search(r"\bstatic\s+class\s+" + re.escape(path.stem) + r"\b", text):
+        return None
+
     return {
         "name": path.stem,
         "tag": tag_name,
@@ -109,7 +117,10 @@ def parse(path: Path) -> dict:
 
 
 def main() -> None:
-    components = sorted((parse(p) for p in COMPONENTS.glob("Polaris*.cs")), key=lambda c: c["name"])
+    components = sorted(
+        (parsed for path in COMPONENTS.glob("Polaris*.cs") if (parsed := parse(path)) is not None),
+        key=lambda c: c["name"],
+    )
 
     # A class with no single literal tag is composed rather than a wrapper: Polaris has no element
     # behind it, and it is built from components that do. Only the accordion is like this today, and

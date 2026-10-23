@@ -837,9 +837,9 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
             PolarisGridOperator.Between => string.Concat(
                 title,
                 " is ",
-                column.FormatValue(filter.Value),
+                DescribeBound(column, filter.Value),
                 " to ",
-                column.FormatValue(filter.SecondValue)),
+                DescribeBound(column, filter.SecondValue)),
             PolarisGridOperator.GreaterThan => string.Concat(title, " is above ", value),
             PolarisGridOperator.GreaterThanOrEqual => string.Concat(title, " is at least ", value),
             PolarisGridOperator.LessThan => string.Concat(title, " is below ", value),
@@ -849,5 +849,48 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
             _ => title,
         };
     }
+
+    /// <summary>
+    /// One end of a range, written the way the range control's own Min and Max fields write it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The chip is the only other place a bound is shown, and the two must agree: fields reading "4.17"
+    /// with a chip beside them reading "4.1666667" look like the filter is not what the panel said. The
+    /// bound is a row's own value — the cheapest and dearest in the data — so it is rarely a number
+    /// anybody typed, which is why it needs a format at all.
+    /// </para>
+    /// <para>
+    /// A column that states a format keeps it: <c>C2</c> already fixes two decimals and carries the
+    /// currency, and a column formatted <c>N0</c> means whole numbers. This only fills in the default the
+    /// slider's fields use. A date range is not a number and goes through the column's formatter
+    /// untouched, as does anything a caller's own <see cref="ICustomFormatter"/> claims.
+    /// </para>
+    /// </remarks>
+    private static string DescribeBound(IPolarisGridColumn column, object? value)
+    {
+        if (value is null)
+        {
+            return string.Empty;
+        }
+
+        if (!IsNumber(value) || column.FormatProvider?.GetFormat(typeof(ICustomFormatter)) is not null)
+        {
+            return column.FormatValue(value);
+        }
+
+        return PolarisNumberText.Format(
+            Convert.ToDecimal(value, CultureInfo.InvariantCulture),
+            column.Format ?? PolarisRangeSlider.DefaultInputFormat,
+            column.FormatProvider ?? CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>True for the value types a range control can bound.</summary>
+    private static bool IsNumber(object value)
+        => Type.GetTypeCode(value.GetType()) is
+            TypeCode.Decimal or TypeCode.Double or TypeCode.Single or
+            TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64 or
+            TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 or
+            TypeCode.Byte or TypeCode.SByte;
 }
 

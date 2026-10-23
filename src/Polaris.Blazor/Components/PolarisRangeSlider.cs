@@ -1,7 +1,6 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using Microsoft.AspNetCore.Components.Web;
 
 namespace Polaris.Blazor.Components;
 
@@ -137,7 +136,13 @@ public sealed class PolarisRangeSlider : ComponentBase
     /// turns the rounding off and shows the raw invariant value.
     /// </para>
     /// </remarks>
-    [Parameter] public string InputFormat { get; set; } = "F2";
+    [Parameter] public string InputFormat { get; set; } = DefaultInputFormat;
+
+    /// <summary>
+    /// The two decimals <see cref="InputFormat"/> defaults to, so a caller showing the same bound
+    /// somewhere else — <see cref="PolarisDataFilter"/>'s chip does — writes it identically.
+    /// </summary>
+    public const string DefaultInputFormat = "F2";
 
     /// <summary>The current interval, clamped to the domain.</summary>
     public PolarisNumberRange Current => _current;
@@ -541,64 +546,11 @@ public sealed class PolarisRangeSlider : ComponentBase
     private string FieldValue(decimal value) => Numeric(value, InputFormat);
 
     /// <summary>
-    /// A value in the given numeric format, rounding a halfway value away from zero.
+    /// A value in the given numeric format, rounded as <see cref="PolarisNumberText"/> rounds, so the
+    /// fields here and the chip for the applied filter write the same bound the same way.
     /// </summary>
-    /// <remarks>
-    /// The rounding is explicit rather than left to the format, because <c>decimal.ToString</c> rounds to
-    /// even — a 4.165 bound would read "4.16" — while a control that shows money rounds halves away from
-    /// zero, so 4.165 is 4.17, the number a merchant would write down.
-    /// </remarks>
     private static string Numeric(decimal value, string? format)
-    {
-        if (string.IsNullOrEmpty(format))
-        {
-            return Invariant(value);
-        }
-
-        var shown = ScaleOf(format) is int scale
-            ? Math.Round(value, scale, MidpointRounding.AwayFromZero)
-            : value;
-
-        return shown.ToString(format, CultureInfo.InvariantCulture);
-    }
-
-    /// <summary>
-    /// How many decimal places a numeric format can show, or <c>null</c> when it does not fix a number of
-    /// them — a general or round-trip format, where pre-rounding would throw away precision the caller
-    /// asked to keep.
-    /// </summary>
-    private static int? ScaleOf(string format)
-    {
-        // A standard format is one letter and an optional precision: "F2", "N0", "C2", "E3". A letter
-        // alone means the specifier's own default, which for F, N, C and P is two decimals.
-        if (char.IsAsciiLetter(format[0]) && format.AsSpan(1).IndexOfAnyExceptInRange('0', '9') < 0)
-        {
-            if (format.Length > 1)
-            {
-                return int.Parse(format.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture);
-            }
-
-            return format[0] is 'F' or 'f' or 'N' or 'n' or 'C' or 'c' or 'P' or 'p' ? 2 : null;
-        }
-
-        // A custom format says it with placeholders: "0.00" and "0.##" both show two decimals, and the
-        // section handling the rounding is the one that carries the decimal point.
-        var point = format.IndexOf('.', StringComparison.Ordinal);
-        if (point < 0)
-        {
-            return format.Contains('0', StringComparison.Ordinal) || format.Contains('#', StringComparison.Ordinal)
-                ? 0
-                : null;
-        }
-
-        var placeholders = 0;
-        for (var index = point + 1; index < format.Length && format[index] is '0' or '#'; index++)
-        {
-            placeholders++;
-        }
-
-        return placeholders;
-    }
+        => PolarisNumberText.Format(value, format, CultureInfo.InvariantCulture);
 
     private static string Invariant(decimal value) => value.ToString(CultureInfo.InvariantCulture);
 

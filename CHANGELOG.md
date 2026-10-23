@@ -85,6 +85,13 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Changed
 
+- **The filter chip for a range filter writes both bounds to two decimals**, the same way the two
+  fields in the panel do. The chip is the only other place a bound is shown, and a filter's bounds are
+  the cheapest and dearest row rather than a number anybody typed — so a chip reading `4.1666667`
+  beside fields reading `4.17` looked like the filter was not what the panel said. Both now go through
+  one formatter (`PolarisNumberText`), so they cannot drift; a column that states its own `Format` keeps
+  it (`C2` already fixes two decimals and carries the currency, `N0` means whole numbers), and a date
+  range — which travels the same code path — is untouched.
 - **`PolarisRangeSlider` shows its two typed values to two decimal places** — the Min and Max fields,
   via a new `InputFormat` parameter (`"F2"` by default; an empty string shows the raw value). A range
   filter's domain is the cheapest and dearest row in the data rather than a number anybody typed, so a
