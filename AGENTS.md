@@ -3,6 +3,11 @@
 Load this before touching the repository. Everything here was learned by breaking it, and none of
 these failures raise an error when violated.
 
+**Looking for an API?** Do not read the source. Every file under `src/` has a sibling
+`<name>.md` — `PolarisButton.cs.md` beside `PolarisButton.cs` — with its parameters, events, method
+signatures and the traps. Start at [`docs/source-summaries.md`](docs/source-summaries.md), which
+indexes all of them by directory. See [Source summaries](#source-summaries--read-these-instead-of-the-source).
+
 ## Environment on this machine
 
 The DSH file sandbox allows writes **only** under the session workspace. The .NET CLI wants
@@ -37,6 +42,8 @@ drift; `check-drift.py` runs them and compares, without touching the working tre
 python3 tools/generate-component-reference.py       # docs/components.md
 python3 tools/generate-component-inventory.py       # docs/component-inventory.{json,md} + the CLI catalogue
 python3 tools/generate-component-inventory.py --check   # same, but exits 1 on drift and writes nothing
+python3 tools/generate-summary-index.py             # docs/source-summaries.md, the map of the summaries
+python3 tools/check-summaries.py                    # every src file has a summary that matches its source
 python3 tools/check-drift.py                        # every generated file, plus the template's pinned version
 python3 tools/generate-component.py                 # emit a wrapper from the spec (golden-tested)
 python3 tools/tests/run.py                          # the generator tests (stdlib unittest only)
@@ -57,6 +64,58 @@ generate and build every parameter combination:
 ```sh
 python3 tools/verify-template.py
 ```
+
+## Source summaries — read these instead of the source
+
+Every source file under `src/` has a sibling `<name>.md`: `PolarisButton.cs.md` beside
+`PolarisButton.cs`, `polaris-interop.js.md` beside `polaris-interop.js`. Each holds that file's public
+surface — every parameter with its type and default, every event, every method signature — plus what
+it actually does and the traps it documents. **Read the summary, not the source.** Open the source
+only when you are changing it.
+
+- [`docs/source-summaries.md`](docs/source-summaries.md) is the map: every source grouped by
+  directory with a one-line purpose and a link. Start there when you know what you want to do but not
+  which file does it.
+- The first two lines of each summary are `<!-- summary-of: File.cs -->` and
+  `<!-- source-sha256: … -->`, the hash of the source it was written against.
+- `python3 tools/check-summaries.py` lists summaries that are missing, unmarked or older than their
+  source. `check-drift.py` runs it as one of its checks, so CI fails on a stale one.
+- On Windows, Visual Studio's built-in `addedExtension` nesting rule puts `PolarisButton.cs.md` under
+  `PolarisButton.cs` — turn on **File Nesting** in Solution Explorer (the toolbar button, preset
+  *Default*) if the summary files appear flat.
+
+Keeping a summary current is part of changing the file, not an optional extra:
+
+1. Change the source.
+2. Update the summary's prose — parameters, defaults, events, gotchas — not just the hash. A summary
+   that still describes the old behaviour is worse than none, because it is believed.
+3. `python3 tools/check-summaries.py --sha <source>` prints the new marker line; paste it in.
+4. `python3 tools/generate-summary-index.py` refreshes `docs/source-summaries.md`.
+5. A new source file needs a new summary in the same change; the checker lists it as missing until it
+   has one, and `check-drift.py` fails.
+
+The shape, which `PolarisButton.cs.md` and `PolarisElementComponentBase.cs.md` demonstrate:
+
+```markdown
+<!-- summary-of: PolarisBadge.cs -->
+<!-- source-sha256: 0123456789ab -->
+
+# PolarisBadge.cs
+
+One paragraph: what it is, in sentences that stand alone. Its first sentence becomes the index entry.
+
+`Polaris.Blazor.Components` · renders `<s-badge>` · base `PolarisContentComponentBase`
+
+## Parameters        <!-- Parameter | Type | Default | What it does -->
+## Events            <!-- what raises them, what the args carry -->
+## Members           <!-- exact signature + behaviour, for non-component classes -->
+## Behaviour         <!-- only what the member list cannot convey -->
+## Gotchas           <!-- silent failures, ordering rules, quirks -->
+## See also          <!-- relative links to sibling summaries -->
+```
+
+A summary is a page, not a stub: every public parameter and member, and the behaviour that would
+surprise someone. Never paste code, and never invent a member — everything comes from the file.
 
 ## The constraints that fail silently
 
@@ -520,6 +579,10 @@ collision a broad pattern does not warn about.
   undocumented parameter is an undocumented component.
 - New components: add the class in `Components/`, an entry in the test file, then run
   `tools/generate-component-reference.py`.
+- Every source file under `src/` carries a sibling `<name>.md` summary, and changing the source means
+  changing its summary in the same commit — see
+  [Source summaries](#source-summaries--read-these-instead-of-the-source). `tools/check-drift.py`
+  fails on a summary whose recorded hash no longer matches its source.
 - Commit and push. This machine has no other safety net and sessions do not share state. Pushing
   needs the `gh` token, because the credential helper wants a terminal and fails with
   `could not read Username for 'https://github.com'`:

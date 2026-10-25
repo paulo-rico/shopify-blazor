@@ -51,6 +51,20 @@ CHECKS: list[dict] = [
         "command": ["tools/verify-template.py", "--metadata-only"],
         "outputs": [],
     },
+    {
+        "name": "source summary index (docs/source-summaries.md)",
+        "command": ["tools/generate-summary-index.py"],
+        "outputs": ["docs/source-summaries.md"],
+    },
+    {
+        # Not a generator: this one only reads, and exits 1 when a source file has no summary or a
+        # summary records a hash from before the source last changed. It is in this list because it
+        # is the same question — "is a committed derivative still true?" — and this is the one place
+        # that question gets asked.
+        "name": "source summaries (src/**/*.md are current)",
+        "command": ["tools/check-summaries.py"],
+        "outputs": [],
+    },
 ]
 
 
