@@ -83,6 +83,12 @@ only when you are changing it.
 - On Windows, Visual Studio's built-in `addedExtension` nesting rule puts `PolarisButton.cs.md` under
   `PolarisButton.cs` — turn on **File Nesting** in Solution Explorer (the toolbar button, preset
   *Default*) if the summary files appear flat.
+- **A summary that lands in `wwwroot` becomes a static web asset**, and one in `templates/**` becomes
+  template content. Both are removed from the item set on purpose: `<Content Remove="wwwroot/**/*.md" />`
+  in the two libraries, and the four `templates/**/*.{cs,razor,js,css}.md` globs in
+  `Shopify.Blazor.Templates.csproj`. Without them the packages publish
+  `/_content/Polaris.Blazor/polaris-grid.css.md` and generate `Dashboard.razor.md` into every new
+  project. Check after packing: the only `.md` in the three packages is the templates' own README.
 
 Keeping a summary current is part of changing the file, not an optional extra:
 

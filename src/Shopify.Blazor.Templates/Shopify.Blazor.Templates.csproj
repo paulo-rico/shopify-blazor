@@ -40,8 +40,14 @@
     <!--
       The build output of a template is the template. Excluding bin/obj matters: `dotnet new` would
       otherwise install a template whose content includes a stray build output tree.
+
+      The four *.md excludes are the source summaries that sit beside the template's own files
+      (App.razor.md and friends). They are how this repository is read, not something a generated
+      project should start with, so they are not shipped. The template's README.md stays: that one
+      is the generated project's readme.
     -->
-    <Content Include="templates/**/*" Exclude="templates/**/bin/**;templates/**/obj/**" />
+    <Content Include="templates/**/*"
+             Exclude="templates/**/bin/**;templates/**/obj/**;templates/**/*.cs.md;templates/**/*.razor.md;templates/**/*.js.md;templates/**/*.css.md" />
   </ItemGroup>
 
   <!--

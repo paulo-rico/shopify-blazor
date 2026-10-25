@@ -22,4 +22,13 @@
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      app-bridge.js has a summary .md beside it, and everything under wwwroot is a static web asset
+      — so without this the package publishes /_content/Shopify.Blazor/app-bridge.js.md and copies
+      it into every consumer's output. Polaris.Blazor removes the same pattern for the same reason.
+    -->
+    <Content Remove="wwwroot/**/*.md" />
+  </ItemGroup>
+
 </Project>

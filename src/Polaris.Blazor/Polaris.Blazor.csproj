@@ -31,4 +31,14 @@
     <Content Update="wwwroot/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Every source file here has a summary .md beside it (PolarisButton.cs.md next to
+      PolarisButton.cs), and four of those sit in wwwroot. Everything under wwwroot is a static web
+      asset, so without this the package ships them at /_content/Polaris.Blazor/polaris-grid.css.md
+      and copies them into every consumer's output. They are documentation, not assets.
+    -->
+    <Content Remove="wwwroot/**/*.md" />
+  </ItemGroup>
+
 </Project>
