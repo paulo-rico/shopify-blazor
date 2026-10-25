@@ -191,6 +191,60 @@ public sealed class AccordionRenderingTests
     }
 
     [Fact]
+    public void Header_media_stands_beside_the_heading_and_not_above_it()
+    {
+        // A picture on the header is worth having only if it is to the LEFT of the text: a row that
+        // wrapped would push the heading down and every header would grow by the image's height. The
+        // pair is one child of the outer row, so the chevron still sits at the far edge — three
+        // children under space-between would centre the heading between the picture and the chevron,
+        // which reads as an image with a caption rather than as a list of variants.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Q / 9ct Yellow Gold")
+            .Add(p => p.HeaderDetails, "£312.35")
+            .Add(p => p.HeaderMedia, (RenderFragment)(media =>
+                media.AddMarkupContent(0, "<s-thumbnail src=\"https://cdn.example/ring.png\" alt=\"\"></s-thumbnail>")))
+            .AddChildContent("Content"));
+
+        var row = component.Find("s-clickable").QuerySelector("s-stack")!;
+        var pair = row.QuerySelector("s-stack")!;
+
+        Assert.NotNull(pair);
+        Assert.Equal("inline", pair.GetAttribute("direction"));
+
+        // Centred against the pair, so a 100px thumbnail stands beside both lines rather than level
+        // with the heading alone.
+        Assert.Equal("center", pair.GetAttribute("alignItems"));
+
+        // The medium is first and the heading second: to the left, not above.
+        Assert.Equal("s-thumbnail", pair.Children[0].LocalName);
+        Assert.NotNull(pair.QuerySelector("s-section"));
+        Assert.Equal("Q / 9ct Yellow Gold", pair.QuerySelector("s-section")!.GetAttribute("heading"));
+
+        // The chevron stays outside the pair, so it remains the last thing on the surface.
+        Assert.NotNull(row.QuerySelector("s-icon"));
+        Assert.Null(pair.QuerySelector("s-icon"));
+    }
+
+    [Fact]
+    public void A_section_without_header_media_renders_no_extra_row()
+    {
+        // The media row is only drawn for an item that asked for one: an empty pair would add a gap
+        // and a nested stack to every header in every app that never passes it.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Standalone")
+            .AddChildContent("Content"));
+
+        var row = component.Find("s-stack");
+
+        Assert.Null(row.QuerySelector("s-stack"));
+        Assert.NotNull(row.QuerySelector("s-section"));
+    }
+
+    [Fact]
     public void A_section_renders_a_divider_a_clickable_header_and_a_chevron_on_the_right()
     {
         // The header is a clickable surface holding an s-section: a heading and a supporting line do not

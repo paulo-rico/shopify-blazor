@@ -13,7 +13,8 @@ namespace Polaris.Blazor.Components;
 /// line of supporting text under it does not fit in a button's single truncating line. It still
 /// renders a real <c>&lt;button&gt;</c> inside Polaris's shadow root, so it is focusable, announced,
 /// and opened with Enter or Space. Inside it, an <see cref="PolarisSection"/> holds the heading on the
-/// left and the chevron sits at the far right.
+/// left and the chevron sits at the far right; an optional <see cref="HeaderMedia"/> — a thumbnail, in
+/// practice — is laid to the left of that section and centred against both of its lines.
 /// </para>
 /// <para>
 /// Three things about that header are not what the markup suggests, and each is forced by Polaris:
@@ -58,6 +59,27 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     /// an attribute leaves the header's markup to the two elements rather than to a wrapper.
     /// </remarks>
     [Parameter] public string? HeaderDetails { get; set; }
+
+    /// <summary>
+    /// Content shown to the left of <see cref="Header"/> and <see cref="HeaderDetails"/>, standing
+    /// beside both of them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A picture, in practice — a <see cref="PolarisThumbnail"/> of the thing the section is about. The
+    /// header is read as "which one is this", and an image answers that before the words do, which is
+    /// why it goes here rather than as the first thing inside the panel: a collapsed section still
+    /// shows it.
+    /// </para>
+    /// <para>
+    /// It is laid out in a row with the heading and the supporting line and centred against the pair,
+    /// so it stands beside <em>both</em> lines rather than level with the heading alone. It carries no
+    /// accessible name of its own: the header's accessible name is built from the two text parameters,
+    /// and a picture that repeats them is noise — pass <c>alt=""</c> on a
+    /// <see cref="PolarisThumbnail"/> that only illustrates the title beside it.
+    /// </para>
+    /// </remarks>
+    [Parameter] public RenderFragment? HeaderMedia { get; set; }
 
     /// <summary>The content that opens and closes.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -255,27 +277,57 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         builder.AddAttribute(4, nameof(PolarisStack.AlignItems), "center");
         builder.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
         {
-            content.OpenComponent<PolarisSection>(0);
-            content.AddAttribute(1, nameof(PolarisSection.Heading), Header);
-            content.AddAttribute(2, nameof(PolarisSection.Subheading), HeaderDetails);
-            // None: the surface around it already pads, and two paddings make a header that is mostly
-            // space.
-            content.AddAttribute(3, nameof(PolarisSection.Padding), PolarisSectionPadding.None);
-            content.CloseComponent();
+            if (HeaderMedia is null)
+            {
+                BuildHeading(content);
+            }
+            else
+            {
+                // The medium and the text are ONE child of the outer row, so that space-between still
+                // puts the chevron at the surface's far edge: with three children it would centre the
+                // heading between the picture and the chevron instead. Centring the pair's own items is
+                // what makes a 100px picture stand beside BOTH lines — the heading and the supporting
+                // line under it — rather than level with the heading alone.
+                content.OpenComponent<PolarisStack>(10);
+                content.AddAttribute(11, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
+                content.AddAttribute(12, nameof(PolarisStack.Gap), PolarisGap.Base);
+                content.AddAttribute(13, nameof(PolarisStack.AlignItems), "center");
+                content.AddAttribute(14, nameof(PolarisStack.ChildContent), (RenderFragment)(pair =>
+                {
+                    // 10, then 20 upwards in BuildHeading: sequence numbers must not go backwards
+                    // inside one scope, or the renderer throws while removing the old frame.
+                    pair.AddContent(10, HeaderMedia);
+                    BuildHeading(pair);
+                }));
+                content.CloseComponent();
+            }
 
             // The visible affordance for the state. It carries no meaning of its own — aria-expanded on
             // the button is what announces it — and the stylesheet rotates it from the item's data-open.
-            content.OpenComponent<PolarisIcon>(4);
-            content.AddAttribute(5, nameof(PolarisIcon.Type), "chevron-down");
-            content.AddAttribute(6, nameof(PolarisIcon.Size), PolarisIconSize.Small);
-            content.AddAttribute(7, nameof(PolarisIcon.Color), PolarisColor.Subdued);
-            content.AddAttribute(8, nameof(PolarisIcon.AdditionalAttributes),
+            content.OpenComponent<PolarisIcon>(40);
+            content.AddAttribute(41, nameof(PolarisIcon.Type), "chevron-down");
+            content.AddAttribute(42, nameof(PolarisIcon.Size), PolarisIconSize.Small);
+            content.AddAttribute(43, nameof(PolarisIcon.Color), PolarisColor.Subdued);
+            content.AddAttribute(44, nameof(PolarisIcon.AdditionalAttributes),
                 new Dictionary<string, object>(StringComparer.Ordinal)
                 {
                     ["data-polaris-accordion-chevron"] = true,
                 });
             content.CloseComponent();
         }));
+        builder.CloseComponent();
+    }
+
+    /// <summary>The heading and its supporting line, with no padding of their own.</summary>
+    private void BuildHeading(RenderTreeBuilder builder)
+    {
+        builder.OpenComponent<PolarisSection>(20);
+        builder.AddAttribute(21, nameof(PolarisSection.Heading), Header);
+        builder.AddAttribute(22, nameof(PolarisSection.Subheading), HeaderDetails);
+
+        // None: the surface around it already pads, and two paddings make a header that is mostly
+        // space.
+        builder.AddAttribute(23, nameof(PolarisSection.Padding), PolarisSectionPadding.None);
         builder.CloseComponent();
     }
 

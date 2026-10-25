@@ -184,6 +184,7 @@ One section of a `PolarisAccordion`: a header that opens and closes the content 
 |---|---|---|
 | `Header` | `string?` | The header's heading. |
 | `HeaderDetails` | `string?` | A line of supporting text under `Header`, for what the section is about. |
+| `HeaderMedia` | `RenderFragment?` | Content shown to the left of `Header` and `HeaderDetails`, standing beside both of them. |
 | `ChildContent` | `RenderFragment?` | The content that opens and closes. |
 | `Value` | `string?` | An identifier reported to the container's `PolarisAccordion.OpenItemChanged` so that code outside the accordion can tell which section is showing. |
 | `InitiallyOpen` | `bool` | Starts this section open. |
