@@ -1,5 +1,5 @@
 <!-- summary-of: IPolarisGridColumn.cs -->
-<!-- source-sha256: b7a6336a4dab -->
+<!-- source-sha256: 4d39dd8b106b -->
 
 # IPolarisGridColumn.cs
 
@@ -17,6 +17,7 @@ components instead of generic ones.
 |---|---|---|
 | `Id` | `string Id { get; }` | The stable identifier the query state refers to. Unique within one grid; it is the key a filter, a sort and a chip all use. |
 | `Title` | `string Title { get; }` | The heading in the table and the label in a filter chip. |
+| `FilterIndex` | `int FilterIndex { get; }` | Where this column's filter control appears in the filter bar, independent of the table's order. Lower values come first; equal values keep their declaration order. |
 | `ValueType` | `Type ValueType { get; }` | The type of the column's values, used to coerce filter values before comparison. |
 | `FilterType` | `PolarisGridFilterType FilterType { get; }` | Which filter control the column offers. `None` means it is not filterable at all. |
 | `Sortable` | `bool Sortable { get; }` | Whether the header can be activated to sort. |
@@ -43,6 +44,10 @@ components instead of generic ones.
 - **This interface deliberately never touches an item.** The only two members that could — `ReadValue`
   and `FormatValue` — take and return `object`, which is what keeps the filter and the pager free of a
   type parameter and able to sit anywhere on the page.
+- **`FilterIndex` is the second order a grid can have.** The table draws its columns in registration
+  order — a value that reads well left to right — while the filter bar sorts these on `FilterIndex`, so
+  a facet can lead the panel without being dragged to the front of the table. A stable sort keeps equal
+  indexes in declaration order, which is what leaves every grid that never sets one unchanged.
 - **`FilterTemplate` is metadata, not a callback.** A `Custom` column draws its own control, and the
   filter bar recognises it here rather than casting the column back to its typed definition.
 

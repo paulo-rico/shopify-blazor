@@ -9,7 +9,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 
 `python3 tools/check-summaries.py` reports a summary that is missing or older than its source.
 
-179 sources, 25 directories.
+180 sources, 25 directories.
 
 ## src/Polaris.Blazor
 
@@ -43,6 +43,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 | [`PolarisAddableSelect.cs.md`](../src/Polaris.Blazor/Components/PolarisAddableSelect.cs.md) | A dropdown of the saved values of a directory — a supplier, a warehouse, a courier — with an add button beside it that opens a dialog holding the values already saved and a field for a new one. |
 | [`PolarisAppNav.cs.md`](../src/Polaris.Blazor/Components/PolarisAppNav.cs.md) | The app's navigation menu inside the Shopify admin — an App Bridge element that configures the admin's own chrome rather than drawing a menu inside the app. |
 | [`PolarisAppWindow.cs.md`](../src/Polaris.Blazor/Components/PolarisAppWindow.cs.md) | A fullscreen window hosted by the Shopify admin that loads one of the app's own routes — an App Bridge element for a workflow that genuinely needs the whole screen. |
+| [`PolarisAutocomplete.cs.md`](../src/Polaris.Blazor/Components/PolarisAutocomplete.cs.md) | A text field that suggests the items matching what has been typed and reports the item the merchant chooses. |
 | [`PolarisAvatar.cs.md`](../src/Polaris.Blazor/Components/PolarisAvatar.cs.md) | A compact profile image — <s-avatar> — with initials as its built-in fallback, sized from the Polaris scale and reporting when the image loads or fails. |
 | [`PolarisBadge.cs.md`](../src/Polaris.Blazor/Components/PolarisBadge.cs.md) | A short status label — <s-badge> — with a semantic tone, a contrast level, a size and an optional leading icon. |
 | [`PolarisBanner.cs.md`](../src/Polaris.Blazor/Components/PolarisBanner.cs.md) | An inline message strip — <s-banner> — with a heading, a semantic tone, an optional close button and a body supplied as child content. |

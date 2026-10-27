@@ -308,6 +308,45 @@
         </PolarisStack>
     </PolarisSection>
 
+    <PolarisSection Heading="Composed: the autocomplete">
+        <PolarisStack Gap="PolarisGap.Base">
+            @*
+                The generic, single-selection autocomplete. It is the one composed control whose keyboard
+                path moves real focus into the list, because this layer cannot write aria-activedescendant
+                onto the input inside a search field's shadow root — so the browser check drives the arrow
+                keys and reads document.activeElement rather than trusting the unit tests.
+            *@
+            <PolarisParagraph>
+                Type "go", then press the down arrow: focus moves onto the first suggestion, Enter chooses
+                it, and Escape puts the field back to the chosen value. The list is drawn under the field
+                rather than floating over the page, because Polaris cannot anchor a popover to a text field.
+            </PolarisParagraph>
+
+            <div data-gallery-autocomplete>
+                <PolarisAutocomplete TItem="GalleryMaterial"
+                                     Items="GalleryMaterials"
+                                     Value="_galleryMaterial"
+                                     ValueChanged="@(material => _galleryMaterial = material)"
+                                     TextSelector="material => material.Name"
+                                     Label="Material"
+                                     Placeholder="Search materials"
+                                     MaxSuggestions="6">
+                    <ItemTemplate Context="material">
+                        <PolarisText>@material.Name</PolarisText>
+                        <PolarisText Color="PolarisColor.Subdued"> — @material.Unit</PolarisText>
+                    </ItemTemplate>
+                    <NoResultsContent>
+                        <PolarisText Color="PolarisColor.Subdued">No materials match.</PolarisText>
+                    </NoResultsContent>
+                </PolarisAutocomplete>
+            </div>
+
+            <PolarisText Color="PolarisColor.Subdued">
+                C# holds material "<span data-gallery-autocomplete-value>@(_galleryMaterial?.Name ?? "nothing")</span>".
+            </PolarisText>
+        </PolarisStack>
+    </PolarisSection>
+
     @*
         Every remaining wrapper, rendered once each so the browser verification can prove the element
         is defined, upgraded and present. This is deliberately broad rather than pretty: a component
@@ -583,6 +622,27 @@
     private string? _gallerySelectedSupplier;
 
     private string? _galleryDuplicate;
+
+    /// <summary>One item of the autocomplete's list. A record so a choice can be compared by value.</summary>
+    private sealed record GalleryMaterial(string Name, string Unit);
+
+    /// <summary>
+    /// The autocomplete's whole list, small enough that the expected matches can be written down.
+    /// </summary>
+    /// <remarks>
+    /// Two entries contain "go", which is what makes the browser check meaningful: typing it must draw
+    /// both, and the arrow keys must walk between them rather than the component picking one itself.
+    /// </remarks>
+    private static readonly GalleryMaterial[] GalleryMaterials =
+    [
+        new("Gold", "gram"),
+        new("Gold plated", "gram"),
+        new("Silver", "gram"),
+        new("Sapphire", "carat"),
+    ];
+
+    /// <summary>What the autocomplete reported last, echoed for the browser check to read.</summary>
+    private GalleryMaterial? _galleryMaterial;
 
     private IReadOnlyDictionary<string, PolarisComponentStatus>? _runtimeStatus;
 

@@ -152,9 +152,10 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// <param name="tagName">The custom element's tag name, such as <c>s-select</c>.</param>
     /// <param name="eventName">The DOM event name, such as <c>change</c>.</param>
     /// <param name="value">The value the element would report.</param>
+    /// <param name="key">The key a keyboard event would report, such as <c>ArrowDown</c>.</param>
     /// <returns>Nothing.</returns>
     /// <exception cref="InvalidOperationException">Nothing of that tag attached, or it has no such event.</exception>
-    public async Task RaiseAsync(string tagName, string eventName, string? value = null)
+    public async Task RaiseAsync(string tagName, string eventName, string? value = null, string? key = null)
     {
         if (!Registrations.TryGetValue(tagName, out var registrations) || registrations.Count == 0)
         {
@@ -168,7 +169,7 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
             throw new InvalidOperationException($"'{tagName}' did not attach '{eventName}'; it attached {string.Join(", ", latest.Keys)}.");
         }
 
-        await callback.InvokeAsync(new PolarisEventArgs { Value = value });
+        await callback.InvokeAsync(new PolarisEventArgs { Value = value, Key = key });
     }
 
     /// <inheritdoc />

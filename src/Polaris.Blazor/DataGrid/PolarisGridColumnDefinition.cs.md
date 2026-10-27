@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisGridColumnDefinition.cs -->
-<!-- source-sha256: 59e77b72451d -->
+<!-- source-sha256: 15713858a047 -->
 
 # PolarisGridColumnDefinition.cs
 
@@ -16,6 +16,7 @@ filter and editor it offers, and how a value is written back. It is the typed im
 |---|---|---|
 | `Id` | `required string Id { get; init; }` | Stable identifier used by filters, sorts and chips. The column component always sets it — from the member name when the caller gives no `Id` — so a rebuilt column keeps its identity. |
 | `Title` | `required string Title { get; set; }` | The heading and chip label. The column component passes the id through when no title is given. A **settable** property, unlike the rest — a page can rename a column after construction. |
+| `FilterIndex` | `int FilterIndex { get; set; } = 999` | Where the column's filter control appears in the filter bar. Lower values first; the default 999 sorts after every column that states an index, and equal values keep their declaration order. The filter panel reads it on each render. |
 | `ValueGetter` | `required Func<TItem, object?> ValueGetter { get; init; }` | Reads the value from one item. Compiled once from the column's expression, so rendering a page of rows never reflects over a property. |
 | `ValueType` | `Type ValueType { get; init; } = typeof(object)` | The value's type, used to coerce filter values before comparison; editor input is converted to it before `ValueSetter` sees it. |
 | `Sortable` | `bool Sortable { get; init; } = true` | Whether the header sorts when activated. |

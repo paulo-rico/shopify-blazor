@@ -62,6 +62,10 @@ Inherited: `Id`, `AccessibilityLabel`, `ItemTag`, `Slot`, `AdditionalAttributes`
   no `Icon`, no `Prefix`, no `Suffix`, no `Accessory`, and no slot a wrapper `div` could fill
   (a slot child is rejected unless the element type is valid for it). A design that needs a clear
   button or a filter glyph here cannot have one.
+- **Escape clears the browser's own search input.** A native `<input type="search">` wipes its value
+  when Escape is pressed, so a control that wants to handle Escape itself cannot be built on this
+  wrapper — the clear arrives as an `input` event and overwrites whatever a handler put back. That is
+  why the autocomplete is built on `PolarisTextField`, which has no such default action.
 - A `Value` that the page never updates still leaves the field usable, because the component keeps no
   copy of the text: unlike [PolarisSuggestField.cs.md](PolarisSuggestField.cs.md) it does not filter
   or hold state, so there is nothing to fall out of step.

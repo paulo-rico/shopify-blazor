@@ -60,8 +60,9 @@ public interface IPolarisInterop : IAsyncDisposable
     ValueTask ClearPropertiesAsync(ElementReference element, string tagName, IEnumerable<string> names);
 
     /// <summary>
-    /// Moves keyboard focus into <paramref name="element"/>: onto the first field it contains, or onto
-    /// the element itself when it is the focusable thing.
+    /// Moves keyboard focus into <paramref name="element"/>: onto the first focusable control it
+    /// contains — a field's input, or the button a button-like element renders — or onto the element
+    /// itself when it is the focusable thing.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -75,7 +76,7 @@ public interface IPolarisInterop : IAsyncDisposable
     /// costs the focus rather than throwing into a component's lifetime.
     /// </para>
     /// </remarks>
-    /// <param name="element">The container to focus inside. It may be the field itself, or a wrapper.</param>
+    /// <param name="element">The container to focus inside. It may be the field itself, a row around it, or a wrapper.</param>
     /// <param name="selector">
     /// Narrows the search to the first descendant matching this CSS selector. Required whenever the
     /// container holds more than one focusable thing — a grid holds a checkbox per row — because the

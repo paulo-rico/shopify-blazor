@@ -13,6 +13,24 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Added
 
+- **`PolarisAutocomplete<TItem>`** — a generic, single-selection autocomplete: local filtering or an
+  optional asynchronous provider, a row template, a suggestion cap and a debounce, composed from an
+  `s-text-field` and a bordered `s-box` of `s-button` rows because Polaris has no combobox, listbox or
+  autocomplete element. Text and value are separate state: typing is not a selection, and a commit that
+  matches nothing puts the chosen item's text back unless `AllowCustomValue` asks for the text instead.
+  The keyboard moves real focus onto the rows — ArrowDown/Up, Enter/Space, Escape — rather than
+  inventing `aria-activedescendant`, which no light-DOM attribute can write into a field's shadow root.
+  Verified in Chrome through the gallery; three faults were silent in the component tests: `focusWithin`
+  did not know about `<button>`, a search field clears itself on Escape, and the blur that moves focus
+  into the list was arriving as a commit.
+- **`OnKeyDown` on `PolarisTextField` and `PolarisButton`** — the DOM keyboard event, forwarded with
+  `args.Key`. It is what lets the autocomplete's field and rows handle the arrow keys without a wrapper
+  whose events would have to cross a shadow boundary; Enter and Space still activate a row natively.
+- **`PolarisGridColumn<TItem>.FilterIndex`** — puts a column's filter control where the page wants it
+  in the filter bar, independently of the column's place in the table. Lower values come first; a
+  column that states no index (the default `999`) keeps its declaration order behind every column
+  that does. It orders the panel only: the table's columns and the applied-filter chips keep their
+  own order.
 - **`PolarisDataGrid<TItem>`, `PolarisGridColumn<TItem>`, `PolarisDataFilter`, `PolarisDataPager` and
   `PolarisRangeSlider`** — sorting, filtering, paging, selection and a dual-handle range control for
   local (in-memory) data, composed from Polaris elements because `s-table` has none of it: the runtime

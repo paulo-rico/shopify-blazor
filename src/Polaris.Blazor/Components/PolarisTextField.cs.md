@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisTextField.cs -->
-<!-- source-sha256: 1533d92c745b -->
+<!-- source-sha256: 4c863c5ea7a7 -->
 
 # PolarisTextField.cs
 
@@ -43,6 +43,7 @@ Inherited: `Id`, `AccessibilityLabel`, `ItemTag`, `Slot`, `AdditionalAttributes`
 | `OnChange` | `EventCallback<PolarisEventArgs>` | The value is committed: on blur or on Enter. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | The field receives focus. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | The field loses focus. |
+| `OnKeyDown` | `EventCallback<PolarisEventArgs>` | Every key press inside the field. `args.Key` is the key name — `ArrowDown`, `Enter`, `Escape`. The key is **not** consumed. |
 
 ## Behaviour
 
@@ -59,7 +60,14 @@ Inherited: `Id`, `AccessibilityLabel`, `ItemTag`, `Slot`, `AdditionalAttributes`
   bare number.
 - **`Error` paints a state, it does not enforce one.** The field has no validation model; the page
   decides when the message is present.
-- The four callbacks are mapped on every parameter pass and only registered when set.
+- The five callbacks are mapped on every parameter pass and only registered when set.
+- **A plain text field is the right home for Escape.** Unlike `<s-search-field>`, its input is not
+  `type="search"`, so the browser does not clear it when Escape is pressed. `OnKeyDown` is what lets a
+  composed control close its own list on Escape and put a value back without the browser overwriting it
+  a moment later — measured in Chrome against the autocomplete.
+- **`OnKeyDown` does not stop the browser acting on the key.** The interop layer forwards the event
+  with `args.Key` and has no `preventDefault`, so an arrow key still moves the caret or scrolls the
+  page while a handler reacts to it.
 
 ## Gotchas
 

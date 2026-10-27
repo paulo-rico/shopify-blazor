@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisDataFilter.cs -->
-<!-- source-sha256: a459980ed066 -->
+<!-- source-sha256: 3a12f627ca27 -->
 
 # PolarisDataFilter.cs
 
@@ -62,6 +62,11 @@ and redraws.
   `State.GetNumericBounds`; `DateRange` → two `s-date-field`s; `Custom` → the column's
   `FilterTemplate`, and nothing at all when that is null; `None` → excluded from the panel (and, if no
   other column declares a type, from the filter button too).
+- **The panel is ordered by `FilterIndex`, not by the columns' declaration order.** `FilterableColumns`
+  sorts the registered columns on it, which is what lets a page narrow by supplier and owner first
+  while the table draws those columns further right. `OrderBy` is stable, so columns that share an
+  index — including every column that leaves the default 999 — keep the order they were registered
+  in, and a grid that never mentions `FilterIndex` keeps exactly the panel it had.
 - **Range.** A null `Value` means the whole domain. The domain is the unfiltered dataset's bounds —
   a missing lower bound becomes 0 and a missing upper one becomes the lower bound plus 1 — the step is
   about a hundredth of the span, and the stored filter is re-read as decimals falling back to the
@@ -106,6 +111,10 @@ and redraws.
   without the second. Tying them made a hidden facet unfilterable and left a hidden column's filter
   applying with its control gone (measured on the products list). A column that should not be
   filterable says `FilterType="None"`.
+- **`FilterIndex` orders the panel, not the chips or the table.** The chip row follows
+  `State.Query.Filters`, which is the order filters were applied — a changed filter moves to the end —
+  and the table draws `State.Columns` in registration order. A page expecting chips beside their
+  controls will see them in the order the merchant narrowed the list instead.
 - **A chip needs a matching column.** Active filters are matched to `State.Columns` by `Id`; a filter
   whose field matches no column still narrows the result but has no chip and no control here, so this
   bar cannot remove it. A global search is never chipped: both the chip row and the filter button's

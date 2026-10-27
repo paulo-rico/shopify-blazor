@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisButton.cs -->
-<!-- source-sha256: 209b93059be5 -->
+<!-- source-sha256: c450f85342f0 -->
 
 # PolarisButton.cs
 
@@ -38,6 +38,11 @@ Inherited: `Id`, `AccessibilityLabel`, `ItemTag`, `Slot`, `AdditionalAttributes`
 | `OnClick` | `EventCallback<PolarisEventArgs>` | Clicked. Modifier keys are on the args (`AltKey`, `CtrlKey`, `MetaKey`, `ShiftKey`). |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | The button loses focus. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | The button receives focus. |
+| `OnKeyDown` | `EventCallback<PolarisEventArgs>` | Every key press while the button has focus. `args.Key` is the key name — `ArrowDown`, `Escape`. Enter and Space click the button natively and need no handling. |
+
+`OnKeyDown` is a DOM event forwarded from the element, not a Polaris one; it costs a listener per
+button and is attached only when a handler is supplied. It exists so a row in a list of buttons can
+follow the arrow keys — see [PolarisAutocomplete.cs.md](PolarisAutocomplete.cs.md).
 
 ## Behaviour that is not visible in the markup
 

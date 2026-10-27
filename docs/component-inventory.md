@@ -274,12 +274,14 @@ Wraps Shopify's `<s-button>`.
 | `OnClick` | `EventCallback<PolarisEventArgs>` | event callback | Raised on click. Modifier keys are on the event args. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the button loses focus. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the button receives focus. |
+| `OnKeyDown` | `EventCallback<PolarisEventArgs>` | event callback | Raised on every key press while the button has focus, with the key's name in `PolarisEventArgs.Key`. This is a DOM keyboard event forwarded from the button's own element, so it is how a row in a list of buttons can follow the arrow keys — Enter and Space already click the button natively and do not need handling. |
 
 | Event | Callback | Documented | Wired |
 |---|---|---|---|
 | `blur` | `OnBlur` | yes | yes |
 | `click` | `OnClick` | yes | yes |
 | `focus` | `OnFocus` | yes | yes |
+| `keydown` | `OnKeyDown` | no | yes |
 
 | Slot | Accepts | Wrapper support | Notes |
 |---|---|---|---|
@@ -2437,6 +2439,7 @@ Wraps `<s-text-field>`.
 | `OnChange` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the value is committed: blur or Enter. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the field receives focus. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | event callback | Raised when the field loses focus. |
+| `OnKeyDown` | `EventCallback<PolarisEventArgs>` | event callback | Raised on every key press inside the field, with the key's name in `PolarisEventArgs.Key` — ArrowDown, Enter, Escape. A text field rather than a search field is what makes this usable for Escape: a browser clears an when Escape is pressed, which would overwrite whatever a handler put back. The key still is not consumed — the interop layer has no preventDefault. |
 
 | Event | Callback | Documented | Wired |
 |---|---|---|---|
@@ -2444,6 +2447,7 @@ Wraps `<s-text-field>`.
 | `change` | `OnChange` | yes | yes |
 | `focus` | `OnFocus` | yes | yes |
 | `input` | `OnInput` | yes | yes |
+| `keydown` | `OnKeyDown` | no | yes |
 
 | Slot | Accepts | Wrapper support | Notes |
 |---|---|---|---|

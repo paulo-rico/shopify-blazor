@@ -97,6 +97,34 @@ public sealed class DataFilterRenderingTests
     }
 
     [Fact]
+    public void The_filter_controls_follow_the_filter_index_rather_than_the_column_order()
+    {
+        // The materials list narrows by supplier before owner, cost and SKU while the table draws those
+        // columns in another order. Without an index of its own the panel could only follow the
+        // declaration order, so moving a control meant moving its column as well.
+        using var context = new PolarisTestContext();
+        using var state = NewTextFilterState(nameIndex: 2, caratIndex: 3, activeIndex: 1);
+
+        var filter = RenderFilter(context, state);
+
+        Assert.Equal(["Active", "Name", "Carat"], TextFieldLabels(filter));
+    }
+
+    [Fact]
+    public void Columns_that_state_no_filter_index_keep_their_declaration_order()
+    {
+        // 999 is the default, so every page written before FilterIndex existed must keep the panel it
+        // had. OrderBy is stable, which is what makes equal indexes sort by declaration rather than
+        // arbitrarily — the one way this change could silently reshuffle every existing grid.
+        using var context = new PolarisTestContext();
+        using var state = NewTextFilterState();
+
+        var filter = RenderFilter(context, state);
+
+        Assert.Equal(["Name", "Carat", "Active"], TextFieldLabels(filter));
+    }
+
+    [Fact]
     public void A_multi_select_offers_the_distinct_values_of_the_dataset()
     {
         // Options derived from the data are the ones that can actually match; a hand-written list
@@ -561,6 +589,43 @@ public sealed class DataFilterRenderingTests
 
         return state;
     }
+
+    /// <summary>
+    /// A state whose filterable columns are all text fields, so the panel's order can be read from one
+    /// control type instead of having to know how many elements a slider or a date range emits.
+    /// </summary>
+    private static PolarisGridState<Alloy> NewTextFilterState(
+        int nameIndex = 999,
+        int caratIndex = 999,
+        int activeIndex = 999)
+    {
+        var state = new PolarisGridState<Alloy>(SampleRows, alloy => alloy.Id);
+
+        RegisterTextColumn(state, "Name", "Name", alloy => alloy.Name, nameIndex);
+        RegisterTextColumn(state, "Carat", "Carat", alloy => alloy.Carat, caratIndex);
+        RegisterTextColumn(state, "Active", "Active", alloy => alloy.Active, activeIndex);
+
+        return state;
+    }
+
+    private static void RegisterTextColumn(
+        PolarisGridState<Alloy> state,
+        string id,
+        string title,
+        Func<Alloy, object?> getter,
+        int filterIndex)
+        => state.RegisterColumn(new PolarisGridColumnDefinition<Alloy>
+        {
+            Id = id,
+            Title = title,
+            ValueGetter = getter,
+            ValueType = typeof(string),
+            FilterType = PolarisGridFilterType.Text,
+            FilterIndex = filterIndex,
+        });
+
+    private static string[] TextFieldLabels(IRenderedComponent<PolarisDataFilter> filter)
+        => [.. filter.FindAll("s-text-field").Select(field => field.GetAttribute("label") ?? string.Empty)];
 
     private static IRenderedComponent<PolarisDataFilter> RenderFilter(
         PolarisTestContext context,

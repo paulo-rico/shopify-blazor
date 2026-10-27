@@ -647,9 +647,15 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
     /// it left a hidden column's filter applying with its control gone — measured on the products list, where
     /// hiding a column removed the only way to see or clear a filter that still narrowed the result. A column
     /// that should not be filterable says <c>FilterType="None"</c>.
+    ///
+    /// The controls are drawn in <see cref="IPolarisGridColumn.FilterIndex"/> order, so the bar can be
+    /// ordered independently of the table. <c>OrderBy</c> is stable, so columns that share an index —
+    /// including every column that leaves the default — keep the order they were registered in.
     /// </remarks>
     private List<IPolarisGridColumn> FilterableColumns()
-        => [.. State.Columns.Where(column => column.FilterType != PolarisGridFilterType.None)];
+        => [.. State.Columns
+            .Where(column => column.FilterType != PolarisGridFilterType.None)
+            .OrderBy(column => column.FilterIndex)];
 
     private List<(IPolarisGridColumn Column, PolarisGridFilterDescriptor Filter)> ActiveFilters()
     {

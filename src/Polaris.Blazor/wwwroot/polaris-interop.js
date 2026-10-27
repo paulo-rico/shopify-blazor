@@ -179,7 +179,11 @@ export async function setProperties(element, tagName, values) {
 export async function focusWithin(element, selector = null) {
     requireElement(element, "focusWithin");
 
-    const focusableSelector = "input:not([type=hidden]), textarea, select, [tabindex]:not([tabindex='-1'])";
+    // A `button` is in the list because not every focusable thing is a field: an `s-button` renders a
+    // real <button> in its shadow root, and the autocomplete's rows are buttons. Without it, focus onto
+    // a row silently did nothing — the list opened and the arrow key was ignored.
+    const focusableSelector =
+        "input:not([type=hidden]), textarea, select, button, [tabindex]:not([tabindex='-1'])";
 
     const focusable = (node, depth = 0) => {
         if (!node || depth > 8) return null;

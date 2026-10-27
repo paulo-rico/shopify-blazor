@@ -334,6 +334,25 @@ class DevTools {
     }
 
     /**
+     * Focuses the inner input of the gallery's autocomplete.
+     *
+     * Typing has to land in the shadow input of a real search field: the component filters on the
+     * `input` event, so setting `value` from JavaScript would prove nothing about typing — and
+     * `Input.insertText` goes to whatever has focus, which is this element once focused.
+     *
+     * @returns {Promise<boolean>} false when the gallery has no autocomplete field
+     */
+    async focusGalleryAutocomplete() {
+        return await this.evaluate(`(() => {
+            const host = document.querySelector("[data-gallery-autocomplete] s-text-field");
+            const input = host?.shadowRoot?.querySelector("input");
+            if (!input) return false;
+            input.focus();
+            return true;
+        })()`);
+    }
+
+    /**
      * Presses a key: a keydown and a keyup, as a hardware keyboard sends them.
      *
      * `Input.insertText` is not enough for Enter, Tab and Escape: those are keys, not text, and the
@@ -343,7 +362,9 @@ class DevTools {
      * @param {string} key one of "Enter", "Tab" or "Escape"
      */
     async pressKey(key) {
-        const codes = { Enter: 13, Tab: 9, Escape: 27 };
+        // Arrow codes are the Windows virtual-key codes, like the rest: a keydown without one carries
+        // `key` but not the `code` a browser derives from it.
+        const codes = { Enter: 13, Tab: 9, Escape: 27, ArrowUp: 38, ArrowDown: 40 };
         const code = codes[key] ?? 0;
         const shared = {
             key,
@@ -836,6 +857,7 @@ const probe = markedElementHelper
         status,
         form,
         commandForWired: document.querySelector("s-button[commandfor]") !== null,
+        autocomplete: { present: document.querySelector("[data-gallery-autocomplete] s-text-field") !== null },
         tableStructure: (() => {
             const tables = document.querySelectorAll("s-table");
             if (tables.length === 0) return null;
@@ -1174,6 +1196,47 @@ function evaluateAssertions(result) {
     }
     }
 
+    // The autocomplete, driven with a real keyboard. Every part of this is invisible to a component
+    // test: the `input` event has to reach C# from inside a search field's shadow root, the arrow key
+    // has to move focus onto a row button inside another shadow root, Enter has to be the browser's own
+    // click on that button, and Escape has to put focus back in the field.
+    const autocomplete = result.autocomplete;
+    check(autocomplete?.present === true, "the composed autocomplete is on the page");
+
+    if (autocomplete?.present) {
+        check(
+            (autocomplete.typed?.rows ?? 0) >= 2,
+            `typing opens the list and filters it (${autocomplete.typed?.rows ?? 0} rows)`,
+        );
+        check(
+            autocomplete.arrowed?.active === "S-BUTTON",
+            `ArrowDown moves focus onto a row (document.activeElement is ${autocomplete.arrowed?.active ?? "nothing"})`,
+        );
+        check(
+            autocomplete.chosen?.chosen === "Gold",
+            `Enter chooses the row focus is on, and C# is told ("${autocomplete.chosen?.chosen ?? "nothing"}")`,
+        );
+        check(
+            autocomplete.chosen?.rows === 0 && autocomplete.chosen?.fieldText === "Gold",
+            `choosing closes the list and puts the chosen text in the field ` +
+            `(${autocomplete.chosen?.rows ?? "?"} rows, "${autocomplete.chosen?.fieldText ?? "?"}")`,
+        );
+        check(
+            autocomplete.chosen?.active === "S-TEXT-FIELD",
+            `choosing returns focus to the field (document.activeElement is ${autocomplete.chosen?.active ?? "nothing"})`,
+        );
+        check(
+            autocomplete.escaped?.active === "S-TEXT-FIELD" && autocomplete.escaped?.rows === 0,
+            `Escape closes the list and returns focus to the field ` +
+            `(${autocomplete.escaped?.rows ?? "?"} rows, active: ${autocomplete.escaped?.active ?? "nothing"})`,
+        );
+        check(
+            autocomplete.escaped?.fieldText === "Gold" && autocomplete.escaped?.chosen === "Gold",
+            `Escape restores the value that is actually chosen ` +
+            `("${autocomplete.escaped?.fieldText ?? "?"}", C# holds "${autocomplete.escaped?.chosen ?? "?"}")`,
+        );
+    }
+
     for (const [path, status] of Object.entries(assets)) {
         check(status === 200, `${path} is served (HTTP ${status})`);
     }
@@ -1508,6 +1571,47 @@ try {
                 }
             }
         }
+    }
+
+    // The autocomplete's keyboard path. Focus is the thing being checked, so it is read from
+    // document.activeElement after each key — a component test can only prove the interop call was made.
+    if (result.autocomplete?.present && await devtools.focusGalleryAutocomplete()) {
+        const autocompleteState = `(() => {
+            const host = document.querySelector("[data-gallery-autocomplete] s-text-field");
+            return {
+                rows: document.querySelectorAll("[data-polaris-autocomplete-row]").length,
+                labels: Array.from(document.querySelectorAll("[data-polaris-autocomplete-row]"))
+                    .map((row) => (row.textContent ?? "").trim().replace(/\\s+/g, " ")),
+                chosen: document.querySelector("[data-gallery-autocomplete-value]")?.textContent?.trim() ?? null,
+                fieldText: host?.shadowRoot?.querySelector("input")?.value ?? null,
+                active: document.activeElement?.tagName ?? null,
+            };
+        })()`;
+
+        await devtools.replaceFocusedFieldText("go");
+        await devtools.waitFor(async () => (await devtools.evaluate(autocompleteState)).rows >= 2);
+        result.autocomplete.typed = await devtools.evaluate(autocompleteState);
+
+        await devtools.pressKey("ArrowDown");
+        await devtools.waitFor(async () => (await devtools.evaluate(autocompleteState)).active === "S-BUTTON");
+        result.autocomplete.arrowed = await devtools.evaluate(autocompleteState);
+
+        await devtools.pressKey("Enter");
+        await devtools.waitFor(async () => {
+            const state = await devtools.evaluate(autocompleteState);
+            return state.rows === 0 && state.chosen !== "nothing";
+        });
+        result.autocomplete.chosen = await devtools.evaluate(autocompleteState);
+
+        // A second pass for Escape: the first one's list is already closed by the selection.
+        await devtools.focusGalleryAutocomplete();
+        await devtools.replaceFocusedFieldText("si");
+        await devtools.waitFor(async () => (await devtools.evaluate(autocompleteState)).rows >= 1);
+        await devtools.pressKey("ArrowDown");
+        await devtools.waitFor(async () => (await devtools.evaluate(autocompleteState)).active === "S-BUTTON");
+        await devtools.pressKey("Escape");
+        await devtools.waitFor(async () => (await devtools.evaluate(autocompleteState)).active === "S-TEXT-FIELD");
+        result.autocomplete.escaped = await devtools.evaluate(autocompleteState);
     }
 
     // A picture of the page as it stands after every interaction, which is the only honest answer to

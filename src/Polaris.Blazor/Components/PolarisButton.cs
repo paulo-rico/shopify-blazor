@@ -88,12 +88,24 @@ public sealed class PolarisButton : PolarisContentComponentBase
     /// <summary>Raised when the button receives focus.</summary>
     [Parameter] public EventCallback<PolarisEventArgs> OnFocus { get; set; }
 
+    /// <summary>
+    /// Raised on every key press while the button has focus, with the key's name in
+    /// <see cref="PolarisEventArgs.Key"/>.
+    /// </summary>
+    /// <remarks>
+    /// This is a DOM keyboard event forwarded from the button's own element, so it is how a row in a
+    /// list of buttons can follow the arrow keys — Enter and Space already click the button natively
+    /// and do not need handling.
+    /// </remarks>
+    [Parameter] public EventCallback<PolarisEventArgs> OnKeyDown { get; set; }
+
     /// <inheritdoc />
     protected override void ConfigureEvents(PolarisEventRegistration events)
     {
         events.On(PolarisEvents.Click, OnClick);
         events.On(PolarisEvents.Blur, OnBlur);
         events.On(PolarisEvents.Focus, OnFocus);
+        events.On(PolarisEvents.KeyDown, OnKeyDown);
     }
 
     /// <inheritdoc />

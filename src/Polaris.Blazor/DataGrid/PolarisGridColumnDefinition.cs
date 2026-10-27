@@ -30,6 +30,12 @@ public sealed class PolarisGridColumnDefinition<TItem> : IPolarisGridColumn
     /// <summary>The column heading.</summary>
     public required string Title { get; set; }
 
+    /// <summary>
+    /// Where this column's filter control appears in the filter bar. The default, 999, sorts after
+    /// every column that states an index; equal values keep their declaration order.
+    /// </summary>
+    public int FilterIndex { get; set; } = 999;
+
     /// <summary>Reads the column's value from one item. Compiled once, never reflected.</summary>
     public required Func<TItem, object?> ValueGetter { get; init; }
 

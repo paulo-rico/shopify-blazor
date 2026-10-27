@@ -78,6 +78,17 @@ public sealed class PolarisTextField : PolarisElementComponentBase
     /// <summary>Raised when the field loses focus.</summary>
     [Parameter] public EventCallback<PolarisEventArgs> OnBlur { get; set; }
 
+    /// <summary>
+    /// Raised on every key press inside the field, with the key's name in
+    /// <see cref="PolarisEventArgs.Key"/> — <c>ArrowDown</c>, <c>Enter</c>, <c>Escape</c>.
+    /// </summary>
+    /// <remarks>
+    /// A text field rather than a search field is what makes this usable for Escape: a browser clears
+    /// an <c>&lt;input type="search"&gt;</c> when Escape is pressed, which would overwrite whatever a
+    /// handler put back. The key still is not consumed — the interop layer has no <c>preventDefault</c>.
+    /// </remarks>
+    [Parameter] public EventCallback<PolarisEventArgs> OnKeyDown { get; set; }
+
     /// <inheritdoc />
     protected override void ConfigureEvents(PolarisEventRegistration events)
     {
@@ -85,6 +96,7 @@ public sealed class PolarisTextField : PolarisElementComponentBase
         events.On(PolarisEvents.Change, OnChange);
         events.On(PolarisEvents.Focus, OnFocus);
         events.On(PolarisEvents.Blur, OnBlur);
+        events.On(PolarisEvents.KeyDown, OnKeyDown);
     }
 
     /// <inheritdoc />

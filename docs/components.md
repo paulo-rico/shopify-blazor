@@ -6,7 +6,7 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
-10 more are composed from those wrappers, for behaviour Polaris does not
+11 more are composed from those wrappers, for behaviour Polaris does not
 provide in an element of its own. They add structure and interaction; they do not add
 appearance either, because everything visible in them is still a Polaris element.
 
@@ -19,11 +19,12 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisAddableSelect` | — composed | — | yes |
 | `PolarisAppNav` | `<s-app-nav>` | — | yes |
 | `PolarisAppWindow` | `<s-app-window>` | `Hide`, `Show` | yes |
+| `PolarisAutocomplete` | — composed | — | yes |
 | `PolarisAvatar` | `<s-avatar>` | `Error`, `Load` | yes |
 | `PolarisBadge` | `<s-badge>` | — | yes |
 | `PolarisBanner` | `<s-banner>` | `Dismiss`, `afterhide` | yes |
 | `PolarisBox` | `<s-box>` | — | yes |
-| `PolarisButton` | `<s-button>` | `Blur`, `Click`, `Focus` | yes |
+| `PolarisButton` | `<s-button>` | `Blur`, `Click`, `Focus`, `KeyDown` | yes |
 | `PolarisButtonGroup` | `<s-button-group>` | — | yes |
 | `PolarisCheckbox` | `<s-checkbox>` | `Blur`, `Change`, `Input` | yes |
 | `PolarisChip` | `<s-chip>` | — | yes |
@@ -81,7 +82,7 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisTableRow` | `<s-table-row>` | — | yes |
 | `PolarisText` | `<s-text>` | — | yes |
 | `PolarisTextArea` | `<s-text-area>` | `Blur`, `Change`, `Focus`, `Input` | yes |
-| `PolarisTextField` | `<s-text-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
+| `PolarisTextField` | `<s-text-field>` | `Blur`, `Change`, `Focus`, `Input`, `KeyDown` | yes |
 | `PolarisThumbnail` | `<s-thumbnail>` | `Error`, `Load` | yes |
 | `PolarisTooltip` | `<s-tooltip>` | — | yes |
 | `PolarisUnorderedList` | `<s-unordered-list>` | — | yes |
@@ -235,6 +236,32 @@ Wraps `<s-app-window>`: a fullscreen window, hosted by the admin, that loads one
 | `OnShow` | `EventCallback<PolarisEventArgs>` | Raised when the window opens. |
 | `OnHide` | `EventCallback<PolarisEventArgs>` | Raised when the window closes. |
 
+### `PolarisAutocomplete` (composed)
+
+A text field that suggests the items matching what has been typed and reports the item the merchant chooses.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Items` | `IReadOnlyList<TItem>` | The whole list of items to filter, in the caller's order. |
+| `Value` | `TItem?` | The chosen item, which the caller owns. |
+| `ValueChanged` | `EventCallback<TItem?>` | Raised with the item the merchant chose, or with default when the field is cleared. |
+| `TextSelector` | `Func<TItem, string>` | The text shown for an item, used both for filtering and for the field's text after a selection. |
+| `FilterFunction` | `Func<TItem, string, bool>?` | Replaces the built-in matching rule, which keeps the items whose text contains the typed term, case-insensitively, ignoring surrounding spaces. |
+| `SearchFunction` | `Func<string, CancellationToken, Task<IReadOnlyList<TItem>>>?` | An optional asynchronous provider. |
+| `ItemTemplate` | `RenderFragment<TItem>?` | Renders one row's contents instead of its bare text, so a suggestion can carry a description, a badge or an icon. |
+| `Label` | `string?` | The field's visible label. |
+| `Details` | `string?` | Help text below the field. |
+| `Placeholder` | `string?` | Placeholder shown while the field is empty. |
+| `MinimumLength` | `int` | How many characters must be typed before the list opens on its own. |
+| `MaxSuggestions` | `int?` | The most rows drawn at once. |
+| `DebounceMilliseconds` | `int` | How long `SearchFunction` waits after the last keystroke before it is called. |
+| `AllowCustomValue` | `bool` | Accepts text that is not one of the items: the commit raises `CustomValueEntered` instead of restoring the chosen item's text. |
+| `CustomValueEntered` | `EventCallback<string>` | Raised with the trimmed text when a commit finds no item and `AllowCustomValue` is set. |
+| `Disabled` | `bool` | Prevents the field from being typed into and the rows from being used. |
+| `ReadOnly` | `bool` | Shows the chosen text without allowing it to be edited or the list to be opened. |
+| `NoResultsContent` | `RenderFragment?` | Drawn in the panel when the term matches nothing. |
+| `LoadingLabel` | `string?` | The sentence drawn beside the spinner while `SearchFunction` is running. |
+
 ### `PolarisAvatar` → `<s-avatar>`
 
 Wraps `<s-avatar>`, a compact profile image or initials.
@@ -313,6 +340,7 @@ Wraps Shopify's `<s-button>`.
 | `OnClick` | `EventCallback<PolarisEventArgs>` | Raised on click. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | Raised when the button loses focus. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | Raised when the button receives focus. |
+| `OnKeyDown` | `EventCallback<PolarisEventArgs>` | Raised on every key press while the button has focus, with the key's name in `PolarisEventArgs.Key`. |
 
 ### `PolarisButtonGroup` → `<s-button-group>`
 
@@ -691,6 +719,7 @@ Declares one column of a `PolarisDataGrid{TItem}`: how to read it, how to render
 | `Field` | `Expression<Func<TItem, object?>>` | The property this column shows. |
 | `Title` | `string?` | The heading. |
 | `Id` | `string?` | The column id, which is what a filter or a saved sort order refers to. |
+| `FilterIndex` | `int` | Where this column's filter control appears in the filter bar, independent of the column's place in the table. |
 | `Sortable` | `bool` | Whether activating the header sorts by this column. |
 | `Searchable` | `bool` | Whether the global search box looks inside this column. |
 | `FilterType` | `PolarisGridFilterType` | Which filter control this column offers. |
@@ -1272,6 +1301,7 @@ Wraps `<s-text-field>`.
 | `OnChange` | `EventCallback<PolarisEventArgs>` | Raised when the value is committed: blur or Enter. |
 | `OnFocus` | `EventCallback<PolarisEventArgs>` | Raised when the field receives focus. |
 | `OnBlur` | `EventCallback<PolarisEventArgs>` | Raised when the field loses focus. |
+| `OnKeyDown` | `EventCallback<PolarisEventArgs>` | Raised on every key press inside the field, with the key's name in `PolarisEventArgs.Key` — ArrowDown, Enter, Escape. |
 
 ### `PolarisThumbnail` → `<s-thumbnail>`
 

@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisEventArgs.cs -->
-<!-- source-sha256: 204706761538 -->
+<!-- source-sha256: f3108c74e7c2 -->
 
 # PolarisEventArgs.cs
 
@@ -40,6 +40,7 @@ spelling.
 | `Show` | `"show"` | `s-modal` and `s-popover`. |
 | `Hide` | `"hide"` | `s-modal` and `s-popover`. |
 | `Remove` | `"remove"` | Removable chips. |
+| `KeyDown` | `"keydown"` | Any control that opted in — a field or a button, through its `OnKeyDown`. A DOM keyboard event, not a Polaris one. |
 | `NextPage` | `"nextpage"` | A paginated `s-table`. |
 | `PreviousPage` | `"previouspage"` | A paginated `s-table`. |
 | `AfterHide` | `"afterhide"` | Once an overlay or dismissible element has finished hiding. |

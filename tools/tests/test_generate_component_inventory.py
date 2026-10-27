@@ -344,7 +344,9 @@ class CliCatalogueSchemaTest(unittest.TestCase):
 
         self.assertEqual(button["element"], "s-button")
         self.assertIn({"name": "Variant", "type": "PolarisButtonVariant"}, button["parameters"])
-        self.assertEqual(button["events"], ["blur", "click", "focus"])
+        # keydown is a DOM event rather than a documented Polaris one, and it is in the list because the
+        # wrapper carries a handler for it — the autocomplete's rows walk themselves with the arrows.
+        self.assertEqual(button["events"], ["blur", "click", "focus", "keydown"])
         self.assertEqual(button["slots"], ["children"])
 
 

@@ -205,6 +205,9 @@ EVENT_CONSTANTS = {
     "Invalid": "invalid",
     "ViewChange": "viewchange",
     "DropRejected": "droprejected",
+    # A DOM keyboard event rather than a Polaris one: it is listed because a wrapper carries it, and
+    # the inventory has to tell a declared callback apart from a wired one.
+    "KeyDown": "keydown",
 }
 
 

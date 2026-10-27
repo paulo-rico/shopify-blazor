@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisGridColumn.cs -->
-<!-- source-sha256: 57c68227949d -->
+<!-- source-sha256: c164e7032301 -->
 
 # PolarisGridColumn.cs
 
@@ -16,6 +16,7 @@ renders nothing at all.
 | `Field` | `Expression<Func<TItem, object?>>` | required (`EditorRequired`) | The property this column shows, `x => x.Name`. Typed `object?` so the column needs one type parameter rather than two; the value's real type and the member's name are both read from the expression. |
 | `Title` | `string?` | `null` | The heading. `null` falls back to the property name; an **empty string** is a deliberate column with no heading at all (a thumbnail column), and is not treated as absent. |
 | `Id` | `string?` | `null` | The column's stable identifier, which is what a filter or a saved sort order refers to. `null` or whitespace falls back to the member name from `Field`. |
+| `FilterIndex` | `int` | `999` | Where the column's filter control sits in the filter bar, independent of the column's place in the table. Lower values come first; the default puts a column that states no index after every column that does, and equal values keep their declaration order. |
 | `Sortable` | `bool` | `true` | Whether activating the header sorts by this column. |
 | `Searchable` | `bool` | `true` | Whether the global search box looks inside this column. |
 | `FilterType` | `PolarisGridFilterType` | `None` | Which filter control the column offers: `None`, `Text`, `MultiSelect`, `Boolean`, `Range`, `DateRange` or `Custom`. |
@@ -52,11 +53,11 @@ renders nothing at all.
   `Visible="false"` is the way to filter on something the table has no room for — a facet behind a
   badge, a flag the cell already conveys in words — and it still gets a control and a chip like any
   other column.
-- **Most parameters are read once, at mount.** `Title`, `Visible`, both templates, `Editable`,
-  `EditorType`, `EditorOptions` and `ValueSetter` are adopted in place on later parameter passes, and
-  the grid is notified only when one actually changed. `Field`, `Id`, `Sortable`, `Searchable`,
-  `FilterType`, `FilterOptions`, `Format`, `FormatProvider`, `Alignment` and `ListSlot` are captured
-  when the column mounts and are never re-read.
+- **Most parameters are read once, at mount.** `Title`, `Visible`, `FilterIndex`, both templates,
+  `Editable`, `EditorType`, `EditorOptions` and `ValueSetter` are adopted in place on later parameter
+  passes, and the grid is notified only when one actually changed. `Field`, `Id`, `Sortable`,
+  `Searchable`, `FilterType`, `FilterOptions`, `Format`, `FormatProvider`, `Alignment` and `ListSlot`
+  are captured when the column mounts and are never re-read.
 - Editability is read from the definition on every cell render, so a page that turns a column editable,
   or a column picker that swaps an editor, is honoured without re-registering the column.
 
@@ -76,6 +77,9 @@ renders nothing at all.
 - **`Visible="false"` does not remove the filter.** The declared filter still reaches the filter bar and
   its chip is still shown, because a filter narrowing the result with nothing on screen to explain it
   reads as missing data. To take a column out of the filters as well, declare `FilterType="None"`.
+- **`FilterIndex` moves the filter, never the column.** It is adopted on later parameter passes like
+  `Visible`, so a page can reorder the panel without rebuilding the columns; the table always keeps the
+  declaration order.
 - **A template should be a function of the row it is given.** The declaration is read when the column
   mounts, so a template that closes over page state is one render behind; pass the state through the
   context instead.

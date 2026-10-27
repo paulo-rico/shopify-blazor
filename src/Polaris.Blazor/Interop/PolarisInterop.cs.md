@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisInterop.cs -->
-<!-- source-sha256: f81823807ce3 -->
+<!-- source-sha256: 5afbd606e9ec -->
 
 # PolarisInterop.cs
 
@@ -28,7 +28,7 @@ so no component ever touches `IJSRuntime` itself.
 | `InvokeElementMethodAsync` | `ValueTask InvokeElementMethodAsync(ElementReference element, string methodName, params object?[] arguments)` | Calls a method on the element itself — `showOverlay` / `hideOverlay` on a modal. Polaris only defines its methods once the element has upgraded, so the call waits. |
 | `SetPropertiesAsync` | `ValueTask SetPropertiesAsync(ElementReference element, string tagName, IReadOnlyDictionary<string, object?> values)` | Sets DOM properties attributes cannot carry, after the element upgrades. No-op for an empty dictionary. |
 | `ClearPropertiesAsync` | `ValueTask ClearPropertiesAsync(ElementReference element, string tagName, IEnumerable<string> names)` | Clears previously set array-valued properties, so a value the server dropped cannot linger in the element. |
-| `FocusWithinAsync` | `ValueTask<bool> FocusWithinAsync(ElementReference element, string? selector = null)` | Moves keyboard focus onto the first field inside the element, or onto the element itself when it is the focusable thing. Returns false when nothing focusable was found. |
+| `FocusWithinAsync` | `ValueTask<bool> FocusWithinAsync(ElementReference element, string? selector = null)` | Moves keyboard focus onto the first focusable control inside the element — a field's input, or the button a button-like element renders — or onto the element itself when it is the focusable thing. Returns false when nothing focusable was found. |
 | `SetAriaExpandedAsync` | `ValueTask<bool> SetAriaExpandedAsync(ElementReference element, bool expanded)` | Writes `aria-expanded` onto the `<button>` an element renders **inside its own shadow root**. Returns false when there is no button. |
 | `GetComponentStatusAsync` | `ValueTask<IReadOnlyDictionary<string, PolarisComponentStatus>> GetComponentStatusAsync(IEnumerable<string> tagNames)` | Reports which custom elements are registered and upgraded on the current page, and how many exist. Empty dictionary when interop is unavailable. |
 | `IsEmbeddedAsync` | `ValueTask<bool> IsEmbeddedAsync()` | True when the page is running inside the Shopify Admin. False on any failure. |

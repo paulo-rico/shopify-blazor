@@ -393,6 +393,12 @@
           "event": "focus",
           "handler": "OnFocus",
           "wrapped": true
+        },
+        {
+          "documented": false,
+          "event": "keydown",
+          "handler": "OnKeyDown",
+          "wrapped": true
         }
       ],
       "implementationStatus": "wrapped",
@@ -520,6 +526,13 @@
           "doc": "Raised when the button receives focus.",
           "kind": "event callback",
           "name": "OnFocus",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "default": null,
+          "doc": "Raised on every key press while the button has focus, with the key's name in `PolarisEventArgs.Key`. This is a DOM keyboard event forwarded from the button's own element, so it is how a row in a list of buttons can follow the arrow keys — Enter and Space already click the button natively and do not need handling.",
+          "kind": "event callback",
+          "name": "OnKeyDown",
           "type": "EventCallback<PolarisEventArgs>"
         }
       ],
@@ -5962,6 +5975,12 @@
           "event": "input",
           "handler": "OnInput",
           "wrapped": true
+        },
+        {
+          "documented": false,
+          "event": "keydown",
+          "handler": "OnKeyDown",
+          "wrapped": true
         }
       ],
       "implementationStatus": "wrapped",
@@ -6124,6 +6143,13 @@
           "doc": "Raised when the field loses focus.",
           "kind": "event callback",
           "name": "OnBlur",
+          "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "default": null,
+          "doc": "Raised on every key press inside the field, with the key's name in `PolarisEventArgs.Key` — ArrowDown, Enter, Escape. A text field rather than a search field is what makes this usable for Escape: a browser clears an when Escape is pressed, which would overwrite whatever a handler put back. The key still is not consumed — the interop layer has no preventDefault.",
+          "kind": "event callback",
+          "name": "OnKeyDown",
           "type": "EventCallback<PolarisEventArgs>"
         }
       ],

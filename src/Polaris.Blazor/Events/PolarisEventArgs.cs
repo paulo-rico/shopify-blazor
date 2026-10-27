@@ -87,6 +87,12 @@ public static class PolarisEvents
     /// <summary><c>remove</c> — raised by removable chips.</summary>
     public const string Remove = "remove";
 
+    /// <summary>
+    /// <c>keydown</c> — raised by a control the merchant types into or focuses. It is a DOM keyboard
+    /// event, not a Polaris one: an element only attaches this listener when a component asks for it.
+    /// </summary>
+    public const string KeyDown = "keydown";
+
     /// <summary><c>nextpage</c> — raised by a paginated <c>s-table</c>.</summary>
     public const string NextPage = "nextpage";
 

@@ -67,6 +67,16 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
     /// </summary>
     [Parameter] public string? Id { get; set; }
 
+    /// <summary>
+    /// Where this column's filter control appears in the filter bar, independent of the column's
+    /// place in the table. Lower values come first.
+    /// </summary>
+    /// <remarks>
+    /// The default, 999, puts a column that states no index after every column that does, and
+    /// columns sharing an index keep the order they were declared in.
+    /// </remarks>
+    [Parameter] public int FilterIndex { get; set; } = 999;
+
     /// <summary>Whether activating the header sorts by this column.</summary>
     [Parameter] public bool Sortable { get; set; } = true;
 
@@ -205,6 +215,7 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
             Sortable = Sortable,
             Searchable = Searchable,
             FilterType = FilterType,
+            FilterIndex = FilterIndex,
             FilterOptions = FilterOptions,
             FilterTemplate = FilterTemplate,
             CellTemplate = CellTemplate,
@@ -233,10 +244,11 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
             return;
         }
 
-        // Title, visibility and the templates are the parts a page is allowed to change after the
-        // column is declared — a column picker, or a template that renders the current row. They are
-        // updated in place rather than re-registered, because re-registering on every parameter pass
-        // would notify the state on every render and the grid would redraw for ever.
+        // Title, visibility, the filter order and the templates are the parts a page is allowed to
+        // change after the column is declared — a column picker, a reordered filter bar, or a template
+        // that renders the current row. They are updated in place rather than re-registered, because
+        // re-registering on every parameter pass would notify the state on every render and the grid
+        // would redraw for ever.
         var title = Title ?? _definition.Id;
         var changed = false;
 
@@ -249,6 +261,15 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
         if (_definition.Visible != Visible)
         {
             _definition.Visible = Visible;
+            changed = true;
+        }
+
+        if (_definition.FilterIndex != FilterIndex)
+        {
+            // The filter bar sorts its controls from the definition on every render, so a page that
+            // reorders its filters must also have the grid redraw or the new order would wait for
+            // some unrelated change.
+            _definition.FilterIndex = FilterIndex;
             changed = true;
         }
 

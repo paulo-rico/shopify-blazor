@@ -17,6 +17,12 @@ public interface IPolarisGridColumn
     /// <summary>The heading shown in the table and used in filter chip labels.</summary>
     string Title { get; }
 
+    /// <summary>
+    /// Where this column's filter control appears in the filter bar, independent of the column's
+    /// place in the table. Lower values come first; equal values keep their declaration order.
+    /// </summary>
+    int FilterIndex { get; }
+
     /// <summary>The type of the column's values, used to coerce filter values before comparing.</summary>
     Type ValueType { get; }
 

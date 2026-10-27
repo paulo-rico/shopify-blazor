@@ -235,12 +235,17 @@
         {
           "name": "OnFocus",
           "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnKeyDown",
+          "type": "EventCallback<PolarisEventArgs>"
         }
       ],
       "events": [
         "blur",
         "click",
-        "focus"
+        "focus",
+        "keydown"
       ],
       "slots": [
         "children"
@@ -2805,13 +2810,18 @@
         {
           "name": "OnBlur",
           "type": "EventCallback<PolarisEventArgs>"
+        },
+        {
+          "name": "OnKeyDown",
+          "type": "EventCallback<PolarisEventArgs>"
         }
       ],
       "events": [
         "blur",
         "change",
         "focus",
-        "input"
+        "input",
+        "keydown"
       ],
       "slots": [
         "accessory"

@@ -1,5 +1,5 @@
 <!-- summary-of: polaris-interop.js -->
-<!-- source-sha256: df344483fcf8 -->
+<!-- source-sha256: eca3084a531f -->
 
 # polaris-interop.js
 
@@ -18,7 +18,7 @@ this file ever decides what a click means, the decision belongs in C#.
 | `whenDefined` | `(tagName: string, timeoutMs = 10000): Promise<boolean>` | Resolves `true` once the element is defined, `false` on timeout. An empty tag name resolves `true` immediately; an already-defined element resolves without waiting. |
 | `ensureId` | `(element: HTMLElement): string` | Returns the element's id, assigning `polaris-blazor-<n>` from a module counter when it has none. Throws when handed no element. |
 | `setProperties` | `(element, tagName, values: Record<string, unknown>): Promise<void>` | Awaits upgrade, then assigns each non-`null`/non-`undefined` value as a DOM **property**. A boolean is written in both forms — property plus attribute presence (`setAttribute(name, "")` / `removeAttribute(name)`) — because Polaris reflects booleans from attribute presence. If any name is in `RENDER_ONLY_PROPERTIES`, calls the element's `queueRender()` once at the end. |
-| `focusWithin` | `(element, selector = null): Promise<boolean>` | Finds the first focusable thing at or inside `element` — descending through the light DOM and through **one** shadow boundary, to a depth of 8 — focuses it, and reports whether focus landed. With a `selector`, starts from the first matching descendant instead of the element itself. Retries on `requestAnimationFrame` up to 10 times while the element upgrades. |
+| `focusWithin` | `(element, selector = null): Promise<boolean>` | Finds the first focusable thing at or inside `element` — `input`, `textarea`, `select`, `button` or a tabbable element, descending through the light DOM and through **one** shadow boundary, to a depth of 8 — focuses it, and reports whether focus landed. With a `selector`, starts from the first matching descendant instead of the element itself. Retries on `requestAnimationFrame` up to 10 times while the element upgrades. |
 | `setShadowButtonExpanded` | `(element, expanded: boolean): Promise<boolean>` | Awaits upgrade, then writes `aria-expanded="true"`/`"false"` onto the `<button>` in the element's shadow root. Returns `false` when there is no such button rather than throwing. |
 | `clearProperties` | `(element, tagName, names: string[]): Promise<void>` | Awaits upgrade, then resets each named property: an array-valued property becomes `[]`, anything else becomes `undefined`. |
 | `attachEvents` | `(element, eventNames: string[], dotNetRef, handle: string, tagName): Promise<void>` | A no-op without a ref or without event names. Otherwise detaches any previous listeners for the element, awaits upgrade, and adds one listener per name that invokes `Dispatch(handle, eventName, readEvent(event))` on the .NET reference. Registrations are kept in a module-level `Map` keyed by element. |
@@ -49,6 +49,10 @@ this file ever decides what a click means, the decision belongs in C#.
   outside, and a Polaris shadow root begins with a `<style>`, so descending from `firstElementChild`
   finds nothing. Searching the root directly is what lets the grid's editor receive the caret instead
   of `body`.
+- **A `button` is in the focusable list, and it was not there at first.** The helper was written for
+  fields, so focusing the wrapper around an `s-button` found nothing — the autocomplete's list opened
+  and the arrow key moved nothing while every component test passed, because a component test can only
+  assert that the call was made. Found in Chrome by reading `document.activeElement` after the key.
 - **`document.activeElement` is the outermost host of a focused shadow tree**, so the proof that focus
   arrived is checked on the target's own root, not on the document.
 

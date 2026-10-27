@@ -302,6 +302,52 @@ public sealed class DataGridRenderingTests
     }
 
     [Fact]
+    public void A_column_registers_its_filter_index_without_reordering_the_table()
+    {
+        // The filter panel reads FilterIndex from the registered definition, so a value that did not
+        // survive the trip from the declaration would leave every control in declaration order with
+        // nothing to say why. And the index orders the panel only: the table keeps the columns in the
+        // order the page declared them, which is the whole point of having a second order.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        context.Render<PolarisDataGrid<Alloy>>(parameters => parameters
+            .Add(p => p.State, state)
+            .Add(p => p.Columns, FilterIndexedColumns()));
+
+        var silver = Assert.Single(state.Columns, column => column.Id == "Silver");
+        Assert.Equal(1, silver.FilterIndex);
+
+        var name = Assert.Single(state.Columns, column => column.Id == "Name");
+        Assert.Equal(999, name.FilterIndex);
+
+        // The table still draws Name first, even though Silver's filter comes first in the panel.
+        Assert.Equal(["Name", "Silver %"], state.Columns.Select(column => column.Title));
+    }
+
+    [Fact]
+    public void Changing_a_columns_filter_index_after_mount_is_applied()
+    {
+        // Both the parameter and the definition are settable, so a page that reorders its filters has to
+        // see the change. A definition that kept the value from mount would leave the panel where it was,
+        // with nothing logged — and a setter that silently does nothing is worse than no setter.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        var grid = context.Render<PolarisDataGrid<Alloy>>(parameters => parameters
+            .Add(p => p.State, state)
+            .Add(p => p.Columns, FilterIndexedColumns(5)));
+
+        Assert.Equal(5, Assert.Single(state.Columns, column => column.Id == "Silver").FilterIndex);
+
+        grid.Render(parameters => parameters
+            .Add(p => p.State, state)
+            .Add(p => p.Columns, FilterIndexedColumns(1)));
+
+        Assert.Equal(1, Assert.Single(state.Columns, column => column.Id == "Silver").FilterIndex);
+    }
+
+    [Fact]
     public void An_empty_title_asks_for_no_heading_rather_than_the_property_name()
     {
         // A thumbnail column has no heading of its own, and deriving one from the property name printed
@@ -379,6 +425,17 @@ public sealed class DataGridRenderingTests
             AddColumn(builder, 30, title ?? "Active", alloy => alloy.Active, PolarisGridFilterType.Boolean);
         };
 
+    /// <summary>
+    /// Two columns whose filter indexes run against the table's order: Name is declared first and
+    /// Silver's filter is numbered first.
+    /// </summary>
+    private static RenderFragment FilterIndexedColumns(int silverFilterIndex = 1)
+        => builder =>
+        {
+            AddColumn(builder, 0, "Name", alloy => alloy.Name, PolarisGridFilterType.Text);
+            AddColumn(builder, 10, "Silver %", alloy => alloy.Silver, PolarisGridFilterType.Range, filterIndex: silverFilterIndex);
+        };
+
     private static void AddColumn(
         RenderTreeBuilder builder,
         int sequence,
@@ -388,7 +445,8 @@ public sealed class DataGridRenderingTests
         bool sortable = true,
         string? format = null,
         PolarisTableHeaderFormat alignment = PolarisTableHeaderFormat.Base,
-        RenderFragment<Alloy>? cellTemplate = null)
+        RenderFragment<Alloy>? cellTemplate = null,
+        int filterIndex = 999)
     {
         // A helper cannot use literal sequence numbers, so the analyzer's literal rule is suppressed
         // here rather than repeating this block at every call site.
@@ -402,6 +460,7 @@ public sealed class DataGridRenderingTests
         builder.AddAttribute(sequence + 6, nameof(PolarisGridColumn<Alloy>.Format), format);
         builder.AddAttribute(sequence + 7, nameof(PolarisGridColumn<Alloy>.Alignment), alignment);
         builder.AddAttribute(sequence + 8, nameof(PolarisGridColumn<Alloy>.CellTemplate), cellTemplate);
+        builder.AddAttribute(sequence + 9, nameof(PolarisGridColumn<Alloy>.FilterIndex), filterIndex);
         builder.CloseComponent();
 #pragma warning restore ASP0006
     }
