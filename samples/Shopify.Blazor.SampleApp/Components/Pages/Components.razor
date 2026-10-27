@@ -331,9 +331,11 @@
                                      Label="Material"
                                      Placeholder="Search materials"
                                      MaxSuggestions="6">
+                    @* `&nbsp;` rather than a space: Razor drops the leading whitespace of the second
+                       run, and two inline Polaris elements then sit flush against each other. *@
                     <ItemTemplate Context="material">
                         <PolarisText>@material.Name</PolarisText>
-                        <PolarisText Color="PolarisColor.Subdued"> — @material.Unit</PolarisText>
+                        <PolarisText Color="PolarisColor.Subdued">&nbsp;— @material.Unit</PolarisText>
                     </ItemTemplate>
                     <NoResultsContent>
                         <PolarisText Color="PolarisColor.Subdued">No materials match.</PolarisText>
