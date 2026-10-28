@@ -9,7 +9,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 
 `python3 tools/check-summaries.py` reports a summary that is missing or older than its source.
 
-180 sources, 25 directories.
+181 sources, 25 directories.
 
 ## src/Polaris.Blazor
 
@@ -88,6 +88,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 | [`PolarisParagraph.cs.md`](../src/Polaris.Blazor/Components/PolarisParagraph.cs.md) | A block of prose, rendered as <s-paragraph>, which owns the vertical spacing above and below itself and may contain inline content such as text runs, links and buttons. |
 | [`PolarisPasswordField.cs.md`](../src/Polaris.Blazor/Components/PolarisPasswordField.cs.md) | A masked text field for a secret, rendered as <s-password-field>, with a visible label, help text and error state, and four forwarded events. |
 | [`PolarisPopover.cs.md`](../src/Polaris.Blazor/Components/PolarisPopover.cs.md) | A non-modal floating panel anchored to a trigger, rendered as <s-popover>: give it an Id and open it from an s-button whose CommandFor names that id. |
+| [`PolarisPopup.cs.md`](../src/Polaris.Blazor/Components/PolarisPopup.cs.md) | A panel drawn over the page and anchored to the element it belongs to, for content Polaris has no element to show — a suggestion list, a menu, a small picker. |
 | [`PolarisProgress.cs.md`](../src/Polaris.Blazor/Components/PolarisProgress.cs.md) | A progress bar, rendered as <s-progress>, that is indeterminate while Value is unset and determinate once it is — so leaving Value null is the correct way to say "working, end unknown". |
 | [`PolarisQueryContainer.cs.md`](../src/Polaris.Blazor/Components/PolarisQueryContainer.cs.md) | Establishes a CSS container, rendered as <s-query-container>, so a descendant can use a responsive value such as @container (inline-size > 500px) large, small. |
 | [`PolarisRangeSlider.cs.md`](../src/Polaris.Blazor/Components/PolarisRangeSlider.cs.md) | A dual-handle numeric range control: two native range inputs over one track, reporting the chosen interval as a PolarisNumberRange. |

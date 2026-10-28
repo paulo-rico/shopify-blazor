@@ -318,8 +318,9 @@
             *@
             <PolarisParagraph>
                 Type "go", then press the down arrow: focus moves onto the first suggestion, Enter chooses
-                it, and Escape puts the field back to the chosen value. The list is drawn under the field
-                rather than floating over the page, because Polaris cannot anchor a popover to a text field.
+                it, and Escape puts the field back to the chosen value. The list floats over what follows
+                the field — Polaris's own popover cannot be opened from code, so the panel is the
+                toolkit's <c>PolarisPopup</c>.
             </PolarisParagraph>
 
             <div data-gallery-autocomplete>

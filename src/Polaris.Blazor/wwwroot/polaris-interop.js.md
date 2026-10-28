@@ -1,5 +1,5 @@
 <!-- summary-of: polaris-interop.js -->
-<!-- source-sha256: eca3084a531f -->
+<!-- source-sha256: f33cacdf2fa4 -->
 
 # polaris-interop.js
 
@@ -20,6 +20,8 @@ this file ever decides what a click means, the decision belongs in C#.
 | `setProperties` | `(element, tagName, values: Record<string, unknown>): Promise<void>` | Awaits upgrade, then assigns each non-`null`/non-`undefined` value as a DOM **property**. A boolean is written in both forms — property plus attribute presence (`setAttribute(name, "")` / `removeAttribute(name)`) — because Polaris reflects booleans from attribute presence. If any name is in `RENDER_ONLY_PROPERTIES`, calls the element's `queueRender()` once at the end. |
 | `focusWithin` | `(element, selector = null): Promise<boolean>` | Finds the first focusable thing at or inside `element` — `input`, `textarea`, `select`, `button` or a tabbable element, descending through the light DOM and through **one** shadow boundary, to a depth of 8 — focuses it, and reports whether focus landed. With a `selector`, starts from the first matching descendant instead of the element itself. Retries on `requestAnimationFrame` up to 10 times while the element upgrades. |
 | `setShadowButtonExpanded` | `(element, expanded: boolean): Promise<boolean>` | Awaits upgrade, then writes `aria-expanded="true"`/`"false"` onto the `<button>` in the element's shadow root. Returns `false` when there is no such button rather than throwing. |
+| `showPopup` | `(panel, anchor, above = false): Promise<boolean>` | Shows a panel in the browser's top layer: removes `hidden`, calls `showPopover()`, then positions it `fixed` against the anchor's rect — width matched, height capped to the room on the chosen side — and re-positions it on scroll and resize. Returns `false` for a missing element. |
+| `hidePopup` | `(panel): void` | Hides the panel, removes its scroll/resize listeners and restores `hidden`. Safe on a detached element and when called twice. |
 | `clearProperties` | `(element, tagName, names: string[]): Promise<void>` | Awaits upgrade, then resets each named property: an array-valued property becomes `[]`, anything else becomes `undefined`. |
 | `attachEvents` | `(element, eventNames: string[], dotNetRef, handle: string, tagName): Promise<void>` | A no-op without a ref or without event names. Otherwise detaches any previous listeners for the element, awaits upgrade, and adds one listener per name that invokes `Dispatch(handle, eventName, readEvent(event))` on the .NET reference. Registrations are kept in a module-level `Map` keyed by element. |
 | `invokeElementMethod` | `(element, methodName: string, args: unknown[]): Promise<unknown>` | Awaits upgrade, then calls the named method on the element with `args` (or none) and returns its result. Throws a named error when the element has no such method. |
@@ -53,6 +55,15 @@ this file ever decides what a click means, the decision belongs in C#.
   fields, so focusing the wrapper around an `s-button` found nothing — the autocomplete's list opened
   and the arrow key moved nothing while every component test passed, because a component test can only
   assert that the call was made. Found in Chrome by reading `document.activeElement` after the key.
+- **A popup is a top-layer element, not a positioned one.** Measuring an absolutely positioned panel
+  inside an `s-section` showed it cut off at the section's painted edge: the second suggestion could be
+  read and could not be clicked. The `popover` attribute fixes it because the top layer is painted
+  outside every ancestor's clipping; `z-index` cannot, because clipping is not stacking. The module
+  still positions the panel itself — a popover's default placement is centred in the viewport.
+- **The popup listeners live in a module-level `Map` keyed by the panel.** `showPopup` re-shown without
+  a hide removes the old listeners first; `hidePopup` removes them and the map entry. An element that
+  leaves the DOM without `hidePopup` keeps two listeners until the module unloads, which is why the
+  component asks for the hide when it goes.
 - **`document.activeElement` is the outermost host of a focused shadow tree**, so the proof that focus
   arrived is checked on the target's own root, not on the document.
 

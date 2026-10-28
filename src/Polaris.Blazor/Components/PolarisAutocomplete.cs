@@ -19,11 +19,12 @@ namespace Polaris.Blazor.Components;
 /// <c>s-button</c> rows.
 /// </para>
 /// <para>
-/// <b>The list is drawn inline, not floating.</b> Polaris cannot open a popover from code (<c>s-popover</c>
-/// has no methods at all) and a text field exposes no <c>interestFor</c>, no <c>commandFor</c> and no
-/// slots, so nothing can anchor a panel to a field; those facts were measured in Chrome, not assumed. An
-/// inline list cannot be lost behind a stacking context or clipped by an ancestor, so it is the honest
-/// shape in this layer — it pushes the page down instead of covering it.
+/// <b>The list floats over the page, in a popup this library owns.</b> Polaris's own popover cannot be
+/// opened from code and a text field cannot anchor one — both measured in Chrome — but that rules out
+/// borrowing Shopify's popover, not having a panel at all. <see cref="PolarisPopup"/> is an absolutely
+/// positioned surface anchored to the field: it covers what follows the field instead of pushing it
+/// down, follows the page on scroll without measurement, and paints itself with the browser's system
+/// colours so it follows the Admin's theme. Everything inside it is still a Polaris element.
 /// </para>
 /// <para>
 /// <b>Keyboard navigation is real focus, not a highlight.</b> The arrow keys move focus onto the row
@@ -301,21 +302,15 @@ public sealed class PolarisAutocomplete<TItem> : ComponentBase, IDisposable
     /// <inheritdoc />
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        builder.OpenComponent<PolarisStack>(0);
-        builder.AddAttribute(1, nameof(PolarisStack.Gap), PolarisGap.Base);
-        builder.AddAttribute(2, nameof(PolarisStack.ChildContent), (RenderFragment)RenderContent);
+        // The list is a panel drawn over the page, not a block inserted under the field: an autocomplete
+        // that pushes everything below it down every time a letter is typed is a form that jumps while
+        // the merchant uses it. See PolarisPopup for why the panel is ours and not Polaris's.
+        builder.OpenComponent<PolarisPopup>(0);
+        builder.AddAttribute(1, nameof(PolarisPopup.Open), _open);
+        builder.AddAttribute(2, nameof(PolarisPopup.Anchor), (RenderFragment)RenderField);
+        builder.AddAttribute(3, nameof(PolarisPopup.ChildContent), (RenderFragment)RenderPanel);
+        builder.AddAttribute(4, nameof(PolarisPopup.MaxBlockSize), "336px");
         builder.CloseComponent();
-    }
-
-    /// <summary>Draws the field and, when it is open, the panel under it.</summary>
-    private void RenderContent(RenderTreeBuilder stack)
-    {
-        RenderField(stack);
-
-        if (_open)
-        {
-            RenderPanel(stack);
-        }
     }
 
     /// <summary>Draws the search field inside the element focus returns to.</summary>
@@ -349,23 +344,22 @@ public sealed class PolarisAutocomplete<TItem> : ComponentBase, IDisposable
         stack.CloseElement();
     }
 
-    /// <summary>Draws the bordered panel holding the rows, the spinner or the no-results content.</summary>
-    private void RenderPanel(RenderTreeBuilder stack)
+    /// <summary>Draws the rows, the spinner or the no-results content inside the popup's panel.</summary>
+    private void RenderPanel(RenderTreeBuilder panel)
     {
+        if (!_open)
+        {
+            // The popup keeps its panel element in the DOM while closed; the rows are not drawn into it,
+            // so a closed autocomplete has no suggestion elements to find, count or tab into.
+            return;
+        }
+
         var items = ComputeVisible();
 
-        stack.OpenComponent<PolarisBox>(100);
-        stack.AddAttribute(101, nameof(PolarisBox.Border), "base");
-        stack.AddAttribute(102, nameof(PolarisBox.BorderRadius), "base");
-        stack.AddAttribute(103, nameof(PolarisBox.Overflow), "hidden");
-        stack.AddAttribute(104, nameof(PolarisBox.ChildContent), (RenderFragment)(box =>
-        {
-            box.OpenComponent<PolarisStack>(110);
-            box.AddAttribute(111, nameof(PolarisStack.Gap), PolarisGap.None);
-            box.AddAttribute(112, nameof(PolarisStack.ChildContent), (RenderFragment)(rows => RenderRows(rows, items)));
-            box.CloseComponent();
-        }));
-        stack.CloseComponent();
+        panel.OpenComponent<PolarisStack>(100);
+        panel.AddAttribute(101, nameof(PolarisStack.Gap), PolarisGap.None);
+        panel.AddAttribute(102, nameof(PolarisStack.ChildContent), (RenderFragment)(rows => RenderRows(rows, items)));
+        panel.CloseComponent();
     }
 
     /// <summary>Draws one row per match, plus the loading and empty states.</summary>

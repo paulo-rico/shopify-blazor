@@ -6,7 +6,7 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
-11 more are composed from those wrappers, for behaviour Polaris does not
+12 more are composed from those wrappers, for behaviour Polaris does not
 provide in an element of its own. They add structure and interaction; they do not add
 appearance either, because everything visible in them is still a Polaris element.
 
@@ -63,6 +63,7 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisParagraph` | `<s-paragraph>` | — | yes |
 | `PolarisPasswordField` | `<s-password-field>` | `Blur`, `Change`, `Focus`, `Input` | yes |
 | `PolarisPopover` | `<s-popover>` | — | yes |
+| `PolarisPopup` | — composed | — | yes |
 | `PolarisProgress` | `<s-progress>` | — | yes |
 | `PolarisQueryContainer` | `<s-query-container>` | — | yes |
 | `PolarisRangeSlider` | — composed | — | yes |
@@ -1006,6 +1007,19 @@ Wraps `<s-popover>`.
 | `BlockSize` | `string?` | Fixed block size. |
 | `MaxInlineSize` | `string?` | Maximum inline size. |
 | `InlineSize` | `string?` | Fixed inline size. |
+
+### `PolarisPopup` (composed)
+
+A panel drawn over the page and anchored to the element it belongs to, for content Polaris has no element to show: a suggestion list, a menu, a small picker.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `Open` | `bool` | Whether the panel is shown. |
+| `Anchor` | `RenderFragment?` | The element the panel is anchored to — usually the trigger, or the field it belongs to. |
+| `ChildContent` | `RenderFragment?` | The panel's content. |
+| `Placement` | `PolarisPopupPlacement` | Which side of the anchor the panel appears on. |
+| `MaxBlockSize` | `string` | The panel's preferred height cap, in any CSS length. |
+| `ZIndex` | `int` | The stacking order used before the popover enters the top layer, and in a browser without the popover API. |
 
 ### `PolarisProgress` → `<s-progress>`
 

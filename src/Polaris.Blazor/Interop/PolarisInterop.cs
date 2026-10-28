@@ -104,6 +104,33 @@ public interface IPolarisInterop : IAsyncDisposable
     /// <param name="expanded">Whether the controlled content is open.</param>
     ValueTask<bool> SetAriaExpandedAsync(ElementReference element, bool expanded);
 
+    /// <summary>
+    /// Shows a panel over the page, anchored to an element, in the browser's top layer.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The top layer is what makes this different from positioning a <c>&lt;div&gt;</c>: a popover is painted
+    /// outside every ancestor's clipping, so a panel inside a section — or any other element that
+    /// hides its overflow — is not cut off. Measured: an absolutely positioned panel inside an
+    /// <c>s-section</c> lost its second row at exactly the section's painted edge, and no z-index
+    /// could recover it.
+    /// </para>
+    /// <para>
+    /// Coordinates are set from the anchor's viewport rect by the module, and re-applied while the
+    /// page scrolls or the window resizes. Nothing moves in the DOM, so the Blazor renderer keeps
+    /// owning the element.
+    /// </para>
+    /// </remarks>
+    /// <param name="panel">The panel to show.</param>
+    /// <param name="anchor">The element it is anchored to.</param>
+    /// <param name="above">Whether the panel is drawn above the anchor rather than below it.</param>
+    /// <returns>False when either element was missing or the module could not load.</returns>
+    ValueTask<bool> ShowPopupAsync(ElementReference panel, ElementReference anchor, bool above);
+
+    /// <summary>Hides a panel shown by <see cref="ShowPopupAsync"/> and releases its positioning listeners.</summary>
+    /// <param name="panel">The panel to hide. It may already have left the DOM.</param>
+    ValueTask HidePopupAsync(ElementReference panel);
+
     /// <summary>Reports which custom elements are registered and upgraded in the current page.</summary>
     ValueTask<IReadOnlyDictionary<string, PolarisComponentStatus>> GetComponentStatusAsync(IEnumerable<string> tagNames);
 
@@ -400,6 +427,41 @@ public sealed class PolarisInterop : IPolarisInterop
         catch (Exception ex) when (IsRecoverable(ex))
         {
             return empty;
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> ShowPopupAsync(ElementReference panel, ElementReference anchor, bool above)
+    {
+        if (!await EnsureInitializedAsync().ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        try
+        {
+            return await _module!.InvokeAsync<bool>("showPopup", panel, anchor, above).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsRecoverable(ex))
+        {
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask HidePopupAsync(ElementReference panel)
+    {
+        if (!await EnsureInitializedAsync().ConfigureAwait(false))
+        {
+            return;
+        }
+
+        try
+        {
+            await _module!.InvokeVoidAsync("hidePopup", panel).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (IsRecoverable(ex))
+        {
         }
     }
 

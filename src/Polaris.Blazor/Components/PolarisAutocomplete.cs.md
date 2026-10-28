@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisAutocomplete.cs -->
-<!-- source-sha256: 5fd875384eae -->
+<!-- source-sha256: 1b712c1dad67 -->
 
 # PolarisAutocomplete.cs
 
@@ -62,11 +62,14 @@ differs from the previous pass. A caller that applies a selection lazily re-rend
 value while a new one is in flight; treating that echo as an instruction resets the field mid-typing, the
 failure the suggest field and the range slider both paid for. Typing never raises `ValueChanged`.
 
-**The list is drawn inline.** Polaris cannot open a popover from code — `s-popover` has no methods at all,
-measured in Chrome — and a text field's documented properties offer nothing to anchor one to (no
-`interestFor`, no `commandFor`, no slots; measured on the search field, which is the closest sibling).
-The panel is the sibling suggest field's shape: a bordered `s-box` under the field, never a floating layer
-that an ancestor's overflow or a stacking context can swallow.
+**The list floats over the page in a popup this library owns.** Polaris's popover cannot be opened from
+code and a field cannot anchor one — both measured in Chrome — but that rules out borrowing Shopify's
+popover, not having a floating panel. The panel is a `PolarisPopup`: a native `popover` element, so it is
+painted in the browser's top layer and no ancestor can clip it, positioned from the field's rect and
+repositioned while the page scrolls. It covers what follows the field instead of pushing it down, which
+is what an autocomplete should do; the earlier inline version moved the whole form on every keystroke,
+and a version positioned absolutely inside the section was cut off at the section's painted edge — both
+found in Chrome.
 
 **The field is an `s-text-field`, not an `s-search-field`.** A browser clears an
 `<input type="search">` when Escape is pressed; in Chrome that arrived as an `input` event *after* the
@@ -78,9 +81,9 @@ browser check, not by a component test — the markup was identical either way.
 focus onto the first/last row; on a row they move to the next/previous one, and ArrowUp on the first row
 returns to the field. Enter and Space on a row are the browser's own click on a real button. Escape closes
 the list, puts the chosen item's text back and returns focus to the field. There is deliberately no
-`aria-activedescendant`: it would have to be written onto the input inside the search field's shadow root,
-which no light-DOM attribute reaches, so the alternative was invented ARIA — a real focus ring and a
-screen reader announcing the row's own text is the honest version. The price is that typing does not
+`aria-activedescendant`: it would have to be written onto the input inside the field's shadow root, which
+no light-DOM attribute reaches, so the alternative was invented ARIA — a real focus ring and a screen
+reader announcing the row's own text is the honest version. The price is that typing does not
 reach the field while a row is focused; Escape takes the merchant back.
 
 **A row is chosen on `mousedown`, and again on `click` — and Enter and Space are handled on the row's
@@ -143,6 +146,10 @@ render as "no matches" when the truth is that nobody asked.
   by typing rather than relying on the cap to be the whole answer.
 - **No `Id`, no `Slot`, no `AdditionalAttributes`.** The root is a stack of components; there is no single
   element to address.
+- **The panel is in the browser's top layer.** That is what keeps a section's overflow from clipping it,
+  and it also means the panel is painted above the page's ordinary stacking order. A Polaris dialog
+  opened while it is up is still above it, because the top layer is ordered by when each element
+  entered it.
 - **Focusing a row needed `focusWithin` to know about buttons.** Its selector was `input, textarea,
   select, [tabindex]`, so focusing a wrapper around an `s-button` found nothing and the arrow key
   silently did nothing — the list opened and focus stayed in the field. The browser check caught it; the
@@ -159,6 +166,7 @@ render as "no matches" when the truth is that nobody asked.
 - [PolarisSearchField.cs.md](PolarisSearchField.cs.md) — the search field this is deliberately not built on.
 - [PolarisSuggestField.cs.md](PolarisSuggestField.cs.md) — the free-text sibling, where `Matches` semantics
   started.
-- [PolarisSuggestFieldInline.cs.md](PolarisSuggestFieldInline.cs.md) — the non-generic picker, and the
-  measured reasons its panel is inline.
-- [PolarisBox.cs.md](PolarisBox.cs.md), [PolarisStack.cs.md](PolarisStack.cs.md) — the frame and the spacing.
+- [PolarisPopup.cs.md](PolarisPopup.cs.md) — the floating panel, its top-layer mechanism and its limits.
+- [PolarisSuggestFieldInline.cs.md](PolarisSuggestFieldInline.cs.md) — the non-generic picker, which still
+  draws its list inline.
+- [PolarisStack.cs.md](PolarisStack.cs.md) — the spacing of the panel's rows.

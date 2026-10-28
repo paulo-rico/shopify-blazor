@@ -15,6 +15,7 @@
  */
 
 const registry = new Map();          // element -> { objRef, listeners: Map<event, fn> }
+const popups = new Map();            // panel element -> a function that removes its position listeners
 let seq = 0;                         // generates DOM ids for components that do not have one
 
 /**
@@ -234,6 +235,107 @@ export async function focusWithin(element, selector = null) {
     }
 
     return false;
+}
+
+/**
+ * Shows a panel over the page, anchored to an element.
+ *
+ * The `popover` attribute is the load-bearing part. A popover is painted in the browser's **top
+ * layer**, which is what stops an ancestor's `overflow` from clipping the panel — measured: an
+ * absolutely positioned panel inside an `s-section` was cut off exactly at the section's painted
+ * edge, so its second suggestion could not be clicked. No `z-index` fixes that, because clipping is
+ * not stacking.
+ *
+ * The panel keeps its place in the DOM, so Blazor's renderer is never surprised by a node that has
+ * moved: the top layer is a paint-and-hit-testing arrangement, not a reparenting one.
+ *
+ * Coordinates come from the anchor's viewport rect and are re-applied while the page scrolls or the
+ * window resizes. The panel is only ever open while the merchant is working in one control, so the
+ * two listeners cost nothing the rest of the time, and they are removed on `hidePopup`.
+ *
+ * @param {HTMLElement} panel the panel to show
+ * @param {HTMLElement} anchor the element it is anchored to
+ * @param {boolean} above draw it above the anchor rather than below
+ * @returns {Promise<boolean>} false when either element is missing
+ */
+export async function showPopup(panel, anchor, above = false) {
+    if (!panel || !anchor) return false;
+
+    // `hidden` is the closed state in every browser; the popover attribute is the top layer in the
+    // browsers that have it. Removing the attribute first is what makes `showPopover` legal.
+    panel.hidden = false;
+
+    const gap = 4;
+    const place = () => {
+        const rect = anchor.getBoundingClientRect();
+
+        panel.style.position = "fixed";
+        panel.style.left = `${Math.round(rect.left)}px`;
+        panel.style.width = `${Math.round(rect.width)}px`;
+
+        // Never taller than the room on the chosen side: a panel that runs past the viewport edge has
+        // rows the merchant can see and cannot click. 96px is a floor for a control near an edge.
+        const room = above
+            ? rect.top - gap - 8
+            : window.innerHeight - rect.bottom - gap - 8;
+        panel.style.maxBlockSize = `${Math.max(96, Math.round(room))}px`;
+
+        if (above) {
+            panel.style.top = "auto";
+            panel.style.bottom = `${Math.round(window.innerHeight - rect.top + gap)}px`;
+        } else {
+            panel.style.bottom = "auto";
+            panel.style.top = `${Math.round(rect.bottom + gap)}px`;
+        }
+    };
+
+    if (typeof panel.showPopover === "function") {
+        if (!panel.matches(":popover-open")) {
+            panel.showPopover();
+        }
+    }
+
+    place();
+
+    const onMove = () => place();
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+
+    // One panel can be re-shown without being hidden first (a re-render, a placement change), so the
+    // previous listeners are removed rather than added to.
+    const previous = popups.get(panel);
+    if (previous) previous();
+
+    popups.set(panel, () => {
+        window.removeEventListener("scroll", onMove, true);
+        window.removeEventListener("resize", onMove);
+    });
+
+    return true;
+}
+
+/**
+ * Hides a panel shown by `showPopup` and removes its positioning listeners.
+ *
+ * Safe on an element that has already left the DOM: the listener cleanup is keyed by the element
+ * itself, and hiding a detached popover is a no-op the browser accepts.
+ *
+ * @param {HTMLElement} panel the panel to hide
+ */
+export function hidePopup(panel) {
+    if (!panel) return;
+
+    const cleanup = popups.get(panel);
+    if (cleanup) {
+        cleanup();
+        popups.delete(panel);
+    }
+
+    if (typeof panel.hidePopover === "function" && panel.matches(":popover-open")) {
+        panel.hidePopover();
+    }
+
+    panel.hidden = true;
 }
 
 /**

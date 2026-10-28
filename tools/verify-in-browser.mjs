@@ -1209,6 +1209,33 @@ function evaluateAssertions(result) {
             `typing opens the list and filters it (${autocomplete.typed?.rows ?? 0} rows)`,
         );
         check(
+            autocomplete.typed?.panel?.position === "fixed",
+            `the suggestion panel is a fixed layer (position: ${autocomplete.typed?.panel?.position ?? "none"})`,
+        );
+        check(
+            autocomplete.typed?.lastRowHit?.inPanel === true,
+            `every suggestion is hit-testable, so no ancestor clips the panel ` +
+            `(the last row's centre found ${autocomplete.typed?.lastRowHit?.tag ?? "nothing"})`,
+        );
+        check(
+            Number(autocomplete.typed?.panel?.zIndex ?? 0) > 0,
+            `the panel stacks over the page content (z-index: ${autocomplete.typed?.panel?.zIndex ?? "auto"})`,
+        );
+        check(
+            Math.abs((autocomplete.typed?.echoTop ?? 0) - (autocomplete.before?.echoTop ?? 0)) < 1,
+            `opening the list does not move the page (the line below stayed at ${autocomplete.before?.echoTop ?? "?"}px)`,
+        );
+        check(
+            autocomplete.typed?.panel !== null &&
+                autocomplete.typed.panel.bottom > (autocomplete.typed.echoViewportTop ?? 0) &&
+                autocomplete.typed.panel.top < (autocomplete.typed.echoViewportTop ?? 0),
+            "the panel is drawn over the content below the field, not in place of it",
+        );
+        check(
+            Math.abs((autocomplete.typed?.panel?.width ?? 0) - (autocomplete.typed?.fieldWidth ?? 0)) < 2,
+            `the panel matches the field's width (${Math.round(autocomplete.typed?.panel?.width ?? 0)}px vs ${Math.round(autocomplete.typed?.fieldWidth ?? 0)}px)`,
+        );
+        check(
             autocomplete.arrowed?.active === "S-BUTTON",
             `ArrowDown moves focus onto a row (document.activeElement is ${autocomplete.arrowed?.active ?? "nothing"})`,
         );
@@ -1578,6 +1605,9 @@ try {
     if (result.autocomplete?.present && await devtools.focusGalleryAutocomplete()) {
         const autocompleteState = `(() => {
             const host = document.querySelector("[data-gallery-autocomplete] s-text-field");
+            const panel = document.querySelector("[data-polaris-popup]");
+            const box = panel?.getBoundingClientRect();
+            const echo = document.querySelector("[data-gallery-autocomplete-value]")?.getBoundingClientRect();
             return {
                 rows: document.querySelectorAll("[data-polaris-autocomplete-row]").length,
                 labels: Array.from(document.querySelectorAll("[data-polaris-autocomplete-row]"))
@@ -1585,8 +1615,35 @@ try {
                 chosen: document.querySelector("[data-gallery-autocomplete-value]")?.textContent?.trim() ?? null,
                 fieldText: host?.shadowRoot?.querySelector("input")?.value ?? null,
                 active: document.activeElement?.tagName ?? null,
+                // Document-relative, so scrolling between two reads cannot masquerade as the panel
+                // pushing the page down.
+                echoTop: echo ? echo.top + window.scrollY : null,
+                echoViewportTop: echo?.top ?? null,
+                fieldWidth: document.querySelector("[data-polaris-autocomplete-field]")?.getBoundingClientRect().width ?? null,
+                panel: box && panel
+                    ? {
+                        position: getComputedStyle(panel).position,
+                        zIndex: getComputedStyle(panel).zIndex,
+                        top: box.top,
+                        bottom: box.bottom,
+                        width: box.width,
+                    }
+                    : null,
+                // The top layer is the anti-clipping mechanism, so the proof is that the LAST row can be
+                // hit-tested: with an absolutely positioned panel the second row was outside the
+                // section's clip and elementFromPoint found the section instead.
+                lastRowHit: (() => {
+                    const rows = Array.from(document.querySelectorAll("[data-polaris-autocomplete-row]"));
+                    const last = rows[rows.length - 1];
+                    if (!last) return null;
+                    const rowBox = last.getBoundingClientRect();
+                    const hit = document.elementFromPoint(rowBox.left + rowBox.width / 2, rowBox.top + rowBox.height / 2);
+                    return { inPanel: Boolean(hit?.closest("[data-polaris-popup]")), tag: hit?.tagName ?? null };
+                })(),
             };
         })()`;
+
+        result.autocomplete.before = await devtools.evaluate(autocompleteState);
 
         await devtools.replaceFocusedFieldText("go");
         await devtools.waitFor(async () => (await devtools.evaluate(autocompleteState)).rows >= 2);

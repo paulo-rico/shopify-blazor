@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisInterop.cs -->
-<!-- source-sha256: 5afbd606e9ec -->
+<!-- source-sha256: 6798c34ec923 -->
 
 # PolarisInterop.cs
 
@@ -30,6 +30,8 @@ so no component ever touches `IJSRuntime` itself.
 | `ClearPropertiesAsync` | `ValueTask ClearPropertiesAsync(ElementReference element, string tagName, IEnumerable<string> names)` | Clears previously set array-valued properties, so a value the server dropped cannot linger in the element. |
 | `FocusWithinAsync` | `ValueTask<bool> FocusWithinAsync(ElementReference element, string? selector = null)` | Moves keyboard focus onto the first focusable control inside the element — a field's input, or the button a button-like element renders — or onto the element itself when it is the focusable thing. Returns false when nothing focusable was found. |
 | `SetAriaExpandedAsync` | `ValueTask<bool> SetAriaExpandedAsync(ElementReference element, bool expanded)` | Writes `aria-expanded` onto the `<button>` an element renders **inside its own shadow root**. Returns false when there is no button. |
+| `ShowPopupAsync` | `ValueTask<bool> ShowPopupAsync(ElementReference panel, ElementReference anchor, bool above)` | Puts the panel in the browser's top layer and positions it against the anchor, re-applying the position while the page scrolls or resizes. False when either element is missing or the module cannot load. |
+| `HidePopupAsync` | `ValueTask HidePopupAsync(ElementReference panel)` | Hides a shown panel and releases its scroll/resize listeners. Safe on an element that has already left the DOM. |
 | `GetComponentStatusAsync` | `ValueTask<IReadOnlyDictionary<string, PolarisComponentStatus>> GetComponentStatusAsync(IEnumerable<string> tagNames)` | Reports which custom elements are registered and upgraded on the current page, and how many exist. Empty dictionary when interop is unavailable. |
 | `IsEmbeddedAsync` | `ValueTask<bool> IsEmbeddedAsync()` | True when the page is running inside the Shopify Admin. False on any failure. |
 | `DisposeAsync` | `ValueTask DisposeAsync()` | Disposes the module reference, the dispatcher reference, the dispatcher and the gate. Idempotent. |
@@ -57,7 +59,8 @@ matching elements there are.
 - **The JavaScript functions it calls**, by name: `ensureId`, `attachEvents` (element, event names,
   dispatcher reference, handle, tag name), `release` (element), `setProperties`, `clearProperties` (element,
   tag name, names), `focusWithin` (element, selector), `setShadowButtonExpanded` (element, expanded),
-  `invokeElementMethod` (element, method, arguments), `componentStatus` (tag names) and `isEmbedded`.
+  `showPopup` (panel, anchor, above), `hidePopup` (panel), `invokeElementMethod` (element, method,
+  arguments), `componentStatus` (tag names) and `isEmbedded`.
 - **Failure is data, not an exception.** Almost every method catches "recoverable" exceptions and returns
   null/false/empty: `JSDisconnectedException`, `TaskCanceledException`, `ObjectDisposedException`,
   `InvalidOperationException` (no interop during static prerendering) and `JSException`.

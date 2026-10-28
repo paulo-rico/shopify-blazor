@@ -116,6 +116,17 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
     /// </remarks>
     public List<bool> AriaExpanded { get; } = [];
 
+    /// <summary>
+    /// Popup shows and hides, in the order they were asked for: <c>show:below</c>, <c>show:above</c>
+    /// or <c>hide</c>.
+    /// </summary>
+    /// <remarks>
+    /// The popup cannot be asserted through the DOM alone: whether it is really in the browser's top
+    /// layer is a browser fact. What a component test can own is that the right call was made — and
+    /// that closing asks for the hide, which is what releases the positioning listeners.
+    /// </remarks>
+    public List<string> PopupCalls { get; } = [];
+
     /// <summary>How many times the module was initialized.</summary>
     public int InitializeCount { get; private set; }
 
@@ -239,6 +250,20 @@ public sealed class RecordingPolarisInterop : IPolarisInterop
         FocusWithinCount++;
         LastFocusSelector = selector;
         return ValueTask.FromResult(FocusWithinSucceeds);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<bool> ShowPopupAsync(ElementReference panel, ElementReference anchor, bool above)
+    {
+        PopupCalls.Add(above ? "show:above" : "show:below");
+        return ValueTask.FromResult(true);
+    }
+
+    /// <inheritdoc />
+    public ValueTask HidePopupAsync(ElementReference panel)
+    {
+        PopupCalls.Add("hide");
+        return ValueTask.CompletedTask;
     }
 
     /// <inheritdoc />

@@ -47,7 +47,50 @@ public sealed class AutocompleteRenderingTests
         Assert.Equal(string.Empty, field.GetAttribute("defaultValue"));
 
         Assert.Empty(component.FindAll("[data-polaris-autocomplete-row]"));
-        Assert.Empty(component.FindAll("s-box"));
+        Assert.True(component.Find("[data-polaris-popup]").HasAttribute("hidden"));
+    }
+
+    [Fact]
+    public async Task The_suggestions_are_drawn_in_a_top_layer_panel_over_the_page()
+    {
+        // Measured, not assumed: the inline version pushed the page down on every keystroke, and an
+        // absolutely positioned version was clipped at the section's edge. The panel is a native
+        // popover — a top-layer surface — so the field stays put and an ancestor's overflow cannot cut
+        // the list off.
+        using var context = new PolarisTestContext();
+
+        var component = Render(context, parameters => parameters.Add(p => p.Items, [Gold, Silver]));
+
+        await TypeAsync(component, context, "go");
+
+        var panel = component.Find("[data-polaris-popup]");
+        Assert.Equal("manual", panel.GetAttribute("popover"));
+        Assert.Contains("overflow-y:auto", panel.GetAttribute("style"));
+
+        // The field is the anchor, never a child of the panel: the panel is placed relative to it.
+        Assert.Empty(panel.QuerySelectorAll("s-text-field"));
+        Assert.Single(component.FindAll("[data-polaris-popup-anchor]"));
+
+        component.WaitForAssertion(() => Assert.Contains("show:below", context.Interop.PopupCalls));
+    }
+
+    [Fact]
+    public async Task Closing_the_list_hides_the_panel_and_leaves_no_suggestion_elements_behind()
+    {
+        // The popup's element stays in the DOM while closed, so the rows must not: a closed autocomplete
+        // that still renders its options is a list nothing can see and everything can tab into.
+        using var context = new PolarisTestContext();
+
+        var component = Render(context, parameters => parameters.Add(p => p.Items, [Gold, Silver]));
+
+        await TypeAsync(component, context, "go");
+        Assert.NotEmpty(Rows(component));
+
+        await KeyAsync(component, context, "Escape");
+
+        Assert.True(component.Find("[data-polaris-popup]").HasAttribute("hidden"));
+        Assert.Empty(Rows(component));
+        component.WaitForAssertion(() => Assert.Contains("hide", context.Interop.PopupCalls));
     }
 
     [Fact]

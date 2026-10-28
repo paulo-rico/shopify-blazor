@@ -13,16 +13,25 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Added
 
+- **`PolarisPopup`** — an anchored panel drawn over the page, for content Polaris has no element to show.
+  It is a native popover, so the browser paints it in the top layer and no ancestor can clip it: an
+  absolutely positioned first version was measured being cut off at an `s-section`'s painted edge, and
+  no `z-index` fixes clipping. The library positions it from the anchor's rect and re-applies that while
+  the page scrolls, caps its height to the room on the chosen side, and paints it with `Canvas` /
+  `CanvasText` so it follows the Admin's colour scheme. Dismissal is the caller's, because only the
+  caller knows whether a blur means "left" or "moving into the panel".
 - **`PolarisAutocomplete<TItem>`** — a generic, single-selection autocomplete: local filtering or an
   optional asynchronous provider, a row template, a suggestion cap and a debounce, composed from an
-  `s-text-field` and a bordered `s-box` of `s-button` rows because Polaris has no combobox, listbox or
+  `s-text-field` and a `PolarisPopup` of `s-button` rows because Polaris has no combobox, listbox or
   autocomplete element. Text and value are separate state: typing is not a selection, and a commit that
   matches nothing puts the chosen item's text back unless `AllowCustomValue` asks for the text instead.
   The keyboard moves real focus onto the rows — ArrowDown/Up, Enter/Space, Escape — rather than
   inventing `aria-activedescendant`, which no light-DOM attribute can write into a field's shadow root.
-  Verified in Chrome through the gallery; three faults were silent in the component tests: `focusWithin`
-  did not know about `<button>`, a search field clears itself on Escape, and the blur that moves focus
-  into the list was arriving as a commit.
+  Verified in Chrome through the gallery; four faults were silent in the component tests: `focusWithin`
+  did not know about `<button>`, a search field clears itself on Escape, the blur that moves focus into
+  the list was arriving as a commit, and an inline panel moved the page on every keystroke.
+- **`ShowPopupAsync` / `HidePopupAsync` on `IPolarisInterop`** — the module half of the popup: top-layer
+  show, fixed positioning against an anchor, scroll and resize following, and listener cleanup.
 - **`OnKeyDown` on `PolarisTextField` and `PolarisButton`** — the DOM keyboard event, forwarded with
   `args.Key`. It is what lets the autocomplete's field and rows handle the arrow keys without a wrapper
   whose events would have to cross a shadow boundary; Enter and Space still activate a row natively.
