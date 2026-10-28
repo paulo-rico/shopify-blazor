@@ -382,24 +382,45 @@ public sealed class DataFilterRenderingTests
     }
 
     [Fact]
-    public void The_panel_presentation_draws_the_controls_in_place_with_no_search_box_or_button()
+    public void The_panel_presentation_draws_the_controls_in_place_with_no_button_or_popover()
     {
         // The whole point of the presentation: a screen has given the filter a column of its own, so
-        // there is nothing to open. A search box or a Filter button left in would be two controls that
-        // do nothing in a sidebar, and the popover would be an empty panel anchored to nothing.
+        // there is nothing to open. A Filter button left in would be a control that does nothing in a
+        // sidebar, and the popover would be an empty panel anchored to nothing.
         using var context = new PolarisTestContext();
         using var state = NewState();
 
         var filter = RenderPanel(context, state);
 
-        Assert.Empty(filter.FindAll("s-search-field"));
         Assert.Empty(filter.FindAll("s-popover"));
+
+        // The search box IS part of the panel: on a list screen it is the widest-reaching control a
+        // merchant has, and a sidebar without it would send them looking for it in the grid.
+        Assert.Single(filter.FindAll("s-search-field"));
 
         // The same controls the bar's panel would hold: one per filterable column.
         Assert.Single(filter.FindAll("s-text-field"));
         Assert.Single(filter.FindAll("s-choice-list"));
         Assert.Single(filter.FindAll("[data-polaris-range-slider]"));
         Assert.Single(filter.FindAll("s-select"));
+    }
+
+    [Fact]
+    public void A_panel_can_leave_the_search_box_out_for_a_screen_that_keeps_its_own()
+    {
+        // The picker's search asks SHOPIFY for a subset; the panel's narrows the rows already loaded. Two
+        // search boxes side by side would be two different results under one word, so that screen turns the
+        // panel's off and keeps its own above it.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        var filter = context.Render<PolarisDataFilter>(parameters => parameters
+            .Add(component => component.State, state)
+            .Add(component => component.Presentation, PolarisDataFilterPresentation.Panel)
+            .Add(component => component.ShowSearch, false));
+
+        Assert.Empty(filter.FindAll("s-search-field"));
+        Assert.NotEmpty(filter.FindAll("s-text-field"));
     }
 
     [Fact]

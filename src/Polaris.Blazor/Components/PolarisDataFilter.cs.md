@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisDataFilter.cs -->
-<!-- source-sha256: 598ef5488304 -->
+<!-- source-sha256: cd2728db2721 -->
 
 # PolarisDataFilter.cs
 
@@ -7,8 +7,9 @@ The filter bar for a data grid: a search box, a popover of per-column controls g
 grid's own column metadata, and a removable chip for every filter that is applied. It never touches
 the collection — it writes a `PolarisGridFilterDescriptor` into the shared `PolarisGridState`, which
 re-runs the query — so it can be moved, replaced or left out. Its `Panel` presentation draws those
-same controls in place, in a column of their own, with the chips and Clear all above them, and by
-default the controls narrow to the current result as the merchant narrows the list.
+same controls in place, in a column of their own, with the search box above them and the chips and
+Clear all in between, and by default the controls narrow to the current result as the merchant
+narrows the list.
 
 `Polaris.Blazor.Components` · composed component, not one `<s-*>` element: an `s-stack` bar holding an
 `s-search-field`, an `s-button`, an `s-clickable-chip` row and an `s-popover` panel · base
@@ -24,9 +25,9 @@ default the controls narrow to the current result as the merchant narrows the li
 | `SearchPlaceholder` | `string?` | `"Search"` | Placeholder in the search box. `null` is passed through as null — there is no render-time fallback to the default, the default is only the initialiser. |
 | `ShowActiveFilters` | `bool` | `true` | Draws the chip row. Off hides the chips only: filters still apply, and the filter button still counts them. |
 | `ShowClearAll` | `bool` | `true` | Draws the "Clear all" button — and only when the state has a column filter or a non-blank search (`Query.HasAnyFilter`). With nothing applied the button is absent rather than disabled. |
-| `ShowSearch` | `bool` | `true` | Draws the search box. Off removes the control but leaves a search already in the state applying. Ignored by `Panel`, which never draws one. |
+| `ShowSearch` | `bool` | `true` | Draws the search box, in either presentation. Off removes the control but leaves a search already in the state applying — and it is what a screen with its own server-side search passes, so the two boxes do not sit side by side filtering different things. |
 | `Actions` | `RenderFragment?` | `null` | Content at the end of the bar, in its own inline stack — an export button, a column picker. Rendered before the popover, which is the last child of the outer stack. Ignored by `Panel`. |
-| `Presentation` | `PolarisDataFilterPresentation` | `Bar` | Where the controls are drawn. `Bar` is the search box, Filter button, chips and popover described above. `Panel` drops the bar and draws the same controls in place, with the chips and Clear all above them — for a screen that has given the filter a column of its own. |
+| `Presentation` | `PolarisDataFilterPresentation` | `Bar` | Where the controls are drawn. `Bar` is the search box, Filter button, chips and popover described above. `Panel` drops the bar and popover and draws the search box, the chips and Clear all above the same controls in place — for a screen that has given the filter a column of its own. |
 | `Columns` | `RenderFragment?` | `null` | Column declarations for a screen whose rows are not a table. A grid registers the columns in its own `Columns` fragment; a card or gallery screen has no grid, so it declares them here and this component is the host they register with. Rendered before the controls are read, and never removed. |
 | `NarrowToResult` | `bool` | `true` | Whether each control's choices and bounds come from the current result rather than from the whole dataset. On, the panel narrows as the list narrows and a control with nothing left to offer is not drawn; off, every control always describes the whole dataset. |
 
@@ -89,11 +90,15 @@ and redraws.
   change made elsewhere shows up in the panel; while a field's change is pending they are left alone,
   or a stale value would be written back mid-keystroke and the caret would jump.
 - **The panel presentation.** With `Presentation="Panel"` there is no bar and no popover: one stack
-  holds an optional chip row and then the same controls the popover would hold. The chip row is the
-  chips in a wrapping grid and, under them, a Clear all button — a wrapping `s-grid` cannot keep one
-  item pinned to the end of the row, and an inline stack does not wrap at all. Nothing is drawn for
-  the chip row when nothing is applied, so a panel with no filters is its controls and no empty row.
-  `ShowSearch`, `Actions` and the filter button's count have no meaning there and are ignored.
+  holds the search box (unless `ShowSearch` is off), the chip row, and then the same controls the
+  popover would hold. The search box belongs there because on a list screen it is the widest-reaching
+  control a merchant has, and a sidebar without it would send them looking for the grid's own field;
+  a screen whose search asks a server instead passes `ShowSearch="false"` so two boxes do not sit
+  beside each other filtering different things. The chip row is the chips in a wrapping grid and,
+  under them, a Clear all button — a wrapping `s-grid` cannot keep one item pinned to the end of the
+  row, and an inline stack does not wrap at all. Nothing is drawn for the chip row when nothing is
+  applied, so a panel with no filters is its search box, its controls and no empty row. `Actions` and
+  the filter button's count have no meaning there and are ignored.
 - **`Columns` hosts the declarations for a screen with no table.** They are rendered before the
   controls are read, so the first render already knows them, and they are rendered outside every
   result branch, so a column stays registered while the list is empty. The component cascades itself

@@ -103,8 +103,8 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase, IPolarisGridCo
     /// <see cref="PolarisDataFilterPresentation.Bar"/> is the default, so every screen written before
     /// this parameter existed keeps the filter it had. <see
     /// cref="PolarisDataFilterPresentation.Panel"/> is for a screen that has made room by placing this
-    /// component in a column of its own: the same controls, the chips and Clear all above them, and no
-    /// search box, button or popover.
+    /// component in a column of its own: the search box (unless <see cref="ShowSearch"/> is off), the
+    /// chips and Clear all above the same controls, and no button or popover.
     /// </remarks>
     [Parameter] public PolarisDataFilterPresentation Presentation { get; set; }
 
@@ -329,7 +329,12 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase, IPolarisGridCo
             builder.AddAttribute(11, nameof(PolarisStack.Gap), PolarisGap.Base);
             builder.AddAttribute(12, nameof(PolarisStack.ChildContent), (RenderFragment)(panel =>
             {
-                BuildChipRow(panel, 0);
+                // The search box belongs to the panel when the panel is the whole filter: on a list screen it
+                // is the widest-reaching control a merchant uses, and a sidebar without it would have sent
+                // them to the grid's own search field instead. A screen that keeps its own search beside the
+                // panel — one that asks Shopify rather than filtering the rows — passes ShowSearch="false".
+                BuildSearch(panel);
+                BuildChipRow(panel, 10);
                 BuildControls(panel, filterable, panelId: null);
             }));
             builder.CloseComponent();

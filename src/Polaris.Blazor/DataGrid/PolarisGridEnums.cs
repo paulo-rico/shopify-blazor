@@ -175,8 +175,9 @@ public enum PolarisDataFilterPresentation
     Bar,
 
     /// <summary>
-    /// The panel's controls drawn in place, with the applied chips and Clear all above them. No
-    /// search box, no button and no popover: the caller has already made room for a filter.
+    /// The panel's controls drawn in place, with the search box above them and the applied chips and
+    /// Clear all between the two. No button and no popover: the caller has already made room for a
+    /// filter.
     /// </summary>
     Panel,
 }
