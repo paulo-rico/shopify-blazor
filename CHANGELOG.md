@@ -13,6 +13,19 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Added
 
+- **`PolarisDataFilter.NarrowToResult`** — the panel's controls now narrow to the current result by
+  default: a multi-select offers only the values the remaining rows hold, a range slider spans only what
+  they cost, and a control with nothing left to offer is not drawn at all. It is computed from the rows
+  that pass every *other* applied filter, so a column's own criterion never hides its own choices and a
+  range can still be widened back out; `NarrowToResult="false"` restores the old whole-dataset bar. The
+  narrowing is `PolarisGridState.GetNarrowedValues` / `GetNarrowedNumericBounds`, rebuilt on every filter
+  change and cached per column, and `PolarisGridQueryEngine.Match` is the unpaged filter pass behind it.
+- **`PolarisDataFilter.Presentation`** — `Bar` (the search box, Filter button, chips and popover every
+  screen had) or `Panel`, which draws the same controls in place with the chips and Clear all above them.
+  It is for a screen that has given the filter a column of its own, beside a grid of cards.
+- **`PolarisDataFilter.Columns`** — column declarations for a screen with no table. A card or gallery
+  screen has no grid to declare them on, so the filter hosts them through `IPolarisGridColumnHost` and
+  generates its controls from them exactly as a grid would.
 - **`PolarisPopup`** — an anchored panel drawn over the page, for content Polaris has no element to show.
   It is a native popover, so the browser paints it in the top layer and no ancestor can clip it: an
   absolutely positioned first version was measured being cut off at an `s-section`'s painted edge, and

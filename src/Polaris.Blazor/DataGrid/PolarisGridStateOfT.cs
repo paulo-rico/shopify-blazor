@@ -27,6 +27,8 @@ public sealed class PolarisGridState<TItem> : PolarisGridState
     private Dictionary<string, (decimal? Minimum, decimal? Maximum)>? _decimalBounds;
     private Dictionary<string, (DateOnly? Minimum, DateOnly? Maximum)>? _dateBounds;
     private Dictionary<string, IReadOnlyList<object?>>? _distinct;
+    private Dictionary<string, IReadOnlyList<object?>>? _narrowedValues;
+    private Dictionary<string, (decimal? Minimum, decimal? Maximum)>? _narrowedBounds;
 
     /// <summary>Creates the state, optionally with its first snapshot of records.</summary>
     /// <param name="items">The local records. Materialised immediately.</param>
@@ -239,6 +241,12 @@ public sealed class PolarisGridState<TItem> : PolarisGridState
     {
         Result = PolarisGridQueryEngine.Execute(_items, _columns, Query);
 
+        // The narrowed lookups are a function of the applied filters, so a filter change is exactly when
+        // they stop being true. Cleared here rather than in InvalidateCaches: the whole-dataset caches do
+        // not depend on the query and would be recomputed for nothing.
+        _narrowedValues = null;
+        _narrowedBounds = null;
+
         // The engine clamps the page to the pages that exist; writing the verdict back is what keeps
         // a pager from showing page 3 of a result that has one page.
         Query.PageIndex = Result.PageIndex;
@@ -367,10 +375,103 @@ public sealed class PolarisGridState<TItem> : PolarisGridState
         return values;
     }
 
+    /// <summary>
+    /// The values a column can still offer, among the rows that pass every OTHER applied filter.
+    /// </summary>
+    /// <param name="columnId">The column id.</param>
+    /// <remarks>
+    /// Cached per column and cleared whenever the query changes, so a panel with five multi-selects runs
+    /// five matching passes per filter change rather than five per render. The column's own filter is left
+    /// out — see <see cref="PolarisGridState.GetNarrowedValues"/>.
+    /// </remarks>
+    public override IReadOnlyList<object?> GetNarrowedValues(string columnId)
+    {
+        _narrowedValues ??= new Dictionary<string, IReadOnlyList<object?>>(StringComparer.Ordinal);
+
+        if (_narrowedValues.TryGetValue(columnId, out var cached))
+        {
+            return cached;
+        }
+
+        var column = FindColumn(columnId);
+        IReadOnlyList<object?> values = [];
+
+        if (column is not null)
+        {
+            var distinct = new List<object?>();
+
+            foreach (var item in RowsWithoutOwnFilter(columnId))
+            {
+                var value = column.ValueGetter(item);
+
+                if (value is not null && !distinct.Contains(value))
+                {
+                    distinct.Add(value);
+                }
+            }
+
+            distinct.Sort(PolarisGridValueComparer.Instance);
+            values = distinct;
+        }
+
+        _narrowedValues[columnId] = values;
+        return values;
+    }
+
+    /// <summary>
+    /// The numeric bounds of a column among the rows that pass every OTHER applied filter.
+    /// </summary>
+    /// <param name="columnId">The column id.</param>
+    public override (decimal? Minimum, decimal? Maximum) GetNarrowedNumericBounds(string columnId)
+    {
+        _narrowedBounds ??= new Dictionary<string, (decimal? Minimum, decimal? Maximum)>(StringComparer.Ordinal);
+
+        if (_narrowedBounds.TryGetValue(columnId, out var cached))
+        {
+            return cached;
+        }
+
+        decimal? minimum = null;
+        decimal? maximum = null;
+        var column = FindColumn(columnId);
+
+        if (column is not null)
+        {
+            foreach (var item in RowsWithoutOwnFilter(columnId))
+            {
+                if (!PolarisGridValues.TryToDecimal(column.ValueGetter(item), out var value))
+                {
+                    continue;
+                }
+
+                minimum = minimum is null || value < minimum ? value : minimum;
+                maximum = maximum is null || value > maximum ? value : maximum;
+            }
+        }
+
+        var bounds = (minimum, maximum);
+        _narrowedBounds[columnId] = bounds;
+        return bounds;
+    }
+
+    /// <summary>
+    /// The rows the filters keep when <paramref name="columnId"/>'s own criterion is set aside.
+    /// </summary>
+    /// <param name="columnId">The column whose filter to leave out.</param>
+    private IReadOnlyList<TItem> RowsWithoutOwnFilter(string columnId)
+    {
+        var query = Query.Clone();
+
+        query.Filters.RemoveAll(filter => string.Equals(filter.Field, columnId, StringComparison.Ordinal));
+
+        // No paging and no sorting: a facet only counts what matched, and a sort would cost a comparison
+        // per row for an order nobody reads.
+        return PolarisGridQueryEngine.Match(_items, _columns, query);
+    }
+
     /// <summary>The key that identifies one record.</summary>
     /// <param name="item">The record.</param>
     public object KeyOf(TItem item) => KeySelector(item);
-
     /// <summary>True when the record is selected.</summary>
     /// <param name="item">The record.</param>
     public bool IsSelected(TItem item) => _selected.Contains(KeySelector(item));
@@ -431,5 +532,7 @@ public sealed class PolarisGridState<TItem> : PolarisGridState
         _decimalBounds = null;
         _dateBounds = null;
         _distinct = null;
+        _narrowedValues = null;
+        _narrowedBounds = null;
     }
 }

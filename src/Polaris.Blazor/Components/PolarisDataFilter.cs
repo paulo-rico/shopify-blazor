@@ -125,6 +125,26 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase, IPolarisGridCo
     /// </remarks>
     [Parameter] public RenderFragment? Columns { get; set; }
 
+    /// <summary>
+    /// Whether each control's choices and bounds are taken from the current result rather than from
+    /// the whole dataset. On by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// On, the panel keeps telling the truth as the list shrinks: filter to one vendor and the piece
+    /// types still on offer are that vendor's, and a price control spans what those rows cost. A
+    /// control with nothing left to offer is not drawn at all, because a filter that can only match
+    /// nothing is worse than no filter.
+    /// </para>
+    /// <para>
+    /// Off, every control always describes the whole dataset — the shape this component had before
+    /// narrowing existed, and the one to choose when a page would rather its filter bar stayed still
+    /// while the table narrowed. Each control's <em>own</em> applied filter is left out either way, so
+    /// a range can always be widened again rather than being held at its own ends.
+    /// </para>
+    /// </remarks>
+    [Parameter] public bool NarrowToResult { get; set; } = true;
+
     /// <inheritdoc />
     protected override PolarisGridState? BoundState => State;
 
@@ -675,9 +695,17 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase, IPolarisGridCo
 
     private void BuildChoiceControl(RenderTreeBuilder builder, IPolarisGridColumn column)
     {
-        var options = column.FilterOptions ?? State.GetDistinctValues(column.Id);
+        var options = ChoiceOptions(column);
         var selected = SelectedValues(column.Id);
         var columnId = column.Id;
+
+        // Nothing left to choose from: every option would match no row, so the control is not drawn at all.
+        // A column that already carries a filter keeps its control regardless — the chip and the control are
+        // two ways back to the same filter, and taking the control away leaves only one.
+        if (NarrowToResult && options.Count == 0 && !State.HasFilter(column.Id))
+        {
+            return;
+        }
 
         builder.OpenComponent<PolarisChoiceList>(0);
         builder.AddAttribute(1, nameof(PolarisChoiceList.Label), column.Title);
@@ -703,6 +731,33 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase, IPolarisGridCo
             }
         }));
         builder.CloseComponent();
+    }
+
+    /// <summary>
+    /// What a multi-select can still offer: the column's stated options, or its own values, narrowed to the
+    /// current result when <see cref="NarrowToResult"/> is on.
+    /// </summary>
+    private IReadOnlyList<object?> ChoiceOptions(IPolarisGridColumn column)
+    {
+        if (!NarrowToResult)
+        {
+            return column.FilterOptions ?? State.GetDistinctValues(column.Id);
+        }
+
+        var available = State.GetNarrowedValues(column.Id);
+
+        if (column.FilterOptions is not { } declared)
+        {
+            return available;
+        }
+
+        // A column that states its own options keeps them, minus the ones no remaining row holds. The stated
+        // list exists so a control offers something before any data arrives, not so it goes on offering a
+        // status that only rows already excluded by another filter had.
+        return
+        [
+            .. declared.Where(option => available.Any(value => PolarisGridValues.Compare(value, option, column.ValueType) == 0)),
+        ];
     }
 
     private void BuildBooleanControl(RenderTreeBuilder builder, IPolarisGridColumn column)
@@ -754,17 +809,43 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase, IPolarisGridCo
 
     private void BuildRangeControl(RenderTreeBuilder builder, IPolarisGridColumn column)
     {
-        // Bounds from the whole dataset, not the filtered one: bounds that follow the filter move
-        // inwards with the handles, so a narrow range can never be widened again.
-        var (minimum, maximum) = State.GetNumericBounds(column.Id);
+        // Bounds from the whole dataset by default: bounds that follow the filter move inwards with the
+        // handles, so a narrow range can never be widened again. NarrowToResult asks for the opposite trade —
+        // the slider spans what the current result actually costs — and the column's own filter is left out
+        // of the rows it is read from, which is what still lets the range be widened back out.
+        var (minimum, maximum) = NarrowToResult
+            ? State.GetNarrowedNumericBounds(column.Id)
+            : State.GetNumericBounds(column.Id);
+
+        var hasOwnFilter = State.HasFilter(column.Id);
+
+        if (NarrowToResult && minimum is null)
+        {
+            // No number left in the result: a slider over an empty domain is a filter that can only match
+            // nothing. A column that already carries a filter keeps its control, over the whole dataset, so
+            // the merchant can widen it again from here.
+            if (!hasOwnFilter)
+            {
+                return;
+            }
+
+            (minimum, maximum) = State.GetNumericBounds(column.Id);
+        }
+
         var domain = new PolarisNumberRange(
             minimum ?? 0m,
             maximum ?? (minimum ?? 0m) + 1m);
 
         var filter = State.Query.FilterFor(column.Id);
+
+        // Clamped into the domain this control was given. A narrowed domain can be narrower than an applied
+        // filter — the filter was set against a wider one — and a handle drawn outside its own track is a
+        // percentage past 100, not a range.
         var value = filter is null
             ? (PolarisNumberRange?)null
-            : new PolarisNumberRange(ToDecimal(filter.Value, domain.Lower), ToDecimal(filter.SecondValue, domain.Upper));
+            : new PolarisNumberRange(
+                Math.Clamp(ToDecimal(filter.Value, domain.Lower), domain.Lower, domain.Upper),
+                Math.Clamp(ToDecimal(filter.SecondValue, domain.Upper), domain.Lower, domain.Upper));
 
         var columnId = column.Id;
 

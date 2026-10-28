@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisGridState.cs -->
-<!-- source-sha256: 61e91bfffa40 -->
+<!-- source-sha256: 571f6ef929da -->
 
 # PolarisGridState.cs
 
@@ -45,6 +45,8 @@ pager behave as one control.
 | `Refresh` | `abstract void Refresh()` | Re-runs the query over the current snapshot and notifies subscribers. |
 | `RaiseChanged` | `protected void RaiseChanged()` | Invokes `Changed`, unless the state has been disposed. |
 | `GetNumericBounds` | `abstract (decimal? Minimum, decimal? Maximum) GetNumericBounds(string columnId)` | Numeric bounds of a column across the whole dataset, ignoring filters. |
+| `GetNarrowedValues` | `abstract IReadOnlyList<object?> GetNarrowedValues(string columnId)` | Distinct values of a column among the rows that pass every **other** applied filter — the values a narrowing filter control can still offer. Empty when none of the remaining rows has one. |
+| `GetNarrowedNumericBounds` | `abstract (decimal? Minimum, decimal? Maximum) GetNarrowedNumericBounds(string columnId)` | The same, for a range control's ends. |
 | `GetDateBounds` | `abstract (DateOnly? Minimum, DateOnly? Maximum) GetDateBounds(string columnId)` | Date bounds of a column across the whole dataset, ignoring filters. |
 | `GetDistinctValues` | `abstract IReadOnlyList<object?> GetDistinctValues(string columnId)` | Distinct values of a column, sorted, for a multi-select filter's options. |
 | `Dispose` | `void Dispose()` | Stops notifying and clears the event. Does not dispose anything the caller owns. |
@@ -64,7 +66,12 @@ pager behave as one control.
   `PageIndex * PageSize` is computed with the old size, then divided by the new one.
 - **`SetPageSize` is the only method that recomputes an index from a record number**, which is why the
   second page of 25 is not the second page of 100.
-- Concrete subclasses own the data and do the work: `Refresh`, the three bound lookups and `Columns` are
+- **Unfiltered and narrowed lookups are two different questions, and both are needed.**
+  `GetDistinctValues` / `GetNumericBounds` answer "what does the dataset hold" — the choice a filter
+  bar makes when it should stay still — while `GetNarrowedValues` / `GetNarrowedNumericBounds` answer
+  "what does the result still hold", which is what lets a panel narrow. The narrowed pair always leaves
+  the column's own filter out, so a selected value stays choosable and a range can be widened again.
+- Concrete subclasses own the data and do the work: `Refresh`, the five bound lookups and `Columns` are
   all abstract here.
 
 ## Gotchas
@@ -82,6 +89,13 @@ pager behave as one control.
   subscriber waiting for a wake-up will not get one.
 - **`Dispose` makes the object inert rather than throwing.** `RaiseChanged` checks a disposed flag and
   `Changed` is set to null, so a late `SetFilter` from a disposed page mutates the query and tells nobody.
+- **The whole-dataset lookups ignore the filters on purpose**, and that is still true: bounds taken from
+  the filtered data move inward with the handles, so a narrow range could never be widened again. The
+  narrowed pair is the opposite trade, for a panel meant to follow the result — and it avoids the trap by
+  leaving each column's own filter out of its own answer.
+- **A narrowed lookup returns empty, not the unfiltered list, when nothing is left.** "No remaining row
+  has this value" is a different answer from "the dataset has none", and the filter uses the empty case to
+  stop drawing a control that could only match nothing.
 - Argument checks throw rather than ignore: a null filter descriptor, an empty `Field`, an empty sort field,
   or a null `SetSorts` argument. They are programmer errors, not merchant input.
 

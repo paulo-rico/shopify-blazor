@@ -58,33 +58,8 @@ public static class PolarisGridQueryEngine
             return PolarisGridQueryResult<TItem>.Empty(pageSize);
         }
 
-        var byId = new Dictionary<string, PolarisGridColumnDefinition<TItem>>(StringComparer.Ordinal);
-        foreach (var column in columns)
-        {
-            byId[column.Id] = column;
-        }
-
-        var predicates = BuildPredicates(columns, byId, state);
-
-        var matched = new List<TItem>(items.Count);
-        foreach (var item in items)
-        {
-            var keep = true;
-
-            foreach (var predicate in predicates)
-            {
-                if (!predicate(item))
-                {
-                    keep = false;
-                    break;
-                }
-            }
-
-            if (keep)
-            {
-                matched.Add(item);
-            }
-        }
+        var byId = ColumnMap(columns);
+        var matched = MatchCore(items, columns, byId, state);
 
         var total = matched.Count;
         var pageCount = total == 0 ? 0 : (int)(((long)total + pageSize - 1) / pageSize);
@@ -105,6 +80,34 @@ public static class PolarisGridQueryEngine
         }
 
         return new PolarisGridQueryResult<TItem>(page, total, pageIndex, pageSize);
+    }
+
+    /// <summary>
+    /// Every row the filters keep, before sorting and paging.
+    /// </summary>
+    /// <typeparam name="TItem">The row type.</typeparam>
+    /// <param name="items">The local snapshot to query.</param>
+    /// <param name="columns">The registered columns.</param>
+    /// <param name="state">The filters to apply. Sorting and paging are ignored.</param>
+    /// <returns>The matching rows, in the snapshot's own order.</returns>
+    /// <remarks>
+    /// The filter panel's narrowing is built on this: a control's choices and bounds are read from the rows
+    /// that pass <em>every other</em> applied filter, which means running the filters without paging and
+    /// without the column's own criterion. <see cref="Execute"/> goes through the same matching, so a facet
+    /// and the grid it sits beside cannot disagree about which rows are in play.
+    /// </remarks>
+    public static IReadOnlyList<TItem> Match<TItem>(
+        IReadOnlyList<TItem> items,
+        IReadOnlyList<PolarisGridColumnDefinition<TItem>> columns,
+        PolarisGridQueryState state)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(columns);
+        ArgumentNullException.ThrowIfNull(state);
+
+        return items.Count == 0
+            ? []
+            : MatchCore(items, columns, ColumnMap(columns), state);
     }
 
     /// <summary>Clamps a page size into the range the engine accepts.</summary>
@@ -130,6 +133,51 @@ public static class PolarisGridQueryEngine
 
         var pageCount = (int)(((long)totalCount + size - 1) / size);
         return Math.Clamp(pageIndex, 0, pageCount - 1);
+    }
+
+    private static Dictionary<string, PolarisGridColumnDefinition<TItem>> ColumnMap<TItem>(
+        IReadOnlyList<PolarisGridColumnDefinition<TItem>> columns)
+    {
+        var byId = new Dictionary<string, PolarisGridColumnDefinition<TItem>>(StringComparer.Ordinal);
+
+        foreach (var column in columns)
+        {
+            byId[column.Id] = column;
+        }
+
+        return byId;
+    }
+
+    /// <summary>The one place a snapshot is filtered, paged or not.</summary>
+    private static List<TItem> MatchCore<TItem>(
+        IReadOnlyList<TItem> items,
+        IReadOnlyList<PolarisGridColumnDefinition<TItem>> columns,
+        Dictionary<string, PolarisGridColumnDefinition<TItem>> byId,
+        PolarisGridQueryState state)
+    {
+        var predicates = BuildPredicates(columns, byId, state);
+
+        var matched = new List<TItem>(items.Count);
+        foreach (var item in items)
+        {
+            var keep = true;
+
+            foreach (var predicate in predicates)
+            {
+                if (!predicate(item))
+                {
+                    keep = false;
+                    break;
+                }
+            }
+
+            if (keep)
+            {
+                matched.Add(item);
+            }
+        }
+
+        return matched;
     }
 
     private static List<Func<TItem, bool>> BuildPredicates<TItem>(

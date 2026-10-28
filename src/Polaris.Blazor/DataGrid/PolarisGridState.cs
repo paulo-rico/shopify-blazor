@@ -77,6 +77,31 @@ public abstract class PolarisGridState : IDisposable
     /// <param name="columnId">The column id.</param>
     public abstract IReadOnlyList<object?> GetDistinctValues(string columnId);
 
+    /// <summary>
+    /// The values a column can still offer: its distinct values among the rows that pass every
+    /// <em>other</em> applied filter, which is what lets a filter panel narrow as it is narrowed.
+    /// </summary>
+    /// <param name="columnId">The column id.</param>
+    /// <returns>The values, sorted; empty when none of the remaining rows has one.</returns>
+    /// <remarks>
+    /// The column's <em>own</em> filter is deliberately left out of the rows this is read from. Including it
+    /// would leave a control offering only what is already selected, so a second value could never be added
+    /// and the selection could only be undone through its chip.
+    /// </remarks>
+    public abstract IReadOnlyList<object?> GetNarrowedValues(string columnId);
+
+    /// <summary>
+    /// The numeric bounds of a column among the rows that pass every <em>other</em> applied filter.
+    /// </summary>
+    /// <param name="columnId">The column id.</param>
+    /// <remarks>
+    /// The narrowed twin of <see cref="GetNumericBounds"/>, and it exists because a slider over the whole
+    /// dataset keeps offering figures the current result no longer contains. Its own filter is excluded for
+    /// the same reason as <see cref="GetNarrowedValues"/> — a range that had to include its own ends could
+    /// never be widened again.
+    /// </remarks>
+    public abstract (decimal? Minimum, decimal? Maximum) GetNarrowedNumericBounds(string columnId);
+
     /// <summary>How many pages the filtered result fills. Zero when nothing matched.</summary>
     public int PageCount => Query.PageSize <= 0 || TotalCount <= 0
         ? 0

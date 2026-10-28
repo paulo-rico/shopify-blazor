@@ -1,14 +1,16 @@
 <!-- summary-of: PolarisGridQueryEngine.cs -->
-<!-- source-sha256: 2fe865564ec4 -->
+<!-- source-sha256: 1b24bd00f5b1 -->
 
 # PolarisGridQueryEngine.cs
 
 The local query: it takes an in-memory snapshot, applies the filters and the global search, counts what
 matched, sorts it and cuts one page. Everything about a grid's result is decided here, in a fixed
 order, which is why it is a plain static class with no reference to a component, a lifecycle method or
-the renderer — and why a wrong page count is a failing test rather than a visibly odd page.
+the renderer — and why a wrong page count is a failing test rather than a visibly odd page. `Match`
+exposes the same filtering without the ordering or the page, which is what the filter panel's narrowing
+is built on.
 
-`Polaris.Blazor.DataGrid` · `public static class` · `Execute<TItem>` plus the page-size constants and clamps
+`Polaris.Blazor.DataGrid` · `public static class` · `Execute<TItem>`, `Match<TItem>` plus the page-size constants and clamps
 
 ## Members
 
@@ -17,6 +19,7 @@ the renderer — and why a wrong page count is a failing test rather than a visi
 | `MinimumPageSize` | `const int` = `1` | The smallest page size a pager may use. |
 | `MaximumPageSize` | `const int` = `10_000` | The largest page size a pager may use. A page is rendered into the DOM, so an unbounded size is a request for the whole dataset in markup. |
 | `Execute<TItem>` | `static PolarisGridQueryResult<TItem> Execute<TItem>(IReadOnlyList<TItem> items, IReadOnlyList<PolarisGridColumnDefinition<TItem>> columns, PolarisGridQueryState state)` | Runs the query and returns the visible page, after normalising the page size and clamping the page index. Throws `ArgumentNullException` when `items`, `columns` or `state` is null. |
+| `Match<TItem>` | `static IReadOnlyList<TItem> Match<TItem>(IReadOnlyList<TItem> items, IReadOnlyList<PolarisGridColumnDefinition<TItem>> columns, PolarisGridQueryState state)` | Every row the filters keep, in the snapshot's own order, before sorting and paging. `Execute` is this plus the ordering and one page. |
 | `NormalizePageSize` | `static int NormalizePageSize(int pageSize)` | Clamps into `[1, 10_000]`. Zero and negatives become **1** — not "all rows". |
 | `NormalizePageIndex` | `static int NormalizePageIndex(int pageIndex, int totalCount, int pageSize)` | Clamps an index against the pages a count fills; an empty result has exactly one valid index, **0**, so a pager never shows a page number that cannot exist. |
 
@@ -57,6 +60,9 @@ the renderer — and why a wrong page count is a failing test rather than a visi
   `PolarisGridValueComparer.Instance`, which puts empty values after everything when ascending.
 - **Sorting and filtering never copy the rows** — the result's `Items` holds references into the source
   list, which is what makes in-place record editing visible to the grid.
+- **`Match` is the same filter pass without the page.** It exists for the filter panel: a control's
+  choices are read from the rows that pass every *other* applied filter, and a facet that only saw the
+  visible page would describe a different dataset on page 2.
 - The result always reports the page size and page index **actually used**, normalised and clamped,
   rather than the ones the state asked for.
 

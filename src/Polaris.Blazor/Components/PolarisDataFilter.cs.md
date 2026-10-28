@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisDataFilter.cs -->
-<!-- source-sha256: c26764cc950e -->
+<!-- source-sha256: 598ef5488304 -->
 
 # PolarisDataFilter.cs
 
@@ -7,7 +7,8 @@ The filter bar for a data grid: a search box, a popover of per-column controls g
 grid's own column metadata, and a removable chip for every filter that is applied. It never touches
 the collection — it writes a `PolarisGridFilterDescriptor` into the shared `PolarisGridState`, which
 re-runs the query — so it can be moved, replaced or left out. Its `Panel` presentation draws those
-same controls in place, in a column of their own, with the chips and Clear all above them.
+same controls in place, in a column of their own, with the chips and Clear all above them, and by
+default the controls narrow to the current result as the merchant narrows the list.
 
 `Polaris.Blazor.Components` · composed component, not one `<s-*>` element: an `s-stack` bar holding an
 `s-search-field`, an `s-button`, an `s-clickable-chip` row and an `s-popover` panel · base
@@ -27,6 +28,7 @@ same controls in place, in a column of their own, with the chips and Clear all a
 | `Actions` | `RenderFragment?` | `null` | Content at the end of the bar, in its own inline stack — an export button, a column picker. Rendered before the popover, which is the last child of the outer stack. Ignored by `Panel`. |
 | `Presentation` | `PolarisDataFilterPresentation` | `Bar` | Where the controls are drawn. `Bar` is the search box, Filter button, chips and popover described above. `Panel` drops the bar and draws the same controls in place, with the chips and Clear all above them — for a screen that has given the filter a column of its own. |
 | `Columns` | `RenderFragment?` | `null` | Column declarations for a screen whose rows are not a table. A grid registers the columns in its own `Columns` fragment; a card or gallery screen has no grid, so it declares them here and this component is the host they register with. Rendered before the controls are read, and never removed. |
+| `NarrowToResult` | `bool` | `true` | Whether each control's choices and bounds come from the current result rather than from the whole dataset. On, the panel narrows as the list narrows and a control with nothing left to offer is not drawn; off, every control always describes the whole dataset. |
 
 Inherited: none. `PolarisGridComponentBase` adds no parameters; it only subscribes to `State.Changed`
 and redraws.
@@ -100,6 +102,26 @@ and redraws.
   the two buttons for both presentations; the buttons carry `CommandFor`/`Command=Hide` only when
   there is a popover to close, because a `commandFor` naming an element that does not exist is a
   button that quietly sends nothing.
+- **Narrowing reads the rows that pass every OTHER filter.** With `NarrowToResult` on (the default), a
+  multi-select's choices are `State.GetNarrowedValues(id)` and a range's ends are
+  `State.GetNarrowedNumericBounds(id)` — both computed from the rows that pass every applied filter
+  except the column's own. A column that states `FilterOptions` keeps them, minus the options no
+  remaining row holds. The column's own criterion is left out on purpose: including it would leave a
+  control offering only what is already selected, and a range that had to contain its own ends could
+  never be widened again.
+- **A control with nothing left to offer is not drawn**, and only that: a multi-select with no
+  options left, a range with no numbers left, neither of them carrying a filter of its own. Text,
+  boolean and date controls are never hidden — a text control has no list to empty, and a boolean's
+  All/Yes/No always offers something. A column that already carries a filter keeps its control even
+  when its list has emptied, because the chip and the control are the two routes back to the same
+  filter.
+- **The narrowed bounds also clamp the handles.** A filter set against a wider domain — Price
+  100–200 applied, then a vendor whose pieces top out at 150 — would otherwise draw a handle past
+  its own track. The interval is clamped into the domain for display; the stored filter is untouched,
+  so nothing is silently rewritten by a render.
+- **Turning it off is the old shape.** `NarrowToResult="false"` restores the whole-dataset choices and
+  bounds, which is what a screen whose filter bar should stay still while the table narrows wants —
+  and the escape hatch if narrowing ever hides a control a merchant needs.
 
 ## Gotchas
 
@@ -160,6 +182,16 @@ and redraws.
 - **A panel with no registered columns draws nothing at all**, chip row included. On a screen with no
   grid that is what an omitted `Columns` fragment looks like: an empty sidebar, with no error to say
   why. Declare the columns on the filter, or the screen has no filter.
+- **Narrowed choices are recomputed once per filter change, not once per render.** The state caches
+  them per column and clears the cache in `Refresh`, so a panel of five controls costs five matching
+  passes per change — and a panel rendered twice without a change costs none.
+- **A selected value that has just been narrowed away keeps its chip but not its list entry.** The
+  chip row comes from the applied filters, so the selection stays visible and removable; the control's
+  list only offers what is still possible. That is deliberate: a list that grew back to include an
+  impossible value would be the panel contradicting the result.
+- **Narrowing does not apply to the search box.** The global search is a filter over every searchable
+  column, so it narrows the choices like any other criterion, but it is not itself a control and is
+  never hidden or chipped.
 - **`Panel` still needs a state.** It is the same component and the same query engine; the only thing
   that changed is where the controls are drawn.
 

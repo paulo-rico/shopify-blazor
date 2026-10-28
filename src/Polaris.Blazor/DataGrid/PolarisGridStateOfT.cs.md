@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisGridStateOfT.cs -->
-<!-- source-sha256: 6a9b8e74cf81 -->
+<!-- source-sha256: ad4d8392586c -->
 
 # PolarisGridStateOfT.cs
 
@@ -29,6 +29,8 @@ registered columns and the selection, and recomputes the visible page whenever a
 | `UnregisterColumn` | `override bool UnregisterColumn(string id)` | Forgets a column and the filters and sorts naming it; returns false when it was not there. |
 | `Refresh` | `override void Refresh()` | Runs `PolarisGridQueryEngine.Execute`, **writes the engine's clamped `PageIndex` and `PageSize` back into `Query`**, then notifies. |
 | `GetNumericBounds` | `override (decimal? Minimum, decimal? Maximum) GetNumericBounds(string columnId)` | Cached min/max of a column across the unfiltered snapshot. |
+| `GetNarrowedValues` | `override IReadOnlyList<object?> GetNarrowedValues(string columnId)` | Cached distinct values of a column among the rows that pass every **other** applied filter. The column's own criterion is dropped from a cloned query, and `PolarisGridQueryEngine.Match` runs the rest without paging or sorting. |
+| `GetNarrowedNumericBounds` | `override (decimal? Minimum, decimal? Maximum) GetNarrowedNumericBounds(string columnId)` | The same read, for a range control's ends. |
 | `GetDateBounds` | `override (DateOnly? Minimum, DateOnly? Maximum) GetDateBounds(string columnId)` | The same for dates, using `TryToDateOnly`. |
 | `GetDistinctValues` | `override IReadOnlyList<object?> GetDistinctValues(string columnId)` | Non-null distinct values from the whole snapshot, sorted with `PolarisGridValueComparer`. |
 | `KeyOf` | `object KeyOf(TItem item)` | The key that identifies one record. |
@@ -44,7 +46,11 @@ registered columns and the selection, and recomputes the visible page whenever a
   dataset that can differ between the count and the page.
 - **Selection is kept by key, not by index**, so it survives sorting, filtering and paging.
 - **Bounds come from the unfiltered snapshot on purpose.** A slider bounded by the *filtered* data cannot be
-  widened again once narrowed, because its own ends move inwards with every drag.
+  widened again once narrowed, because its own ends move inwards with every drag. The narrowed pair is the
+  deliberate opposite, and it keeps that property by leaving each column's own filter out.
+- **The narrowed caches are cleared in `Refresh`, not in `InvalidateCaches`.** They are a function of the
+  query, so a filter change is exactly when they stop being true; the whole-dataset caches do not depend on
+  the query and are left alone, or they would be recomputed on every filter change for nothing.
 - **Distinct values come from the whole snapshot too.** An option that vanished because the merchant
   filtered on it could never be cleared again.
 - **One save, one refresh.** `UpdateItems` applies a whole batch and notifies once, so a page saving twelve
@@ -68,7 +74,8 @@ registered columns and the selection, and recomputes the visible page whenever a
   itself. Cheap on a few hundred records, not free on a large page.
 - **The three derived caches are invalidated only by this class's own mutations.** A `ValueGetter` whose
   behaviour changes behind the state's back leaves stale bounds and stale filter options until the next
-  `SetItems`, `UpdateItems`, `RegisterColumn` or `UnregisterColumn`.
+  `SetItems`, `UpdateItems`, `RegisterColumn` or `UnregisterColumn`. The two narrowed caches have the same
+  rule, plus `Refresh` — which is every filter, sort and page change.
 - **`SelectedKeys` is the live set**, not a snapshot: holding it and reading it later reads the current
   selection. Copy it if you need the payload at the moment the event fired.
 

@@ -407,6 +407,16 @@ Read these before changing anything in `src/`.
       `elementsFromPoint` there returns an empty list, and every drag aimed at one missed. `MaxBlockSize`
       was not the fix: the content has to be *shorter* than Polaris's cap, so the filter panel keeps its
       own scroll box (`max-block-size:300px;overflow-y:auto` on a plain `div`) inside the popover's frame.
+    - **A filter that narrows must leave its own criterion out of its own choices.** `NarrowToResult`
+      reads each control's options and the range's ends from the rows passing every *other* filter. The
+      obvious version — read them from the filtered result — makes a multi-select offer only what is
+      already ticked (a second value can never be added) and holds a slider at its own ends (the range can
+      never be widened). It also has to re-read on **every** filter change, which is why the state clears
+      its narrowed caches in `Refresh` rather than waiting for a new snapshot; a panel built once and never
+      refreshed offers values the result no longer holds, with nothing to say why. And a narrowed domain
+      can be smaller than a filter applied against a wider one, so the interval handed to
+      `PolarisRangeSlider` is clamped into it — a handle drawn outside its own track is a percentage past
+      100, not a range.
     The probe grew a `--screenshot <path>` option with all of this: a layout fault and a behaviour fault
     report identically through numbers, and an image answers "what does it look like" in one look.
 

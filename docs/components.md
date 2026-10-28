@@ -523,6 +523,7 @@ The filter bar for a `PolarisDataGrid{TItem}`: a search box, a panel of per-colu
 | `Actions` | `RenderFragment?` | Extra controls shown at the end of the bar, such as an export button. |
 | `Presentation` | `PolarisDataFilterPresentation` | Where the controls are drawn: behind the Filter button, as a bar, or in place as a panel. |
 | `Columns` | `RenderFragment?` | Column declarations, for a screen whose rows are drawn as something other than a table. |
+| `NarrowToResult` | `bool` | Whether each control's choices and bounds are taken from the current result rather than from the whole dataset. |
 
 ### `PolarisDataGrid` (composed)
 

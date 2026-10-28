@@ -144,6 +144,132 @@ public sealed class DataFilterRenderingTests
     }
 
     [Fact]
+    public void An_applied_filter_narrows_the_choices_the_other_controls_offer()
+    {
+        // The whole point of narrowing: once the result is gold pieces, a carat no gold piece has is not a
+        // choice — offering it would be offering a filter that can only empty the list.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        state.SetFilter(PolarisGridFilterDescriptor.Text("Name", "gold"));
+
+        var filter = RenderFilter(context, state);
+
+        var choices = filter.FindAll("s-choice")
+            .Select(choice => choice.GetAttribute("value"))
+            .ToList();
+
+        Assert.Equal(["9", "18"], choices);
+    }
+
+    [Fact]
+    public void Changing_a_filter_refreshes_what_the_other_controls_offer()
+    {
+        // The choices are a function of the query, so a filter change has to re-read them. A panel built once
+        // and never refreshed keeps offering values the result no longer holds — which is the failure this
+        // test exists for.
+        using var context = new PolarisTestContext();
+        using var state = SparseNotesState();
+
+        var filter = RenderPanel(context, state);
+
+        Assert.Equal(["engraved"], NotesChoices(filter));
+
+        // The engraved row is the 9ct one, so filtering to 18ct leaves the Notes control with nothing to
+        // offer and it stops being drawn.
+        RenderOnDispatcher(filter, () => state.SetFilter(PolarisGridFilterDescriptor.In("Carat", [18])));
+
+        Assert.DoesNotContain("Notes", ChoiceListNames(filter));
+
+        RenderOnDispatcher(filter, () => state.SetFilter(PolarisGridFilterDescriptor.In("Carat", [9])));
+
+        Assert.Equal(["engraved"], NotesChoices(filter));
+    }
+
+    [Fact]
+    public void A_control_keeps_its_own_filter_out_of_its_own_choices()
+    {
+        // Including a column's own criterion would leave the control offering only what is already selected,
+        // so a second carat could never be added and the choice could only be undone through the chip.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        state.SetFilter(PolarisGridFilterDescriptor.In("Carat", [9]));
+
+        var filter = RenderFilter(context, state);
+
+        Assert.Equal(["0", "9", "18"], CaratChoices(filter));
+    }
+
+    [Fact]
+    public void A_control_with_nothing_left_to_offer_is_not_drawn()
+    {
+        // Every option would match no row, so the control is not a filter — it is a dead end. A filter that
+        // can only produce an empty list is worse than no filter at all.
+        using var context = new PolarisTestContext();
+        using var state = SparseNotesState();
+        state.SetFilter(PolarisGridFilterDescriptor.In("Carat", [18]));
+
+        var filter = RenderFilter(context, state);
+
+        Assert.DoesNotContain("Notes", ChoiceListNames(filter));
+        Assert.Contains("Carat", ChoiceListNames(filter));
+    }
+
+    [Fact]
+    public void A_control_with_a_filter_of_its_own_is_drawn_even_when_nothing_is_left_to_choose()
+    {
+        // The chip and the control are two ways back to the same filter. Taking the control away because its
+        // list is empty leaves the chip as the only route, on a filter the merchant can see is applied.
+        using var context = new PolarisTestContext();
+        using var state = SparseNotesState();
+        state.SetFilter(PolarisGridFilterDescriptor.In("Carat", [18]));
+        state.SetFilter(PolarisGridFilterDescriptor.In("Notes", ["engraved"]));
+
+        var filter = RenderFilter(context, state);
+
+        var notes = filter.FindAll("s-choice-list").Single(list => list.GetAttribute("name") == "Notes");
+
+        Assert.Empty(notes.QuerySelectorAll("s-choice"));
+    }
+
+    [Fact]
+    public void A_range_spans_only_what_the_current_result_holds()
+    {
+        // A slider telling a merchant to drag to £99.90 when the filtered rows top out at £99.90 anyway is
+        // offering a bound that excludes nothing — and one whose handles have nowhere useful to go.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        state.SetFilter(PolarisGridFilterDescriptor.In("Carat", [0]));
+
+        var filter = RenderFilter(context, state);
+
+        var lower = filter.Find("[data-polaris-range-track]")
+            .QuerySelector("input[data-polaris-range-handle=lower]")!;
+
+        Assert.Equal("92.5", lower.GetAttribute("min"));
+        Assert.Equal("99.9", lower.GetAttribute("max"));
+    }
+
+    [Fact]
+    public void Narrowing_can_be_turned_off_and_then_every_control_describes_the_whole_dataset()
+    {
+        // The old shape, kept for a screen whose filter bar should stay still while the table narrows. It is
+        // also the escape hatch if narrowing ever hides a control a merchant needs.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        state.SetFilter(PolarisGridFilterDescriptor.Text("Name", "gold"));
+
+        var filter = RenderPanel(context, state, narrowToResult: false);
+
+        Assert.Equal(["0", "9", "18"], CaratChoices(filter));
+
+        var lower = filter.Find("[data-polaris-range-track]")
+            .QuerySelector("input[data-polaris-range-handle=lower]")!;
+
+        Assert.Equal("0", lower.GetAttribute("min"));
+        Assert.Equal("99.9", lower.GetAttribute("max"));
+    }
+
+    [Fact]
     public void A_range_slider_is_bounded_by_the_whole_dataset()
     {
         // Bounds taken from the filtered rows move inwards as the filter narrows, and the range can
@@ -616,6 +742,16 @@ public sealed class DataFilterRenderingTests
         new(5, "White gold 18ct", 18, 0m, true),
     ];
 
+    /// <summary>
+    /// Two rows where only one of them has a note — the shape that makes a choice column offer nothing once
+    /// another filter has excluded the row that carried the values.
+    /// </summary>
+    private static readonly List<Alloy> SparseNotesRows =
+    [
+        new(1, "Engraved ring", 9, 10m, true, default, "engraved"),
+        new(2, "Plain ring", 18, 20m, true),
+    ];
+
     private static PolarisGridState<Alloy> NewState()
     {
         var state = new PolarisGridState<Alloy>(SampleRows, alloy => alloy.Id);
@@ -715,6 +851,50 @@ public sealed class DataFilterRenderingTests
     private static string[] TextFieldLabels(IRenderedComponent<PolarisDataFilter> filter)
         => [.. filter.FindAll("s-text-field").Select(field => field.GetAttribute("label") ?? string.Empty)];
 
+    private static string[] CaratChoices(IRenderedComponent<PolarisDataFilter> filter)
+        => [.. filter.FindAll("s-choice-list")
+            .Single(list => list.GetAttribute("name") == "Carat")
+            .QuerySelectorAll("s-choice")
+            .Select(choice => choice.GetAttribute("value") ?? string.Empty)];
+
+    private static string[] ChoiceListNames(IRenderedComponent<PolarisDataFilter> filter)
+        => [.. filter.FindAll("s-choice-list").Select(list => list.GetAttribute("name") ?? string.Empty)];
+
+    private static string[] NotesChoices(IRenderedComponent<PolarisDataFilter> filter)
+        => [.. filter.FindAll("s-choice-list")
+            .Single(list => list.GetAttribute("name") == "Notes")
+            .QuerySelectorAll("s-choice")
+            .Select(choice => choice.GetAttribute("value") ?? string.Empty)];
+
+    /// <summary>
+    /// A state with one choice column that always has values and one that only one of its two rows carries,
+    /// for asserting that a control with nothing left to offer disappears.
+    /// </summary>
+    private static PolarisGridState<Alloy> SparseNotesState()
+    {
+        var state = new PolarisGridState<Alloy>(SparseNotesRows, alloy => alloy.Id);
+
+        state.RegisterColumn(new PolarisGridColumnDefinition<Alloy>
+        {
+            Id = "Carat",
+            Title = "Carat",
+            ValueGetter = alloy => alloy.Carat,
+            ValueType = typeof(int),
+            FilterType = PolarisGridFilterType.MultiSelect,
+        });
+
+        state.RegisterColumn(new PolarisGridColumnDefinition<Alloy>
+        {
+            Id = "Notes",
+            Title = "Notes",
+            ValueGetter = alloy => alloy.Notes,
+            ValueType = typeof(string),
+            FilterType = PolarisGridFilterType.MultiSelect,
+        });
+
+        return state;
+    }
+
     private static IRenderedComponent<PolarisDataFilter> RenderFilter(
         PolarisTestContext context,
         PolarisGridState state,
@@ -733,10 +913,12 @@ public sealed class DataFilterRenderingTests
     private static IRenderedComponent<PolarisDataFilter> RenderPanel(
         PolarisTestContext context,
         PolarisGridState state,
-        PolarisGridFilterApplyMode applyMode = PolarisGridFilterApplyMode.Immediate)
+        PolarisGridFilterApplyMode applyMode = PolarisGridFilterApplyMode.Immediate,
+        bool narrowToResult = true)
         => context.Render<PolarisDataFilter>(parameters => parameters
             .Add(p => p.State, state)
             .Add(p => p.Presentation, PolarisDataFilterPresentation.Panel)
+            .Add(p => p.NarrowToResult, narrowToResult)
             .Add(p => p.ApplyMode, applyMode));
 
     /// <summary>One column declared on the filter itself, as a card screen has to.</summary>
