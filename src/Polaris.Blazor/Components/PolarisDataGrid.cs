@@ -52,7 +52,7 @@ namespace Polaris.Blazor.Components;
 /// </code>
 /// </example>
 /// <typeparam name="TItem">The row type.</typeparam>
-public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
+public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase, IPolarisGridColumnHost
 {
     private PolarisGridState<TItem>? _selectionSource;
 
@@ -79,6 +79,13 @@ public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
     /// <summary>The shared state. Required, and owned by the page that created it.</summary>
     [Parameter, EditorRequired]
     public PolarisGridState<TItem> State { get; set; } = default!;
+
+    /// <summary>The state a column declared inside this grid registers with.</summary>
+    /// <remarks>
+    /// The same instance as <see cref="State"/>, seen through the interface a column asks for. It is
+    /// explicit because the parameter is the typed state and the host contract is the untyped one.
+    /// </remarks>
+    PolarisGridState IPolarisGridColumnHost.State => State;
 
     /// <summary>The column declarations, one <see cref="PolarisGridColumn{TItem}"/> each.</summary>
     [Parameter] public RenderFragment? Columns { get; set; }
@@ -296,6 +303,9 @@ public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
     }
 
     /// <inheritdoc />
+    void IPolarisGridColumnHost.NotifyColumnChanged() => NotifyColumnChanged();
+
+    /// <inheritdoc />
     public override void Dispose()
     {
         if (_selectionSource is not null)
@@ -393,12 +403,14 @@ public sealed class PolarisDataGrid<TItem> : PolarisGridComponentBase
 
     private void BuildSectionContent(RenderTreeBuilder builder)
     {
-        // Fixed, because the value is this component: the columns only need to find the grid, and
-        // re-cascading on every render would re-render all of them for nothing.
-        builder.OpenComponent<CascadingValue<PolarisDataGrid<TItem>>>(0);
-        builder.AddAttribute(1, nameof(CascadingValue<PolarisDataGrid<TItem>>.Value), this);
-        builder.AddAttribute(2, nameof(CascadingValue<PolarisDataGrid<TItem>>.IsFixed), true);
-        builder.AddAttribute(3, nameof(CascadingValue<PolarisDataGrid<TItem>>.ChildContent), (RenderFragment)BuildContent);
+        // Fixed, because the value is this component: the columns only need to find their host, and
+        // re-cascading on every render would re-render all of them for nothing. It is cascaded as the
+        // interface rather than as PolarisDataGrid<TItem> so that a screen with no table — one that
+        // draws cards and declares its columns on the filter — registers them the same way.
+        builder.OpenComponent<CascadingValue<IPolarisGridColumnHost>>(0);
+        builder.AddAttribute(1, nameof(CascadingValue<IPolarisGridColumnHost>.Value), this);
+        builder.AddAttribute(2, nameof(CascadingValue<IPolarisGridColumnHost>.IsFixed), true);
+        builder.AddAttribute(3, nameof(CascadingValue<IPolarisGridColumnHost>.ChildContent), (RenderFragment)BuildContent);
         builder.CloseComponent();
     }
 

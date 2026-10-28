@@ -521,6 +521,8 @@ The filter bar for a `PolarisDataGrid{TItem}`: a search box, a panel of per-colu
 | `ShowClearAll` | `bool` | Shows a button that clears every filter and the search at once. |
 | `ShowSearch` | `bool` | Shows the search box, which filters every searchable column at once. |
 | `Actions` | `RenderFragment?` | Extra controls shown at the end of the bar, such as an export button. |
+| `Presentation` | `PolarisDataFilterPresentation` | Where the controls are drawn: behind the Filter button, as a bar, or in place as a panel. |
+| `Columns` | `RenderFragment?` | Column declarations, for a screen whose rows are drawn as something other than a table. |
 
 ### `PolarisDataGrid` (composed)
 

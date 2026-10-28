@@ -16,6 +16,12 @@ namespace Polaris.Blazor.Components;
 /// sees this component, and why hiding a column does not lose its filter.
 /// </para>
 /// <para>
+/// It is declared on the grid that draws the rows, or — on a screen whose rows are cards rather than
+/// a table — on the <see cref="PolarisDataFilter"/> itself, whose <c>Columns</c> fragment is the only
+/// host there is. Both register with the same state, so the filter's controls are the same in either
+/// case.
+/// </para>
+/// <para>
 /// <see cref="Field"/> is an expression rather than a delegate so the grid can read two things from
 /// it once: the property's type, which filter values are coerced against, and its name, which is the
 /// column's default id. Both are then facts rather than something the caller can mistype.
@@ -37,8 +43,13 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
     private PolarisGridColumnDefinition<TItem>? _definition;
     private bool _disposed;
 
-    /// <summary>The grid this column belongs to, supplied by the grid itself.</summary>
-    [CascadingParameter] private PolarisDataGrid<TItem>? Grid { get; set; }
+    /// <summary>The host this column belongs to, supplied by whichever component encloses it.</summary>
+    /// <remarks>
+    /// A <see cref="PolarisDataGrid{TItem}"/> or a <see cref="PolarisDataFilter"/>: the grid draws the
+    /// table, and the filter draws the controls — and a screen whose rows are cards declares its
+    /// columns on the filter, because there is no table to declare them on.
+    /// </remarks>
+    [CascadingParameter] private IPolarisGridColumnHost? Grid { get; set; }
 
     /// <summary>
     /// The property this column shows. <c>x =&gt; x.Name</c>.
@@ -175,10 +186,11 @@ public sealed class PolarisGridColumn<TItem> : ComponentBase, IDisposable
     {
         if (Grid is null)
         {
-            // A column outside a grid is a declaration nobody reads: the filter would not appear and
+            // A column outside a host is a declaration nobody reads: the filter would not appear and
             // the heading would not be drawn, and nothing would say why.
             throw new InvalidOperationException(
-                $"{nameof(PolarisGridColumn<TItem>)} must be declared inside a {nameof(PolarisDataGrid<TItem>)}.");
+                $"{nameof(PolarisGridColumn<TItem>)} must be declared inside a {nameof(PolarisDataGrid<TItem>)} "
+                + $"or a {nameof(PolarisDataFilter)}.");
         }
 
         var access = PolarisGridExpression.Analyse(Field);

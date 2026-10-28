@@ -160,3 +160,24 @@ public enum PolarisGridFilterApplyMode
     Manual,
 }
 
+/// <summary>Where a <see cref="Polaris.Blazor.Components.PolarisDataFilter"/> draws its controls.</summary>
+/// <remarks>
+/// The controls themselves are the same either way — they are generated from the registered columns.
+/// The two presentations differ in what surrounds them: a bar across the top of a table, with the
+/// panel behind a button because a dozen inline controls would push a wide table off the screen; or
+/// the panel itself, for a screen laid out with a permanent sidebar.
+/// </remarks>
+public enum PolarisDataFilterPresentation
+{
+    /// <summary>
+    /// A search box, a Filter button, a chip row, and the controls in a popover. The default.
+    /// </summary>
+    Bar,
+
+    /// <summary>
+    /// The panel's controls drawn in place, with the applied chips and Clear all above them. No
+    /// search box, no button and no popover: the caller has already made room for a filter.
+    /// </summary>
+    Panel,
+}
+

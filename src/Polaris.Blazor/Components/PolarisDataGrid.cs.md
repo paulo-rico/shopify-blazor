@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisDataGrid.cs -->
-<!-- source-sha256: d07e605d25b5 -->
+<!-- source-sha256: 96809e5744dd -->
 
 # PolarisDataGrid.cs
 
@@ -10,7 +10,7 @@ cell editing, and empty, loading and error states. It owns no state: the page cr
 
 `Polaris.Blazor.Components` · composed component, not one `<s-*>` element: an `s-section` around an
 `s-table`, with `s-button` sortable headings and `s-checkbox` selection cells · base
-`PolarisGridComponentBase`
+`PolarisGridComponentBase`, implements `IPolarisGridColumnHost`
 
 ## Parameters
 
@@ -54,6 +54,10 @@ Inherited: none. `PolarisGridComponentBase` adds no parameters; it only subscrib
   otherwise a non-empty `State.ErrorMessage` → a critical `s-banner`; otherwise `State.Result.IsEmpty` →
   the empty state; otherwise the `PolarisTable`. The editing footer sits **outside** those branches, so an
   unsaved edit made on one page is still reachable after the result goes empty.
+- **Columns are cascaded an interface, not this grid.** The `Columns` fragment is rendered inside a
+  `CascadingValue<IPolarisGridColumnHost>` holding this component, so a `PolarisGridColumn` registers
+  with the state through the same contract a `PolarisDataFilter` offers a screen with no table. The
+  value is fixed, so re-cascading does not re-render every column on every pass.
 - **Sorting.** A sortable column's heading is an `s-button` (`Tertiary` variant) carrying a
   `chevron-up`/`chevron-down` icon and an accessibility label only while sorted
   (`"<Title>, sorted ascending"` / `"…descending"`); an unsorted heading is plain text, and clicking a
@@ -134,3 +138,4 @@ Inherited: none. `PolarisGridComponentBase` adds no parameters; it only subscrib
 - [PolarisDataFilter.cs.md](PolarisDataFilter.cs.md), [PolarisDataPager.cs.md](PolarisDataPager.cs.md) — the two siblings that share the same state.
 - [PolarisGridState.cs.md](../DataGrid/PolarisGridState.cs.md) — the page-owned object everything above reads.
 - [PolarisGridComponentBase.cs.md](../DataGrid/PolarisGridComponentBase.cs.md) — the subscription that redraws the grid.
+- [IPolarisGridColumnHost.cs.md](../DataGrid/IPolarisGridColumnHost.cs.md) — the cascade the column declarations register through.

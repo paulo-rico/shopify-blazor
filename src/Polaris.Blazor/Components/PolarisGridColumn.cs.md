@@ -1,13 +1,24 @@
 <!-- summary-of: PolarisGridColumn.cs -->
-<!-- source-sha256: c164e7032301 -->
+<!-- source-sha256: 008d029c802d -->
 
 # PolarisGridColumn.cs
 
 Declares one column of a `PolarisDataGrid<TItem>` — how to read it, how to render it, what the merchant
 can filter it by and whether its cells are editable. It is a declaration, not a region of the page: it
-renders nothing at all.
+renders nothing at all. It can be declared on a grid, or on a `PolarisDataFilter` for a screen whose
+rows are cards rather than a table.
 
 `Polaris.Blazor.Components` · a declaration that draws nothing · base `ComponentBase`
+
+## Host
+
+The column registers its definition with whatever component encloses it, read as a
+`[CascadingParameter]` of `IPolarisGridColumnHost`:
+
+| Host | When |
+|---|---|
+| `PolarisDataGrid<TItem>` | The ordinary case: the grid draws the table from these declarations. |
+| `PolarisDataFilter` | A screen with no table — cards, tiles, a gallery — declares them in the filter's `Columns` fragment, and the filter generates its controls from them. |
 
 ## Parameters
 
@@ -63,8 +74,9 @@ renders nothing at all.
 
 ## Gotchas
 
-- **Declared outside a grid it throws** `InvalidOperationException` from `OnInitialized` — a column
-  nobody reads would silently lose its heading and its filter, with nothing to say why.
+- **Declared outside a host it throws** `InvalidOperationException` from `OnInitialized` — a column
+  nobody reads would silently lose its heading and its filter, with nothing to say why. A host is a
+  `PolarisDataGrid<TItem>` or a `PolarisDataFilter`, and the message names both.
 - **A computed column needs an `Id`.** `x => x.Price * x.Quantity` names no property, so there is no
   natural id and the mount throws `ArgumentException`; set `Id` explicitly.
 - **`FilterType="Custom"` without a `FilterTemplate` throws** `ArgumentException` — otherwise the
@@ -89,6 +101,7 @@ renders nothing at all.
 ## See also
 
 - [PolarisDataGrid.cs.md](PolarisDataGrid.cs.md) — the grid that draws these declarations.
-- [PolarisDataFilter.cs.md](PolarisDataFilter.cs.md) — the filter panel that consumes their filter types.
+- [PolarisDataFilter.cs.md](PolarisDataFilter.cs.md) — the filter panel that consumes their filter types, and the host for a screen with no table.
+- [IPolarisGridColumnHost.cs.md](../DataGrid/IPolarisGridColumnHost.cs.md) — the cascade it reads.
 - [PolarisGridColumnDefinition.cs.md](../DataGrid/PolarisGridColumnDefinition.cs.md) — what a registered column actually is.
 - [PolarisTable.cs.md](PolarisTable.cs.md) — the plain table, with no declaration layer.

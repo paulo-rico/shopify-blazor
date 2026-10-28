@@ -1,8 +1,10 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
 using Polaris.Blazor.Components;
 using Polaris.Blazor.DataGrid;
+using System.Linq.Expressions;
 using Xunit;
 
 namespace Polaris.Blazor.Tests;
@@ -251,6 +253,92 @@ public sealed class DataFilterRenderingTests
 
         Assert.Null(state.Query.FilterFor("Name"));
         Assert.Single(filter.FindAll("s-button"), button => button.TextContent.Contains("Apply", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_panel_presentation_draws_the_controls_in_place_with_no_search_box_or_button()
+    {
+        // The whole point of the presentation: a screen has given the filter a column of its own, so
+        // there is nothing to open. A search box or a Filter button left in would be two controls that
+        // do nothing in a sidebar, and the popover would be an empty panel anchored to nothing.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        var filter = RenderPanel(context, state);
+
+        Assert.Empty(filter.FindAll("s-search-field"));
+        Assert.Empty(filter.FindAll("s-popover"));
+
+        // The same controls the bar's panel would hold: one per filterable column.
+        Assert.Single(filter.FindAll("s-text-field"));
+        Assert.Single(filter.FindAll("s-choice-list"));
+        Assert.Single(filter.FindAll("[data-polaris-range-slider]"));
+        Assert.Single(filter.FindAll("s-select"));
+    }
+
+    [Fact]
+    public void The_panel_presentation_shows_the_chips_and_clear_all_above_the_controls()
+    {
+        // The merchant reads what is narrowing the list before the controls that narrow it, and a chip
+        // that had drifted below the controls would be past the fold of a sidebar — the one place it
+        // must not be, because it is how a filter is removed without finding the control again.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+        state.SetGlobalSearch("gold");
+
+        var filter = RenderPanel(context, state);
+
+        Assert.Contains("Clear all", filter.Markup, StringComparison.Ordinal);
+
+        RenderOnDispatcher(filter, () => state.SetFilter(PolarisGridFilterDescriptor.Text("Name", "gold")));
+
+        var markup = filter.Markup;
+        var chip = markup.IndexOf("s-clickable-chip", StringComparison.Ordinal);
+        var clearAll = markup.IndexOf("Clear all", StringComparison.Ordinal);
+        var firstField = markup.IndexOf("s-text-field", StringComparison.Ordinal);
+
+        Assert.True(chip >= 0, "The applied filter has no chip in the panel.");
+        Assert.True(clearAll > chip, "Clear all should sit with the chips.");
+        Assert.True(firstField > clearAll, "The controls should come after the chips and Clear all.");
+    }
+
+    [Fact]
+    public async Task Columns_declared_on_the_filter_register_with_its_state()
+    {
+        // A screen whose rows are cards has no table to declare its columns on, so the filter hosts
+        // them. Without this the sidebar would be empty and the cards unfilterable — with no error
+        // anywhere, because a filter with no registered columns simply draws nothing.
+        using var context = new PolarisTestContext();
+        using var state = new PolarisGridState<Alloy>(SampleRows, alloy => alloy.Id);
+
+        var filter = context.Render<PolarisDataFilter>(parameters => parameters
+            .Add(component => component.State, state)
+            .Add(component => component.Presentation, PolarisDataFilterPresentation.Panel)
+            .Add(component => component.ApplyMode, PolarisGridFilterApplyMode.Immediate)
+            .Add(component => component.Columns, DeclareNameColumn));
+
+        await filter.InvokeAsync(() => filter.Instance.SetFilterAsync("Name", PolarisGridFilterDescriptor.Text("Name", "gold")));
+
+        Assert.Single(state.Columns);
+        Assert.Equal(3, state.TotalCount);
+        Assert.Contains("Name", filter.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_panel_presentation_keeps_manual_apply_without_a_popover_to_close()
+    {
+        // Manual mode is not a property of the popover. A panel that drafted every change and offered
+        // no Apply would look broken: the controls move and the rows never do. The buttons must not
+        // carry a commandFor either, because there is no element with that id on this screen.
+        using var context = new PolarisTestContext();
+        using var state = NewState();
+
+        var filter = RenderPanel(context, state, PolarisGridFilterApplyMode.Manual);
+
+        var apply = filter.FindAll("s-button").Single(button => button.TextContent.Contains("Apply", StringComparison.Ordinal));
+
+        Assert.False(apply.HasAttribute("commandFor"));
+        Assert.False(apply.HasAttribute("command"));
     }
 
     [Fact]
@@ -636,6 +724,30 @@ public sealed class DataFilterRenderingTests
             .Add(p => p.State, state)
             .Add(p => p.ApplyMode, applyMode)
             .Add(p => p.DebounceMilliseconds, debounceMilliseconds));
+
+    /// <summary>
+    /// The same component in its panel presentation, with the columns already registered on the state —
+    /// which is what a screen with no table does through <c>Columns</c>, and what these tests are not
+    /// about.
+    /// </summary>
+    private static IRenderedComponent<PolarisDataFilter> RenderPanel(
+        PolarisTestContext context,
+        PolarisGridState state,
+        PolarisGridFilterApplyMode applyMode = PolarisGridFilterApplyMode.Immediate)
+        => context.Render<PolarisDataFilter>(parameters => parameters
+            .Add(p => p.State, state)
+            .Add(p => p.Presentation, PolarisDataFilterPresentation.Panel)
+            .Add(p => p.ApplyMode, applyMode));
+
+    /// <summary>One column declared on the filter itself, as a card screen has to.</summary>
+    private static void DeclareNameColumn(RenderTreeBuilder builder)
+    {
+        builder.OpenComponent<PolarisGridColumn<Alloy>>(0);
+        builder.AddAttribute(1, nameof(PolarisGridColumn<Alloy>.Field), (Expression<Func<Alloy, object?>>)(alloy => alloy.Name));
+        builder.AddAttribute(2, nameof(PolarisGridColumn<Alloy>.Title), "Name");
+        builder.AddAttribute(3, nameof(PolarisGridColumn<Alloy>.FilterType), PolarisGridFilterType.Text);
+        builder.CloseComponent();
+    }
 
     private static void RenderOnDispatcher<TRendered>(IRenderedComponent<TRendered> component, Action mutate)
         where TRendered : IComponent

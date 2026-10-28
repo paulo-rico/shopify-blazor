@@ -23,6 +23,12 @@ namespace Polaris.Blazor.Components;
 /// screen, and the admin's own list screens put filtering behind a button for the same reason.
 /// </para>
 /// <para>
+/// <see cref="PolarisDataFilterPresentation.Panel"/> drops the bar and draws those same controls in
+/// place, with the chips and Clear all above them, for a screen that has given the filter a column of
+/// its own — a sidebar beside a grid of cards. Nothing else changes: the controls, the chips, the
+/// apply modes and the state are one implementation.
+/// </para>
+/// <para>
 /// The chip row is the other half of the same idea: whatever is narrowing the result is visible
 /// without opening the panel, and removable in one click. A filter the merchant cannot see is a
 /// filter they will report as missing data.
@@ -37,8 +43,18 @@ namespace Polaris.Blazor.Components;
 /// <code>
 /// &lt;PolarisDataFilter State="@State" ApplyMode="PolarisGridFilterApplyMode.Debounced" /&gt;
 /// </code>
+/// </remarks>
+/// <example>
+/// <code>
+/// &lt;PolarisDataFilter State="@State" Presentation="PolarisDataFilterPresentation.Panel"&gt;
+///     &lt;Columns&gt;
+///         &lt;PolarisGridColumn TItem="CatalogueRow" Field="row =&gt; row.Title"
+///                            Title="Product" FilterType="PolarisGridFilterType.Text" /&gt;
+///     &lt;/Columns&gt;
+/// &lt;/PolarisDataFilter&gt;
+/// </code>
 /// </example>
-public sealed class PolarisDataFilter : PolarisGridComponentBase
+public sealed class PolarisDataFilter : PolarisGridComponentBase, IPolarisGridColumnHost
 {
     private static int _instanceCount;
 
@@ -80,8 +96,49 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
     /// <summary>Extra controls shown at the end of the bar, such as an export button.</summary>
     [Parameter] public RenderFragment? Actions { get; set; }
 
+    /// <summary>
+    /// Where the controls are drawn: behind the Filter button, as a bar, or in place as a panel.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PolarisDataFilterPresentation.Bar"/> is the default, so every screen written before
+    /// this parameter existed keeps the filter it had. <see
+    /// cref="PolarisDataFilterPresentation.Panel"/> is for a screen that has made room by placing this
+    /// component in a column of its own: the same controls, the chips and Clear all above them, and no
+    /// search box, button or popover.
+    /// </remarks>
+    [Parameter] public PolarisDataFilterPresentation Presentation { get; set; }
+
+    /// <summary>
+    /// Column declarations, for a screen whose rows are drawn as something other than a table.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A grid registers the columns declared in its own <c>Columns</c> fragment. A screen that draws
+    /// cards, tiles or a gallery has no grid, so it declares them here instead and this component is
+    /// the host they register with — the controls are generated from them exactly as they would be
+    /// from a table's.
+    /// </para>
+    /// <para>
+    /// The declarations are rendered before the controls are read, and never removed, so a column
+    /// stays registered while the result is empty.
+    /// </para>
+    /// </remarks>
+    [Parameter] public RenderFragment? Columns { get; set; }
+
     /// <inheritdoc />
     protected override PolarisGridState? BoundState => State;
+
+    /// <summary>The state a column declared inside this component registers with.</summary>
+    PolarisGridState IPolarisGridColumnHost.State => State;
+
+    /// <summary>Redraws after a column's declaration changed in place.</summary>
+    void IPolarisGridColumnHost.NotifyColumnChanged()
+    {
+        if (State is not null)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
 
     /// <summary>
     /// Applies a search term as if the merchant had typed it, honouring <see cref="ApplyMode"/>.
@@ -232,14 +289,40 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
             return;
         }
 
+        // The declarations first, in either presentation: a column registers with the state as it
+        // mounts, and every control below is generated from what is registered. A screen with no table
+        // has nowhere else to declare them, and rendering them here is what gives it the same filter.
+        if (Columns is not null)
+        {
+            builder.OpenComponent<CascadingValue<IPolarisGridColumnHost>>(0);
+            builder.AddAttribute(1, nameof(CascadingValue<IPolarisGridColumnHost>.Value), this);
+            builder.AddAttribute(2, nameof(CascadingValue<IPolarisGridColumnHost>.IsFixed), true);
+            builder.AddAttribute(3, nameof(CascadingValue<IPolarisGridColumnHost>.ChildContent), Columns);
+            builder.CloseComponent();
+        }
+
         var filterable = FilterableColumns();
 
-        builder.OpenComponent<PolarisStack>(0);
-        builder.AddAttribute(1, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
-        builder.AddAttribute(2, nameof(PolarisStack.Gap), PolarisGap.Small);
-        builder.AddAttribute(3, nameof(PolarisStack.AlignItems), "center");
-        builder.AddAttribute(4, nameof(PolarisStack.JustifyContent), "space-between");
-        builder.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
+        if (Presentation == PolarisDataFilterPresentation.Panel)
+        {
+            builder.OpenComponent<PolarisStack>(10);
+            builder.AddAttribute(11, nameof(PolarisStack.Gap), PolarisGap.Base);
+            builder.AddAttribute(12, nameof(PolarisStack.ChildContent), (RenderFragment)(panel =>
+            {
+                BuildChipRow(panel, 0);
+                BuildControls(panel, filterable, panelId: null);
+            }));
+            builder.CloseComponent();
+
+            return;
+        }
+
+        builder.OpenComponent<PolarisStack>(20);
+        builder.AddAttribute(21, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
+        builder.AddAttribute(22, nameof(PolarisStack.Gap), PolarisGap.Small);
+        builder.AddAttribute(23, nameof(PolarisStack.AlignItems), "center");
+        builder.AddAttribute(24, nameof(PolarisStack.JustifyContent), "space-between");
+        builder.AddAttribute(25, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
         {
             content.OpenComponent<PolarisStack>(0);
             content.AddAttribute(1, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
@@ -250,7 +333,7 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
                 BuildSearch(bar);
                 BuildFilterButton(bar, filterable);
                 BuildChips(bar);
-                BuildClearAll(bar);
+                BuildClearAll(bar, 30);
             }));
             content.CloseComponent();
 
@@ -264,6 +347,60 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
             }
 
             BuildPanel(content, filterable);
+        }));
+        builder.CloseComponent();
+    }
+
+    /// <summary>
+    /// The applied chips and Clear all, above the controls of a panel — or nothing at all, so a panel
+    /// with nothing applied is its controls and no empty row.
+    /// </summary>
+    /// <remarks>
+    /// The chips are a wrapping grid rather than the bar's inline stack: measured, an inline Polaris
+    /// stack does not wrap, so three chips in a sidebar column would run off its edge with no way to
+    /// reach the third. The Clear all button sits on its own line under them, because a wrapping grid
+    /// cannot hold one item that stays at the end.
+    /// </remarks>
+    private void BuildChipRow(RenderTreeBuilder builder, int sequence)
+    {
+        var hasChips = ShowActiveFilters && ActiveFilters().Count > 0;
+        var hasClearAll = ShowClearAll && State.Query.HasAnyFilter;
+
+        if (!hasChips && !hasClearAll)
+        {
+            return;
+        }
+
+        builder.OpenComponent<PolarisStack>(sequence);
+        builder.AddAttribute(sequence + 1, nameof(PolarisStack.Gap), PolarisGap.Small);
+        builder.AddAttribute(sequence + 2, nameof(PolarisStack.ChildContent), (RenderFragment)(row =>
+        {
+            if (hasChips)
+            {
+                row.OpenComponent<PolarisGrid>(0);
+                row.AddAttribute(1, nameof(PolarisGrid.GridTemplateColumns), ChipsGridColumns);
+
+                // Polaris's own small step, written as the string the grid passes through: its gap
+                // parameters are CSS strings, not the stack's enum.
+                row.AddAttribute(2, nameof(PolarisGrid.Gap), "small");
+                row.AddAttribute(3, nameof(PolarisGrid.ChildContent), (RenderFragment)(grid =>
+                {
+                    foreach (var (column, filter) in ActiveFilters())
+                    {
+                        BuildChip(grid, column, filter);
+                    }
+                }));
+                row.CloseComponent();
+            }
+
+            if (hasClearAll)
+            {
+                row.OpenComponent<PolarisStack>(10);
+                row.AddAttribute(11, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
+                row.AddAttribute(12, nameof(PolarisStack.Gap), PolarisGap.Small);
+                row.AddAttribute(13, nameof(PolarisStack.ChildContent), (RenderFragment)(line => BuildClearAll(line, 0)));
+                row.CloseComponent();
+            }
         }));
         builder.CloseComponent();
     }
@@ -315,26 +452,34 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
 
         foreach (var (column, filter) in ActiveFilters())
         {
-            builder.OpenComponent<PolarisClickableChip>(20);
-            builder.AddAttribute(21, nameof(PolarisClickableChip.Removable), true);
-            builder.AddAttribute(22, nameof(PolarisClickableChip.Color), PolarisColor.Strong);
-            builder.AddAttribute(23, nameof(PolarisClickableChip.OnRemove), EventCallback.Factory.Create<PolarisEventArgs>(this, _ => RemoveFilterAsync(column.Id)));
-            builder.AddAttribute(24, nameof(PolarisClickableChip.ChildContent), (RenderFragment)(text => text.AddContent(0, Describe(column, filter))));
-            builder.CloseComponent();
+            BuildChip(builder, column, filter);
         }
     }
 
-    private void BuildClearAll(RenderTreeBuilder builder)
+    private void BuildChip(
+        RenderTreeBuilder builder,
+        IPolarisGridColumn column,
+        PolarisGridFilterDescriptor filter)
+    {
+        builder.OpenComponent<PolarisClickableChip>(20);
+        builder.AddAttribute(21, nameof(PolarisClickableChip.Removable), true);
+        builder.AddAttribute(22, nameof(PolarisClickableChip.Color), PolarisColor.Strong);
+        builder.AddAttribute(23, nameof(PolarisClickableChip.OnRemove), EventCallback.Factory.Create<PolarisEventArgs>(this, _ => RemoveFilterAsync(column.Id)));
+        builder.AddAttribute(24, nameof(PolarisClickableChip.ChildContent), (RenderFragment)(text => text.AddContent(0, Describe(column, filter))));
+        builder.CloseComponent();
+    }
+
+    private void BuildClearAll(RenderTreeBuilder builder, int sequence)
     {
         if (!ShowClearAll || !State.Query.HasAnyFilter)
         {
             return;
         }
 
-        builder.OpenComponent<PolarisButton>(30);
-        builder.AddAttribute(31, nameof(PolarisButton.Variant), PolarisButtonVariant.Tertiary);
-        builder.AddAttribute(32, nameof(PolarisButton.OnClick), EventCallback.Factory.Create<PolarisEventArgs>(this, _ => ClearAllAsync()));
-        builder.AddAttribute(33, nameof(PolarisButton.ChildContent), (RenderFragment)(text => text.AddContent(0, "Clear all")));
+        builder.OpenComponent<PolarisButton>(sequence);
+        builder.AddAttribute(sequence + 1, nameof(PolarisButton.Variant), PolarisButtonVariant.Tertiary);
+        builder.AddAttribute(sequence + 2, nameof(PolarisButton.OnClick), EventCallback.Factory.Create<PolarisEventArgs>(this, _ => ClearAllAsync()));
+        builder.AddAttribute(sequence + 3, nameof(PolarisButton.ChildContent), (RenderFragment)(text => text.AddContent(0, "Clear all")));
         builder.CloseComponent();
     }
 
@@ -386,41 +531,95 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
 
             panel.OpenComponent<PolarisStack>(3);
             panel.AddAttribute(4, nameof(PolarisStack.Gap), PolarisGap.Base);
-            panel.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
-            {
-                foreach (var column in filterable)
-                {
-                    BuildControl(content, column);
-                }
-
-                if (ApplyMode == PolarisGridFilterApplyMode.Manual)
-                {
-                    content.OpenComponent<PolarisStack>(90);
-                    content.AddAttribute(91, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
-                    content.AddAttribute(92, nameof(PolarisStack.Gap), PolarisGap.Small);
-                    content.AddAttribute(93, nameof(PolarisStack.ChildContent), (RenderFragment)(buttons =>
-                    {
-                        buttons.OpenComponent<PolarisButton>(0);
-                        buttons.AddAttribute(1, nameof(PolarisButton.Variant), PolarisButtonVariant.Primary);
-                        buttons.AddAttribute(2, nameof(PolarisButton.CommandFor), _panelId);
-                        buttons.AddAttribute(3, nameof(PolarisButton.Command), PolarisCommand.Hide);
-                        buttons.AddAttribute(4, nameof(PolarisButton.OnClick), EventCallback.Factory.Create<PolarisEventArgs>(this, _ => ApplyDraftsAsync()));
-                        buttons.AddAttribute(5, nameof(PolarisButton.ChildContent), (RenderFragment)(text => text.AddContent(0, "Apply")));
-                        buttons.CloseComponent();
-
-                        buttons.OpenComponent<PolarisButton>(10);
-                        buttons.AddAttribute(11, nameof(PolarisButton.CommandFor), _panelId);
-                        buttons.AddAttribute(12, nameof(PolarisButton.Command), PolarisCommand.Hide);
-                        buttons.AddAttribute(13, nameof(PolarisButton.OnClick), EventCallback.Factory.Create<PolarisEventArgs>(this, _ => ClearAllAsync()));
-                        buttons.AddAttribute(14, nameof(PolarisButton.ChildContent), (RenderFragment)(text => text.AddContent(0, "Cancel")));
-                        buttons.CloseComponent();
-                    }));
-                    content.CloseComponent();
-                }
-            }));
+            panel.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content => BuildControls(content, filterable, _panelId)));
             panel.CloseComponent();
             panel.CloseElement();
         }));
+        builder.CloseComponent();
+    }
+
+    /// <summary>
+    /// One control per filterable column, in <c>FilterIndex</c> order, plus Apply and Cancel under
+    /// <see cref="PolarisGridFilterApplyMode.Manual"/>.
+    /// </summary>
+    /// <param name="builder">The render tree.</param>
+    /// <param name="filterable">The columns to draw controls for.</param>
+    /// <param name="panelId">
+    /// The popover these buttons belong to, or <c>null</c> when the controls are drawn in place.
+    /// </param>
+    /// <remarks>
+    /// Shared by the popover and by <see cref="PolarisDataFilterPresentation.Panel"/>, so the two
+    /// cannot drift: a filter type added here appears in both, and Manual mode works in both. The
+    /// buttons close the popover only when there is one — a <c>commandFor</c> naming an element that
+    /// does not exist is a button that quietly sends nothing.
+    /// </remarks>
+    private void BuildControls(
+        RenderTreeBuilder builder,
+        IReadOnlyList<IPolarisGridColumn> filterable,
+        string? panelId)
+    {
+        foreach (var column in filterable)
+        {
+            BuildControl(builder, column);
+        }
+
+        if (ApplyMode != PolarisGridFilterApplyMode.Manual)
+        {
+            return;
+        }
+
+        builder.OpenComponent<PolarisStack>(90);
+        builder.AddAttribute(91, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
+        builder.AddAttribute(92, nameof(PolarisStack.Gap), PolarisGap.Small);
+        builder.AddAttribute(93, nameof(PolarisStack.ChildContent), (RenderFragment)(buttons =>
+        {
+            BuildActionButton(
+                buttons,
+                0,
+                PolarisButtonVariant.Primary,
+                "Apply",
+                panelId,
+                EventCallback.Factory.Create<PolarisEventArgs>(this, _ => ApplyDraftsAsync()));
+
+            BuildActionButton(
+                buttons,
+                10,
+                PolarisButtonVariant.Auto,
+                "Cancel",
+                panelId,
+                EventCallback.Factory.Create<PolarisEventArgs>(this, _ => ClearAllAsync()));
+        }));
+        builder.CloseComponent();
+    }
+
+    /// <summary>
+    /// One of the panel's two buttons, whose declarative close is added only when there is a popover
+    /// to close — a <c>commandFor</c> naming an element that does not exist is a button that quietly
+    /// sends nothing.
+    /// </summary>
+    private static void BuildActionButton(
+        RenderTreeBuilder builder,
+        int sequence,
+        PolarisButtonVariant variant,
+        string text,
+        string? panelId,
+        EventCallback<PolarisEventArgs> onClick)
+    {
+        builder.OpenComponent<PolarisButton>(sequence);
+
+        if (variant != PolarisButtonVariant.Auto)
+        {
+            builder.AddAttribute(sequence + 1, nameof(PolarisButton.Variant), variant);
+        }
+
+        if (panelId is not null)
+        {
+            builder.AddAttribute(sequence + 2, nameof(PolarisButton.CommandFor), panelId);
+            builder.AddAttribute(sequence + 3, nameof(PolarisButton.Command), PolarisCommand.Hide);
+        }
+
+        builder.AddAttribute(sequence + 4, nameof(PolarisButton.OnClick), onClick);
+        builder.AddAttribute(sequence + 5, nameof(PolarisButton.ChildContent), (RenderFragment)(content => content.AddContent(0, text)));
         builder.CloseComponent();
     }
 
@@ -629,6 +828,16 @@ public sealed class PolarisDataFilter : PolarisGridComponentBase
     }
 
     private const string AnyOption = "any";
+
+    /// <summary>
+    /// The chip row's tracks for a panel: as many as fit, each as wide as its chip wants.
+    /// </summary>
+    /// <remarks>
+    /// A wrapping grid rather than an inline stack, because an inline Polaris stack does not wrap —
+    /// three chips in a sidebar column would run off its edge with no way to reach the third. The
+    /// minimum is a chip's worth of width, so a chip shorter than that is not stretched to a slab.
+    /// </remarks>
+    private const string ChipsGridColumns = "repeat(auto-fill, minmax(9rem, max-content))";
 
     private const string SearchDraftKey = "__search";
 

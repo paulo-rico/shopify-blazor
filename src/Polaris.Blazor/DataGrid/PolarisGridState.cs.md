@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisGridState.cs -->
-<!-- source-sha256: 140c9e7a1c46 -->
+<!-- source-sha256: 61e91bfffa40 -->
 
 # PolarisGridState.cs
 
@@ -15,6 +15,8 @@ pager behave as one control.
 |---|---|---|
 | `Query` | `PolarisGridQueryState Query { get; }` | The filters, sorts and paging the grid applies. Live and mutable, but the methods below are what keep `PageIndex` and the notification consistent. |
 | `Columns` | `abstract IReadOnlyList<IPolarisGridColumn> Columns { get; }` | Columns registered by the grid, in declaration order. |
+| `RegisterColumn` | `abstract void RegisterColumn(IPolarisGridColumn column)` | Registers one declaration. Untyped, so a column can register through whichever host encloses it — a table grid or a filter on a card screen — without the host knowing the row type. The concrete state casts it. |
+| `UnregisterColumn` | `abstract bool UnregisterColumn(string id)` | Forgets a column, and the filters and sorts naming it; returns false when it was not there. |
 | `TotalCount` | `abstract int TotalCount { get; }` | How many rows matched the filters, before paging. |
 | `FirstRecordNumber` | `abstract int FirstRecordNumber { get; }` | One-based number of the first row on the visible page, or zero when there are none. |
 | `LastRecordNumber` | `abstract int LastRecordNumber { get; }` | One-based number of the last row on the visible page, or zero when there are none. |

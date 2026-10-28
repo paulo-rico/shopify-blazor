@@ -1,16 +1,17 @@
 <!-- summary-of: PolarisDataFilter.cs -->
-<!-- source-sha256: 3a12f627ca27 -->
+<!-- source-sha256: c26764cc950e -->
 
 # PolarisDataFilter.cs
 
 The filter bar for a data grid: a search box, a popover of per-column controls generated from the
 grid's own column metadata, and a removable chip for every filter that is applied. It never touches
 the collection — it writes a `PolarisGridFilterDescriptor` into the shared `PolarisGridState`, which
-re-runs the query — so it can be moved, replaced or left out.
+re-runs the query — so it can be moved, replaced or left out. Its `Panel` presentation draws those
+same controls in place, in a column of their own, with the chips and Clear all above them.
 
 `Polaris.Blazor.Components` · composed component, not one `<s-*>` element: an `s-stack` bar holding an
 `s-search-field`, an `s-button`, an `s-clickable-chip` row and an `s-popover` panel · base
-`PolarisGridComponentBase`
+`PolarisGridComponentBase`, implements `IPolarisGridColumnHost`
 
 ## Parameters
 
@@ -22,8 +23,10 @@ re-runs the query — so it can be moved, replaced or left out.
 | `SearchPlaceholder` | `string?` | `"Search"` | Placeholder in the search box. `null` is passed through as null — there is no render-time fallback to the default, the default is only the initialiser. |
 | `ShowActiveFilters` | `bool` | `true` | Draws the chip row. Off hides the chips only: filters still apply, and the filter button still counts them. |
 | `ShowClearAll` | `bool` | `true` | Draws the "Clear all" button — and only when the state has a column filter or a non-blank search (`Query.HasAnyFilter`). With nothing applied the button is absent rather than disabled. |
-| `ShowSearch` | `bool` | `true` | Draws the search box. Off removes the control but leaves a search already in the state applying. |
-| `Actions` | `RenderFragment?` | `null` | Content at the end of the bar, in its own inline stack — an export button, a column picker. Rendered before the popover, which is the last child of the outer stack. |
+| `ShowSearch` | `bool` | `true` | Draws the search box. Off removes the control but leaves a search already in the state applying. Ignored by `Panel`, which never draws one. |
+| `Actions` | `RenderFragment?` | `null` | Content at the end of the bar, in its own inline stack — an export button, a column picker. Rendered before the popover, which is the last child of the outer stack. Ignored by `Panel`. |
+| `Presentation` | `PolarisDataFilterPresentation` | `Bar` | Where the controls are drawn. `Bar` is the search box, Filter button, chips and popover described above. `Panel` drops the bar and draws the same controls in place, with the chips and Clear all above them — for a screen that has given the filter a column of its own. |
+| `Columns` | `RenderFragment?` | `null` | Column declarations for a screen whose rows are not a table. A grid registers the columns in its own `Columns` fragment; a card or gallery screen has no grid, so it declares them here and this component is the host they register with. Rendered before the controls are read, and never removed. |
 
 Inherited: none. `PolarisGridComponentBase` adds no parameters; it only subscribes to `State.Changed`
 and redraws.
@@ -83,6 +86,20 @@ and redraws.
 - **Mirrors.** `_textEchoes` (per column) and `_searchEcho` are written back into the controls so a
   change made elsewhere shows up in the panel; while a field's change is pending they are left alone,
   or a stale value would be written back mid-keystroke and the caret would jump.
+- **The panel presentation.** With `Presentation="Panel"` there is no bar and no popover: one stack
+  holds an optional chip row and then the same controls the popover would hold. The chip row is the
+  chips in a wrapping grid and, under them, a Clear all button — a wrapping `s-grid` cannot keep one
+  item pinned to the end of the row, and an inline stack does not wrap at all. Nothing is drawn for
+  the chip row when nothing is applied, so a panel with no filters is its controls and no empty row.
+  `ShowSearch`, `Actions` and the filter button's count have no meaning there and are ignored.
+- **`Columns` hosts the declarations for a screen with no table.** They are rendered before the
+  controls are read, so the first render already knows them, and they are rendered outside every
+  result branch, so a column stays registered while the list is empty. The component cascades itself
+  as `IPolarisGridColumnHost` around that fragment and nowhere else.
+- **Manual Apply and Cancel are shared with the popover.** One `BuildControls` draws the controls and
+  the two buttons for both presentations; the buttons carry `CommandFor`/`Command=Hide` only when
+  there is a popover to close, because a `commandFor` naming an element that does not exist is a
+  button that quietly sends nothing.
 
 ## Gotchas
 
@@ -140,9 +157,16 @@ and redraws.
   widened again.
 - **`SetFilterAsync` validates its field** and throws `ArgumentException` for null or empty, unlike
   the UI paths, which never produce one.
+- **A panel with no registered columns draws nothing at all**, chip row included. On a screen with no
+  grid that is what an omitted `Columns` fragment looks like: an empty sidebar, with no error to say
+  why. Declare the columns on the filter, or the screen has no filter.
+- **`Panel` still needs a state.** It is the same component and the same query engine; the only thing
+  that changed is where the controls are drawn.
 
 ## See also
 
 - [PolarisDataGrid.cs.md](PolarisDataGrid.cs.md) — the table this bar narrows, and the other owner of the same state.
 - [PolarisDataPager.cs.md](PolarisDataPager.cs.md) — the third component on the shared state.
 - [PolarisGridState.cs.md](../DataGrid/PolarisGridState.cs.md) — `SetFilter`, `ClearFilter`, `ClearAllFilters`, `SetGlobalSearch` and the `Changed` event.
+- [IPolarisGridColumnHost.cs.md](../DataGrid/IPolarisGridColumnHost.cs.md) — the cascade that lets a
+  `Columns` fragment register here.

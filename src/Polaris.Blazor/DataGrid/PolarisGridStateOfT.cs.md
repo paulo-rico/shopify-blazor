@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisGridStateOfT.cs -->
-<!-- source-sha256: d80f162b9096 -->
+<!-- source-sha256: 6a9b8e74cf81 -->
 
 # PolarisGridStateOfT.cs
 
@@ -25,7 +25,8 @@ registered columns and the selection, and recomputes the visible page whenever a
 | `FindItem` | `TItem? FindItem(object key)` | Finds a record by key across the **whole snapshot**, not just the visible page. Returns `default` when absent. |
 | `UpdateItems` | `int UpdateItems(IReadOnlyDictionary<object, TItem> updates)` | Replaces records by row key in one pass, invalidates caches, refreshes **once**; returns how many were found and replaced. Zero when nothing matched, with no refresh. |
 | `RegisterColumn` | `void RegisterColumn(PolarisGridColumnDefinition<TItem> column)` | Adds a column, invalidates caches, refreshes. Throws `ArgumentException` on a null column, an empty `Id`, or a **duplicate id**. |
-| `UnregisterColumn` | `bool UnregisterColumn(string id)` | Forgets a column and the filters and sorts naming it; returns false when it was not there. |
+| `RegisterColumn` (untyped) | `override void RegisterColumn(IPolarisGridColumn column)` | The door a column component comes in by, because its host knows the state but not the row type. Forwards to the typed overload, and refuses a declaration built for another row type with an `ArgumentException` naming the column and the row type. |
+| `UnregisterColumn` | `override bool UnregisterColumn(string id)` | Forgets a column and the filters and sorts naming it; returns false when it was not there. |
 | `Refresh` | `override void Refresh()` | Runs `PolarisGridQueryEngine.Execute`, **writes the engine's clamped `PageIndex` and `PageSize` back into `Query`**, then notifies. |
 | `GetNumericBounds` | `override (decimal? Minimum, decimal? Maximum) GetNumericBounds(string columnId)` | Cached min/max of a column across the unfiltered snapshot. |
 | `GetDateBounds` | `override (DateOnly? Minimum, DateOnly? Maximum) GetDateBounds(string columnId)` | The same for dates, using `TryToDateOnly`. |

@@ -31,6 +31,22 @@ public abstract class PolarisGridState : IDisposable
     /// <summary>The columns registered by the grid, in declaration order.</summary>
     public abstract IReadOnlyList<IPolarisGridColumn> Columns { get; }
 
+    /// <summary>
+    /// Registers one column declaration.
+    /// </summary>
+    /// <param name="column">The definition a <c>PolarisGridColumn</c> built.</param>
+    /// <remarks>
+    /// Untyped so that a column can register through whichever host encloses it — a grid that draws a
+    /// table, or a filter that draws the controls for a screen of cards — without either of them
+    /// having to know the row type at the point of registration. The concrete state casts it.
+    /// </remarks>
+    public abstract void RegisterColumn(IPolarisGridColumn column);
+
+    /// <summary>Forgets a column that is being disposed.</summary>
+    /// <param name="id">The column id.</param>
+    /// <returns>True when a column was removed.</returns>
+    public abstract bool UnregisterColumn(string id);
+
     /// <summary>How many rows matched the filters, before paging.</summary>
     public abstract int TotalCount { get; }
 

@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisGridEnums.cs -->
-<!-- source-sha256: 3318565be4c1 -->
+<!-- source-sha256: 79face463651 -->
 
 # PolarisGridEnums.cs
 
@@ -70,6 +70,16 @@ a column's CLR type.
 | `Immediate` | On every change. The zero value. |
 | `Debounced` | After typing stops, for a configurable interval. The default for text filters. |
 | `Manual` | Only when the merchant presses Apply — or makes a choice, which commits itself. |
+
+### `PolarisDataFilterPresentation` — where a filter draws its controls
+
+| Value | What it does |
+|---|---|
+| `Bar` | A search box, a Filter button, a chip row, and the controls in a popover. The zero value, and the shape every screen had before this choice existed. |
+| `Panel` | The same controls drawn in place, with the applied chips and Clear all above them. No search box, no button and no popover — for a screen that has given the filter a column of its own, such as a sidebar beside a grid of cards. |
+
+The two presentations share one implementation of the controls, the chips, the apply modes and the
+state; only what surrounds them differs.
 
 ## Behaviour
 

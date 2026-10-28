@@ -9,7 +9,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 
 `python3 tools/check-summaries.py` reports a summary that is missing or older than its source.
 
-181 sources, 25 directories.
+182 sources, 25 directories.
 
 ## src/Polaris.Blazor
 
@@ -119,6 +119,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 | Summary | What it is |
 |---|---|
 | [`IPolarisGridColumn.cs.md`](../src/Polaris.Blazor/DataGrid/IPolarisGridColumn.cs.md) | A non-generic view of one grid column — id, heading, filter control, editor and formatter — so the filter panel and pager can work without knowing the row type. |
+| [`IPolarisGridColumnHost.cs.md`](../src/Polaris.Blazor/DataGrid/IPolarisGridColumnHost.cs.md) | The contract a component implements when it hosts column declarations: it owns the grid state a column registers with, and it can be asked to redraw when a declaration changes in place. |
 | [`PolarisGridColumnDefinition.cs.md`](../src/Polaris.Blazor/DataGrid/PolarisGridColumnDefinition.cs.md) | Everything the grid knows about one column: the compiled accessor that reads it, how it renders, which filter and editor it offers, and how a value is written back. |
 | [`PolarisGridComponentBase.cs.md`](../src/Polaris.Blazor/DataGrid/PolarisGridComponentBase.cs.md) | Base for a component that renders from a shared PolarisGridState and redraws when it changes; the subscription, not the markup, joins the grid, the filter panel and the pager into one grid. |
 | [`PolarisGridEditSession.cs.md`](../src/Polaris.Blazor/DataGrid/PolarisGridEditSession.cs.md) | The committed cell values that have not been saved yet, keyed by row and column: drafts rather than edits to the records, so a rejected save leaves nothing behind. |

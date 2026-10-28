@@ -198,10 +198,28 @@ public sealed class PolarisGridState<TItem> : PolarisGridState
         Refresh();
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// The column component reaches the state through its host, which knows the state but not the row
+    /// type, so this is the door it comes in by. A declaration built for another row type is refused
+    /// rather than cast blindly: it would have been declared inside the wrong host, and registering it
+    /// would put a getter over the wrong object in front of every row.
+    /// </remarks>
+    public override void RegisterColumn(IPolarisGridColumn column)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+
+        RegisterColumn(column as PolarisGridColumnDefinition<TItem>
+            ?? throw new ArgumentException(
+                $"A column declared for {column.GetType().Name} cannot be registered with a grid of {typeof(TItem).Name} rows. "
+                + "Declare it inside a grid or a filter whose rows are of the same type.",
+                nameof(column)));
+    }
+
     /// <summary>Forgets a column that is being disposed.</summary>
     /// <param name="id">The column id.</param>
     /// <returns>True when a column was removed.</returns>
-    public bool UnregisterColumn(string id)
+    public override bool UnregisterColumn(string id)
     {
         if (_columns.RemoveAll(column => string.Equals(column.Id, id, StringComparison.Ordinal)) == 0)
         {
