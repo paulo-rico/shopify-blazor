@@ -1,5 +1,5 @@
 <!-- summary-of: app-bridge.js -->
-<!-- source-sha256: 13010c32ae11 -->
+<!-- source-sha256: 73eac7d318e4 -->
 
 # app-bridge.js
 
@@ -9,7 +9,7 @@ scopes, product picker and the contextual save bar. Every function is guarded, b
 exists inside the Shopify Admin and nowhere else — a page opened directly must still render and be able
 to say what is missing rather than die on an undefined global.
 
-`Shopify.Blazor/wwwroot` · ES module at `/_content/Shopify.Blazor/app-bridge.js` · twelve exports, no dependencies, no module state
+`Shopify.Blazor/wwwroot` · ES module at `/_content/Shopify.Blazor/app-bridge.js` · thirteen exports, no dependencies, no module state
 
 ## Members
 
@@ -21,6 +21,7 @@ to say what is missing rather than die on an undefined global.
 | `loading` | `(isLoading): boolean` | Starts or stops the Admin's header progress bar with `Boolean(isLoading)`. Returns false when App Bridge has no `loading` and nothing was called. |
 | `toast` | `(message, options = {}): boolean` | Shows `message` with `{ isError, duration }`. Returns false for a blank/absent message or no `toast` API, and never calls App Bridge in that case. |
 | `showSaveBar` | `(id): Promise<boolean>` | Asks App Bridge to show the contextual save bar — "Unsaved changes", Discard, Save across the admin's top toolbar — for the `<ui-save-bar>` with this id. False outside the Admin, for a blank id, or when the element cannot be found. |
+| `canShowSaveBar` | `(): boolean` | `Boolean(window.shopify?.saveBar)`. True only when App Bridge has connected and installed the save bar API — the question to ask before believing a bar will appear, and narrower than `isAvailable`. Synchronous. |
 | `hideSaveBar` | `(id): Promise<boolean>` | Hides the bar again. Called after saving, after discarding and on teardown; a bar left showing covers the toolbar for the rest of the session. |
 | `navigate` | `(url): Promise<boolean>` | Goes through `shopify.navigation.navigate`. Outside the Admin, or without that API, it falls back to `window.location.assign(url)` and returns **false**. |
 | `currentUser` | `(): Promise<object\|null>` | The merchant using the app, or null when unavailable or the call rejects. |

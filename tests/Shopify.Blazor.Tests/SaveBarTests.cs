@@ -1,4 +1,6 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Shopify.Blazor.AppBridge;
 using Shopify.Blazor.Components;
@@ -144,24 +146,87 @@ public sealed class SaveBarTests
     }
 
     [Fact]
-    public void Nothing_is_rendered_outside_the_admin()
+    public void Nothing_is_rendered_outside_the_admin_when_no_fallback_is_given()
     {
-        using var context = new SaveBarContext(available: false);
+        using var context = new SaveBarContext(saveBarAvailable: false);
 
         var component = context.Render<ShopifySaveBar>(parameters => parameters.Add(x => x.Visible, true));
 
-        // App Bridge defines ui-save-bar only once it has connected to the admin, so an undefined
-        // element would leave its two buttons visible as ordinary buttons at the top of the page.
+        // App Bridge defines ui-save-bar and installs shopify.saveBar only once it has connected to
+        // the admin, so an element rendered in a standalone tab would leave its two buttons visible as
+        // ordinary buttons at the top of the page.
         Assert.Empty(component.FindAll("ui-save-bar"));
         Assert.Empty(context.Bridge.Shown);
     }
 
+    [Fact]
+    public void The_fallback_is_drawn_while_the_form_is_dirty_and_the_admin_bar_is_unavailable()
+    {
+        using var context = new SaveBarContext(saveBarAvailable: false);
+        var discards = 0;
+
+        var component = context.Render<ShopifySaveBar>(parameters => parameters
+            .Add(x => x.Visible, true)
+            .Add(x => x.Fallback, LocalBar(() => discards++)));
+
+        // Without this a session opened outside the admin gets no sign at all that the form has
+        // unsaved changes — the admin's bar does not exist there, and nothing else says so.
+        Assert.Empty(component.FindAll("ui-save-bar"));
+        Assert.NotNull(component.Find("button.local-bar-save"));
+        Assert.Empty(context.Bridge.Shown);
+
+        component.Find("button.local-bar-discard").Click();
+        Assert.Equal(1, discards);
+    }
+
+    [Fact]
+    public void The_fallback_is_not_drawn_when_the_form_is_clean()
+    {
+        using var context = new SaveBarContext(saveBarAvailable: false);
+
+        var component = context.Render<ShopifySaveBar>(parameters => parameters
+            .Add(x => x.Visible, false)
+            .Add(x => x.Fallback, LocalBar(() => { })));
+
+        // A fallback that ignored Visible would leave a permanent "Unsaved changes" bar over a form
+        // identical to the stored one.
+        Assert.Empty(component.FindAll("button.local-bar-save"));
+    }
+
+    [Fact]
+    public void The_fallback_is_not_drawn_where_the_admin_can_draw_the_bar()
+    {
+        using var context = new SaveBarContext();
+
+        var component = context.Render<ShopifySaveBar>(parameters => parameters
+            .Add(x => x.Visible, true)
+            .Add(x => x.Fallback, LocalBar(() => { })));
+
+        // Two sets of Save and Discard for one form would be two controls that look equal and are not.
+        Assert.NotNull(component.Find("ui-save-bar"));
+        Assert.Empty(component.FindAll("button.local-bar-save"));
+    }
+
+    private static RenderFragment LocalBar(Action discard) => builder =>
+    {
+        builder.OpenElement(0, "button");
+        builder.AddAttribute(1, "class", "local-bar-discard");
+        builder.AddAttribute(2, "onclick", EventCallback.Factory.Create<MouseEventArgs>(new object(), () => discard()));
+        builder.AddContent(3, "Discard");
+        builder.CloseElement();
+
+        builder.OpenElement(4, "button");
+        builder.AddAttribute(5, "class", "local-bar-save");
+        builder.AddContent(6, "Save");
+        builder.CloseElement();
+    };
+
     /// <summary>A bUnit context with the App Bridge interop layer replaced by a recorder.</summary>
     private sealed class SaveBarContext : BunitContext
     {
-        public SaveBarContext(bool available = true)
+        public SaveBarContext(bool saveBarAvailable = true)
         {
-            Bridge = new RecordingAppBridge { Available = available };
+            Bridge = new RecordingAppBridge { SaveBarAvailable = saveBarAvailable };
             Services.AddSingleton<IAppBridgeInterop>(Bridge);
         }
 
@@ -171,11 +236,13 @@ public sealed class SaveBarTests
     /// <summary>Records what the save bar asked App Bridge to do.</summary>
     private sealed class RecordingAppBridge : IAppBridgeInterop
     {
-        public bool Available { get; init; } = true;
+        public bool SaveBarAvailable { get; init; } = true;
 
         public List<string> Shown { get; } = [];
 
         public List<string> Hidden { get; } = [];
+
+        public ValueTask<bool> IsSaveBarAvailableAsync() => ValueTask.FromResult(SaveBarAvailable);
 
         public ValueTask<bool> ShowSaveBarAsync(string id)
         {
@@ -189,7 +256,7 @@ public sealed class SaveBarTests
             return ValueTask.FromResult(true);
         }
 
-        public ValueTask<bool> IsAvailableAsync() => ValueTask.FromResult(Available);
+        public ValueTask<bool> IsAvailableAsync() => ValueTask.FromResult(true);
 
         public ValueTask<string?> GetIdTokenAsync() => ValueTask.FromResult<string?>(null);
 

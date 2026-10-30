@@ -1,5 +1,5 @@
 <!-- summary-of: AppBridgeInterop.cs -->
-<!-- source-sha256: a2d53e5326fd -->
+<!-- source-sha256: 02a379e00195 -->
 
 # AppBridgeInterop.cs
 
@@ -27,6 +27,7 @@ Admin — where `window.shopify` does not exist — still renders and can say wh
 | `PickProductsAsync` | `ValueTask<IReadOnlyList<ShopifyPickedProduct>?>(int? multipleLimit = null, CancellationToken cancellationToken = default)` | Opens Shopify's product picker. Returns the picked products, an empty list when the merchant chose none, or **null** when the picker is cancelled or unavailable. |
 | `ShowSaveBarAsync` | `ValueTask<bool>(string id)` | Asks the Admin to show the contextual save bar belonging to the `<ui-save-bar>` with this id. False outside the Admin, for a blank id, or when App Bridge cannot find the element. |
 | `HideSaveBarAsync` | `ValueTask<bool>(string id)` | Hides it again. The caller hides when the form stops being dirty and on teardown, because the bar outlives the component that asked for it. |
+| `IsSaveBarAvailableAsync` | `ValueTask<bool>` | Whether the Admin can draw a save bar at all — the narrower `shopify.saveBar` question, not `window.shopify`, because App Bridge can inject the global on a frame whose save bar API it never installs. |
 | `DisposeAsync` | `ValueTask` | Idempotent. Disposes the imported JS module (swallowing a dead circuit) and the import semaphore; after it every call returns null/false. |
 
 ## Supporting types
@@ -65,7 +66,12 @@ Admin — where `window.shopify` does not exist — still renders and can say wh
   `InvokeAsync`, so cancelling cancels the JS promise.
 - `ShowSaveBarAsync` and `HideSaveBarAsync` refuse a blank id before touching JS and otherwise return
   whatever the module reports. The module answers **false** outside the Admin rather than throwing, so
-  these two are not how a page learns whether it is embedded — `IsAvailableAsync` is.
+  these two are not how a page learns whether it is embedded — `IsSaveBarAvailableAsync` or
+  `IsAvailableAsync` is.
+- `IsSaveBarAvailableAsync` asks `canShowSaveBar`, which is `Boolean(window.shopify?.saveBar)`. That is
+  deliberately narrower than `IsAvailableAsync`: App Bridge injects the `shopify` global before (and
+  sometimes without) connecting to the admin, so only the narrower question says whether a bar the
+  caller asks for will actually appear.
 - The save bar pair is a bare ask, not state: the element it names is rendered by
   `Shopify.Blazor.Components.ShopifySaveBar`, which owns the id, the two buttons and the rule that a
   show and a hide are sent only when the bar's visibility actually changes.

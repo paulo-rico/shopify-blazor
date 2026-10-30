@@ -141,6 +141,22 @@ export function toast(message, options = {}) {
 }
 
 /**
+ * True when the Admin can draw a contextual save bar at all.
+ *
+ * `shopify.saveBar` is narrower than `window.shopify`: App Bridge injects the global even on a page it
+ * cannot host, but it installs the save bar API only once it has connected to the admin. So this is the
+ * question a page must ask before deciding that a bar it asked for will appear — false means the app is
+ * on its own and needs its own bar.
+ *
+ * Synchronous, so a caller can decide before doing any work.
+ *
+ * @returns {boolean}
+ */
+export function canShowSaveBar() {
+    return Boolean(bridge()?.saveBar);
+}
+
+/**
  * Shows the Admin's contextual save bar for the `<ui-save-bar>` element with this id.
  *
  * This is the bar Shopify's own product editor draws across the top toolbar when a form has unsaved

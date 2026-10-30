@@ -17,11 +17,12 @@ namespace Shopify.Blazor.Components;
 /// asks App Bridge to show it (<c>shopify.saveBar.show(id)</c>).
 /// </para>
 /// <para>
-/// <strong>Nothing is rendered outside the Admin.</strong> App Bridge defines <c>ui-save-bar</c> only
-/// once it has connected to the admin, so an undefined element would leave the two buttons visible as
-/// ordinary buttons at the top of the page. Availability is therefore asked once, after the first
-/// render, and the element is drawn only when it answers yes. That is also why a page keeps its own
-/// Save control as the standalone fallback.
+/// <strong>Outside the Admin the App Bridge bar is not drawn at all.</strong> App Bridge defines
+/// <c>ui-save-bar</c> and installs <c>shopify.saveBar</c> only once it has connected to the admin, so an
+/// element rendered in a standalone tab would leave its two buttons visible as ordinary buttons at the
+/// top of the page, and a show call would go nowhere. Availability is asked once, after the first
+/// render; when it says no, <see cref="Fallback"/> is drawn instead — while <see cref="Visible"/> is
+/// true — so a page opened directly still says it has unsaved changes and still offers both actions.
 /// </para>
 /// <para>
 /// <strong>Visibility is the caller's decision.</strong> There is no form scanning and no
@@ -49,21 +50,40 @@ public sealed class ShopifySaveBar : ComponentBase, IAsyncDisposable
 {
     private readonly string _generatedId = $"shopify-save-bar-{Guid.NewGuid():N}";
     private bool _shown;
-    private bool _disposed;
 
     /// <summary>
-    /// Whether App Bridge is present, asked once after the first render.
+    /// Whether App Bridge answered that it can draw the bar, so this component renders the
+    /// <c>ui-save-bar</c> element instead of <see cref="Fallback"/>.
     /// </summary>
     /// <remarks>
-    /// Nothing is rendered until this is true. Outside the Admin the <c>ui-save-bar</c> element is not
-    /// defined — App Bridge defines it only once it has connected to the admin — so leaving it in the
-    /// markup would put two unstyled, visible buttons at the top of the page. The element's own
-    /// <c>:host { display: none }</c> comes from App Bridge's shadow root, and there is no shadow root
-    /// without the definition.
+    /// False until App Bridge has connected, and false for ever outside the Admin. App Bridge defines
+    /// <c>ui-save-bar</c> and installs <c>shopify.saveBar</c> only once it has connected, so an element
+    /// rendered before that would have no shadow root — leaving its two buttons as ordinary buttons in
+    /// the page — and a show call would go nowhere.
     /// </remarks>
-    private bool _available;
+    private bool _adminBar;
 
-    private bool _checkedAvailability;
+    /// <summary>Whether availability has been asked once, on the first render.</summary>
+    private bool _askedAvailability;
+
+    /// <summary>Whether availability has been asked during the current dirty spell.</summary>
+    /// <remarks>
+    /// App Bridge can connect after this page has rendered, so a first answer of false is not final:
+    /// the question is asked again on the next edit rather than caching "no bar" for the circuit's
+    /// whole life.
+    /// </remarks>
+    private bool _askedDuringDirty;
+
+    /// <summary>
+    /// Set once a show call has come back false, so the component stops asking and falls back for good.
+    /// </summary>
+    /// <remarks>
+    /// Without this, a show that fails would flip back to "try the admin bar", re-render the element,
+    /// fail again, and loop between the two states for as long as the form stayed dirty.
+    /// </remarks>
+    private bool _adminBarFailed;
+
+    private bool _disposed;
 
     /// <summary>The App Bridge interop service that shows and hides the bar.</summary>
     [Inject]
@@ -129,15 +149,34 @@ public sealed class ShopifySaveBar : ComponentBase, IAsyncDisposable
     [Parameter]
     public EventCallback OnDiscard { get; set; }
 
+    /// <summary>
+    /// What to draw in place of the Admin's bar when the app is not running inside the Admin, or when
+    /// App Bridge has not installed the save bar API.
+    /// </summary>
+    /// <remarks>
+    /// The Admin's bar is the whole point when it is available, and this is only the standalone
+    /// degradation — but without it a page opened directly shows nothing at all when it is edited: no
+    /// bar, no message, no explanation. The fragment is drawn in the same place, only while
+    /// <see cref="Visible"/> is true, and the page supplies its own buttons because this component has
+    /// no styling of its own to give them.
+    /// </remarks>
+    [Parameter]
+    public RenderFragment? Fallback { get; set; }
+
     private string BarId => string.IsNullOrWhiteSpace(Id) ? _generatedId : Id;
 
     /// <inheritdoc />
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
-        if (!_available)
+        if (!_adminBar)
         {
-            // See _available: an undefined ui-save-bar is an ordinary inline element, and its buttons
-            // would be two plain buttons in the page.
+            // See _adminBar: an undefined ui-save-bar is an ordinary inline element, and its buttons
+            // would be two plain buttons in the page. Outside the Admin the page supplies its own bar.
+            if (Visible && Fallback is not null)
+            {
+                builder.AddContent(0, Fallback);
+            }
+
             return;
         }
 
@@ -189,39 +228,65 @@ public sealed class ShopifySaveBar : ComponentBase, IAsyncDisposable
             return;
         }
 
-        if (!_checkedAvailability)
+        if (!_askedAvailability)
         {
             // Asked after the first render because JS interop is not available while prerendering,
-            // and the interop layer answers false there — which would look like a standalone page for
-            // ever. One answer is kept: availability does not change while the circuit lives.
-            _checkedAvailability = true;
-            _available = await AppBridge.IsAvailableAsync();
+            // and the interop layer answers false there. Asked again on the next edit if the answer is
+            // no: App Bridge can finish connecting after this page has rendered.
+            _askedAvailability = true;
+            _adminBar = !_adminBarFailed && await AppBridge.IsSaveBarAvailableAsync();
 
-            if (_available)
+            if (_adminBar)
             {
+                // Draws the element. The next pass shows it, once it is in the document.
                 StateHasChanged();
             }
 
             return;
         }
 
-        if (!_available || _shown == Visible)
+        if (_adminBar)
         {
+            if (Visible && !_shown)
+            {
+                // The element is rendered by now, so App Bridge can find it by id. A false answer means
+                // the bar will never appear on this page, so stop asking and draw the page's own bar
+                // rather than leaving the merchant with no sign of an unsaved edit.
+                _shown = await AppBridge.ShowSaveBarAsync(BarId);
+
+                if (!_shown)
+                {
+                    _adminBarFailed = true;
+                    _adminBar = false;
+                    StateHasChanged();
+                }
+            }
+            else if (!Visible && _shown)
+            {
+                _shown = false;
+                await AppBridge.HideSaveBarAsync(BarId);
+            }
+
             return;
         }
 
-        _shown = Visible;
-
-        // Only a change is sent: App Bridge keeps its own shown/hidden state, and a call per render
-        // would fight it. False answers are expected outside the Admin and need no handling — the
-        // page's own Save control is the fallback there.
-        if (Visible)
+        if (!Visible)
         {
-            await AppBridge.ShowSaveBarAsync(BarId);
+            // A clean form ends the dirty spell, so the next edit asks again.
+            _askedDuringDirty = false;
+            return;
         }
-        else
+
+        if (!_askedDuringDirty && !_adminBarFailed)
         {
-            await AppBridge.HideSaveBarAsync(BarId);
+            _askedDuringDirty = true;
+            _adminBar = await AppBridge.IsSaveBarAvailableAsync();
+
+            if (_adminBar)
+            {
+                // Replaces the fallback with the admin's bar on the next pass.
+                StateHasChanged();
+            }
         }
     }
 

@@ -76,6 +76,20 @@ public interface IAppBridgeInterop
     ValueTask ShowToastAsync(string message, bool isError = false, int? durationMs = null);
 
     /// <summary>
+    /// Whether the Admin can draw a contextual save bar on this page.
+    /// </summary>
+    /// <returns>
+    /// True when App Bridge is connected and installed <c>shopify.saveBar</c>; false in a standalone
+    /// browser tab, where the app has to draw a save bar of its own.
+    /// </returns>
+    /// <remarks>
+    /// This is narrower than <see cref="IsAvailableAsync"/>: App Bridge can inject the <c>shopify</c>
+    /// global on a page it cannot host, and installs the save bar API only once it has connected to the
+    /// admin. Asking the wider question would let a page believe a bar it asked for will appear.
+    /// </remarks>
+    ValueTask<bool> IsSaveBarAvailableAsync();
+
+    /// <summary>
     /// Shows the Admin's contextual save bar — "Unsaved changes", Discard, Save — for a
     /// <c>&lt;ui-save-bar&gt;</c> element on the page.
     /// </summary>
@@ -364,6 +378,25 @@ public sealed class AppBridgeInterop : IAppBridgeInterop, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or JSException)
         {
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> IsSaveBarAvailableAsync()
+    {
+        var module = await ModuleAsync().ConfigureAwait(false);
+        if (module is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return await module.InvokeAsync<bool>("canShowSaveBar").ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException)
+        {
+            return false;
         }
     }
 
