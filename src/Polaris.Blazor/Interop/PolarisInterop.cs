@@ -205,7 +205,7 @@ public sealed class PolarisInterop : IPolarisInterop
             }
 
             _dispatcherReference = DotNetObjectReference.Create(_dispatcher);
-            _module = await _js.InvokeAsync<IJSObjectReference>("import", _options.ModulePath).ConfigureAwait(false);
+            _module = await _js.InvokeAsync<IJSObjectReference>("import", VersionedModuleUrl(_options.ModulePath)).ConfigureAwait(false);
             return true;
         }
         catch (JSDisconnectedException)
@@ -228,6 +228,27 @@ public sealed class PolarisInterop : IPolarisInterop
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// The module's URL with a build stamp appended, so a deploy cannot be served a stale copy.
+    /// </summary>
+    /// <param name="path">The configured module path.</param>
+    /// <returns>The same path with <c>v=&lt;build id&gt;</c> appended.</returns>
+    /// <remarks>
+    /// A static web asset is served with an ETag and no <c>Cache-Control</c>, so the browser falls back
+    /// to heuristic freshness and may reuse a module from before an update for the rest of its
+    /// lifetime — the newer functions are simply absent while the page renders perfectly. Measured on a
+    /// deployed app whose App Bridge module had grown new exports: the browser kept the old one, the
+    /// calls failed, and the feature degraded silently. The module version id changes on every build,
+    /// which is the lifetime wanted: one deploy keeps its cache, the next gets a new URL.
+    /// </remarks>
+    private static string VersionedModuleUrl(string path)
+    {
+        var build = typeof(PolarisInterop).Assembly.ManifestModule.ModuleVersionId.ToString("N");
+        var separator = path.Contains('?') ? '&' : '?';
+
+        return path + separator + "v=" + build;
     }
 
     /// <inheritdoc />

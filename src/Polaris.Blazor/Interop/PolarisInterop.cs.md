@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisInterop.cs -->
-<!-- source-sha256: 6798c34ec923 -->
+<!-- source-sha256: 9ea7be467b32 -->
 
 # PolarisInterop.cs
 
@@ -53,6 +53,10 @@ matching elements there are.
 
 - **One module, loaded once, behind a `SemaphoreSlim(1, 1)`.** The double-check inside the gate means
   concurrent first renders do not import twice; the module reference is cached for the life of the service.
+- **The module URL is stamped with the build.** `ModulePath` is imported as `?v=<module version id>`,
+  which changes whenever the assembly is rebuilt, because a static web asset carries an ETag and no
+  `Cache-Control` and the browser may otherwise keep a copy from before a deploy for the rest of its
+  life — the newer functions are then simply absent and every call that needs them degrades silently.
 - **One `DotNetObjectReference<PolarisEventDispatcher>` for the whole circuit.** JavaScript receives it at
   attach time along with a fresh GUID handle (`Guid.NewGuid().ToString("n")`), and routes every event
   through the dispatcher.

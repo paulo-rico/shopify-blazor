@@ -227,7 +227,7 @@ public sealed class AppBridgeInterop : IAppBridgeInterop, IAsyncDisposable
                 return _module;
             }
 
-            _module = await _js.InvokeAsync<IJSObjectReference>("import", _options.ModulePath).ConfigureAwait(false);
+            _module = await _js.InvokeAsync<IJSObjectReference>("import", VersionedModuleUrl(_options.ModulePath)).ConfigureAwait(false);
             return _module;
         }
         catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException or JSException)
@@ -240,6 +240,28 @@ public sealed class AppBridgeInterop : IAppBridgeInterop, IAsyncDisposable
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    /// The module's URL with a build stamp appended, so a deploy cannot be served a stale copy.
+    /// </summary>
+    /// <param name="path">The configured module path.</param>
+    /// <returns>The same path with <c>v=&lt;build id&gt;</c> appended.</returns>
+    /// <remarks>
+    /// A static web asset is served with an ETag and no <c>Cache-Control</c>, which leaves the browser
+    /// on its heuristic freshness rule — and a module cached before an update is never asked for again,
+    /// so the newer exports are missing while everything else on the page looks right. Measured on a
+    /// deployed app: <c>window.shopify.saveBar</c> existed, the wrapped <c>showSaveBar</c> did not, and
+    /// the save bar silently fell back for every session until the browser cache was emptied. The
+    /// module version id changes on every build, which is exactly the lifetime wanted: the same deploy
+    /// keeps its cache, a new one gets a new URL.
+    /// </remarks>
+    private static string VersionedModuleUrl(string path)
+    {
+        var build = typeof(AppBridgeInterop).Assembly.ManifestModule.ModuleVersionId.ToString("N");
+        var separator = path.Contains('?') ? '&' : '?';
+
+        return path + separator + "v=" + build;
     }
 
     /// <inheritdoc />

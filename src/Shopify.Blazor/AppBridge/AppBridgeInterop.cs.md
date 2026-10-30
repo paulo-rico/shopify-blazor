@@ -1,5 +1,5 @@
 <!-- summary-of: AppBridgeInterop.cs -->
-<!-- source-sha256: 02a379e00195 -->
+<!-- source-sha256: 020cee0b007d -->
 
 # AppBridgeInterop.cs
 
@@ -46,6 +46,10 @@ Admin — where `window.shopify` does not exist — still renders and can say wh
 - The JS module is imported once, lazily, on the first call, behind a `SemaphoreSlim` with a
   double-check inside the lock — concurrent first calls produce one `import`. A *failed* import caches
   nothing, so a later call on a live circuit can succeed.
+- **The module URL carries the build's module version id** (`?v=…`), so a deploy cannot be served a
+  module cached from before it. Without that stamp a browser can keep an old `app-bridge.js` for the
+  rest of its life — the app renders, `window.shopify` exists, and only the newer exports are missing,
+  which is indistinguishable from App Bridge not offering the feature.
 - `ModuleAsync` returns null after disposal, when prerendering, or when the circuit has already gone.
   Every public method treats null as "App Bridge is unavailable" and returns its empty value.
 - The exception filters are precise: `JSDisconnectedException` and `JSException` are swallowed by every

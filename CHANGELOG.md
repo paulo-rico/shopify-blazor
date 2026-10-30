@@ -249,6 +249,14 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **A deployed app could keep an old interop module for ever, and the newest functions simply did not
+  exist.** Both libraries imported their JavaScript from `_content/…` without a version, and a static
+  web asset is served with an ETag and no `Cache-Control`, so the browser's heuristic freshness rule
+  can keep a copy from before a deploy — the page renders perfectly and the missing export fails
+  silently. Measured on a live app: `window.shopify.saveBar` existed, the wrapped `showSaveBar` did
+  not, and the save bar fell back in every session until the cache was emptied by hand. Both imports
+  now carry `?v=<module version id>`, which changes on every build, so one deploy keeps its cache and
+  the next gets a new URL.
 - **`PolarisRangeSlider` reported every pixel of a drag, so a range filter re-queried the data while the
   mouse was still down.** Measured in a browser: `input` fires continuously through a drag and `change`
   fires once, on release — so `input` now only previews (this control moves its own interval and
