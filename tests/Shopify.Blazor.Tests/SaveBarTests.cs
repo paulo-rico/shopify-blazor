@@ -143,12 +143,25 @@ public sealed class SaveBarTests
         Assert.Equal(new[] { "leaving-save-bar" }, context.Bridge.Hidden);
     }
 
+    [Fact]
+    public void Nothing_is_rendered_outside_the_admin()
+    {
+        using var context = new SaveBarContext(available: false);
+
+        var component = context.Render<ShopifySaveBar>(parameters => parameters.Add(x => x.Visible, true));
+
+        // App Bridge defines ui-save-bar only once it has connected to the admin, so an undefined
+        // element would leave its two buttons visible as ordinary buttons at the top of the page.
+        Assert.Empty(component.FindAll("ui-save-bar"));
+        Assert.Empty(context.Bridge.Shown);
+    }
+
     /// <summary>A bUnit context with the App Bridge interop layer replaced by a recorder.</summary>
     private sealed class SaveBarContext : BunitContext
     {
-        public SaveBarContext()
+        public SaveBarContext(bool available = true)
         {
-            Bridge = new RecordingAppBridge();
+            Bridge = new RecordingAppBridge { Available = available };
             Services.AddSingleton<IAppBridgeInterop>(Bridge);
         }
 
@@ -158,6 +171,8 @@ public sealed class SaveBarTests
     /// <summary>Records what the save bar asked App Bridge to do.</summary>
     private sealed class RecordingAppBridge : IAppBridgeInterop
     {
+        public bool Available { get; init; } = true;
+
         public List<string> Shown { get; } = [];
 
         public List<string> Hidden { get; } = [];
@@ -174,7 +189,7 @@ public sealed class SaveBarTests
             return ValueTask.FromResult(true);
         }
 
-        public ValueTask<bool> IsAvailableAsync() => ValueTask.FromResult(true);
+        public ValueTask<bool> IsAvailableAsync() => ValueTask.FromResult(Available);
 
         public ValueTask<string?> GetIdTokenAsync() => ValueTask.FromResult<string?>(null);
 

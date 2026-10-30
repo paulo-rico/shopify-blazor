@@ -1,5 +1,5 @@
 <!-- summary-of: ShopifySaveBar.cs -->
-<!-- source-sha256: fc215a8e4d33 -->
+<!-- source-sha256: a4140511b008 -->
 
 # ShopifySaveBar.cs
 
@@ -11,8 +11,8 @@ admin's own product editor shows — and reports the two presses as ordinary Bla
 
 It is an **App Bridge** component, not a Polaris one. The bar belongs to the chrome around the app,
 so no markup in the page can be the bar: the component renders the `<ui-save-bar>` element App Bridge
-reads, then asks App Bridge to show or hide it. Outside the Admin there is no bar and the asks answer
-false, which is why a page keeps its own Save control as the standalone fallback.
+reads, then asks App Bridge to show or hide it. Outside the Admin the element is not rendered at all
+and the asks are never made, which is why a page keeps its own Save control as the standalone fallback.
 
 ## Parameters
 
@@ -34,6 +34,10 @@ Injected: `IAppBridgeInterop AppBridge`.
 - **The markup is a carrier, not the bar.** `<ui-save-bar>` renders nothing on its own; App Bridge
   reads its `id`, its `discardConfirmation` attribute and its two children, and draws the bar in the
   admin. The primary action is the child carrying `variant="primary"`; the other child is Discard.
+- **Nothing is rendered until App Bridge says it is there.** Availability is asked once in
+  `OnAfterRenderAsync` — not in `OnInitializedAsync`, where JS interop is unavailable during
+  prerendering and the interop layer answers false for ever — and the element and its buttons are
+  drawn only after a true answer, one render later. A false answer draws nothing at all.
 - **Visibility is the caller's decision.** There is no form scanning here. `OnAfterRenderAsync`
   compares `Visible` with what it last sent and calls `ShowSaveBarAsync` or `HideSaveBarAsync` once
   per change — never once per render, because the component re-renders whenever its parent does.
@@ -51,9 +55,12 @@ Injected: `IAppBridgeInterop AppBridge`.
 
 - **A page that never flips `Visible` gets no bar and no error.** Nothing validates that the parameter
   is ever true, and there is no fallback rendering, so the only symptom is the absence of the bar.
-- **Outside the Admin every call answers false and nothing appears.** That is the intended degradation
-  (`window.shopify` does not exist there), so a page must keep a Save control of its own. The
-  component does not render an inline substitute.
+- **Outside the Admin nothing is rendered at all, and no call is made.** That is the intended
+  degradation (`window.shopify` does not exist there), so a page must keep a Save control of its own.
+  The render gate is not cosmetic: App Bridge defines `ui-save-bar` only once it has connected to the
+  admin, and an undefined element renders no shadow root — so its two buttons would appear as ordinary
+  buttons at the top of the page, with nothing in the console to explain them. The component does not
+  render an inline substitute.
 - **`Discard` is an intent, not an undo.** Nothing in the bar resets a control: the page's values are
   page state, and the only honest discard is the page reloading what it loaded. A page that raises
   nothing on `OnDiscard` hides the bar on the next render while leaving the edits in place.

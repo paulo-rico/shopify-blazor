@@ -14,9 +14,14 @@ namespace Shopify.Blazor.Components;
 /// This is an <strong>App Bridge</strong> component, not a Polaris one. The bar belongs to the admin
 /// chrome that surrounds the app, so it cannot be drawn as markup inside the page: the component
 /// renders a <c>&lt;ui-save-bar&gt;</c> element, which is a state carrier App Bridge reads, and then
-/// asks App Bridge to show it (<c>shopify.saveBar.show(id)</c>). Outside the Admin that call answers
-/// false and nothing appears, which is why a page that uses this keeps its own Save control as the
-/// standalone fallback.
+/// asks App Bridge to show it (<c>shopify.saveBar.show(id)</c>).
+/// </para>
+/// <para>
+/// <strong>Nothing is rendered outside the Admin.</strong> App Bridge defines <c>ui-save-bar</c> only
+/// once it has connected to the admin, so an undefined element would leave the two buttons visible as
+/// ordinary buttons at the top of the page. Availability is therefore asked once, after the first
+/// render, and the element is drawn only when it answers yes. That is also why a page keeps its own
+/// Save control as the standalone fallback.
 /// </para>
 /// <para>
 /// <strong>Visibility is the caller's decision.</strong> There is no form scanning and no
@@ -45,6 +50,20 @@ public sealed class ShopifySaveBar : ComponentBase, IAsyncDisposable
     private readonly string _generatedId = $"shopify-save-bar-{Guid.NewGuid():N}";
     private bool _shown;
     private bool _disposed;
+
+    /// <summary>
+    /// Whether App Bridge is present, asked once after the first render.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is rendered until this is true. Outside the Admin the <c>ui-save-bar</c> element is not
+    /// defined — App Bridge defines it only once it has connected to the admin — so leaving it in the
+    /// markup would put two unstyled, visible buttons at the top of the page. The element's own
+    /// <c>:host { display: none }</c> comes from App Bridge's shadow root, and there is no shadow root
+    /// without the definition.
+    /// </remarks>
+    private bool _available;
+
+    private bool _checkedAvailability;
 
     /// <summary>The App Bridge interop service that shows and hides the bar.</summary>
     [Inject]
@@ -115,6 +134,13 @@ public sealed class ShopifySaveBar : ComponentBase, IAsyncDisposable
     /// <inheritdoc />
     protected override void BuildRenderTree(RenderTreeBuilder builder)
     {
+        if (!_available)
+        {
+            // See _available: an undefined ui-save-bar is an ordinary inline element, and its buttons
+            // would be two plain buttons in the page.
+            return;
+        }
+
         builder.OpenElement(0, "ui-save-bar");
         builder.AddAttribute(1, "id", BarId);
 
@@ -158,7 +184,28 @@ public sealed class ShopifySaveBar : ComponentBase, IAsyncDisposable
     /// <inheritdoc />
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_disposed || _shown == Visible)
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (!_checkedAvailability)
+        {
+            // Asked after the first render because JS interop is not available while prerendering,
+            // and the interop layer answers false there — which would look like a standalone page for
+            // ever. One answer is kept: availability does not change while the circuit lives.
+            _checkedAvailability = true;
+            _available = await AppBridge.IsAvailableAsync();
+
+            if (_available)
+            {
+                StateHasChanged();
+            }
+
+            return;
+        }
+
+        if (!_available || _shown == Visible)
         {
             return;
         }
