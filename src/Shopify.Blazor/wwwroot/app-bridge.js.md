@@ -1,15 +1,15 @@
 <!-- summary-of: app-bridge.js -->
-<!-- source-sha256: b9053257a334 -->
+<!-- source-sha256: 13010c32ae11 -->
 
 # app-bridge.js
 
 The browser half of App Bridge 4: one ES module that mints a session token, calls the app's own
 endpoints with it, and drives the Admin's progress bar, toasts, navigation, current user, granted
-scopes and product picker. Every function is guarded, because `window.shopify` exists inside the
-Shopify Admin and nowhere else — a page opened directly must still render and be able to say what is
-missing rather than die on an undefined global.
+scopes, product picker and the contextual save bar. Every function is guarded, because `window.shopify`
+exists inside the Shopify Admin and nowhere else — a page opened directly must still render and be able
+to say what is missing rather than die on an undefined global.
 
-`Shopify.Blazor/wwwroot` · ES module at `/_content/Shopify.Blazor/app-bridge.js` · ten exports, no dependencies, no module state
+`Shopify.Blazor/wwwroot` · ES module at `/_content/Shopify.Blazor/app-bridge.js` · twelve exports, no dependencies, no module state
 
 ## Members
 
@@ -20,6 +20,8 @@ missing rather than die on an undefined global.
 | `fetchWithSessionToken` | `(url, options = {})` | Mints a token, then `fetch`es `url` with it as a bearer credential. Returns `{ ok, status, data, error }`. See the envelope below. |
 | `loading` | `(isLoading): boolean` | Starts or stops the Admin's header progress bar with `Boolean(isLoading)`. Returns false when App Bridge has no `loading` and nothing was called. |
 | `toast` | `(message, options = {}): boolean` | Shows `message` with `{ isError, duration }`. Returns false for a blank/absent message or no `toast` API, and never calls App Bridge in that case. |
+| `showSaveBar` | `(id): Promise<boolean>` | Asks App Bridge to show the contextual save bar — "Unsaved changes", Discard, Save across the admin's top toolbar — for the `<ui-save-bar>` with this id. False outside the Admin, for a blank id, or when the element cannot be found. |
+| `hideSaveBar` | `(id): Promise<boolean>` | Hides the bar again. Called after saving, after discarding and on teardown; a bar left showing covers the toolbar for the rest of the session. |
 | `navigate` | `(url): Promise<boolean>` | Goes through `shopify.navigation.navigate`. Outside the Admin, or without that API, it falls back to `window.location.assign(url)` and returns **false**. |
 | `currentUser` | `(): Promise<object\|null>` | The merchant using the app, or null when unavailable or the call rejects. |
 | `grantedScopes` | `(): Promise<string[]\|null>` | `shopify.scopes.query()`, or null when the API is missing, the call rejects, or the answer is not an array. |
@@ -58,6 +60,11 @@ human-readable failure text.
   `imageUrl` from `images[0].originalSrc` and every value `?? null`. Each variant carries
   `{ id, title, price, sku, options }`, where `options` is built from `selectedOptions` as a
   name → value map, and `price` stays a **string** because that is how Shopify states money.
+- **The save bar is App Bridge's, and its element stays in this document.** `<ui-save-bar>` is a state
+  carrier: it renders nothing itself, App Bridge reads it and draws the bar in the admin's chrome. The
+  bar's buttons are the element's own `<button>` children — App Bridge forwards a click by calling
+  `click()` on them, which is why the app's own handlers work — the primary one being the child with
+  `variant="primary"`. `showSaveBar` and `hideSaveBar` only ask for the bar; they do not create it.
 
 ## Gotchas
 
@@ -84,6 +91,13 @@ human-readable failure text.
   name — so it is for direct JS use only.
 - **`navigate` returns `false` after starting a real navigation**, so a caller that treats the
   return value as "did not navigate" is wrong when the fallback is what ran.
+- **The save bar functions swallow App Bridge's own failure.** `shopify.saveBar.show(id)` throws
+  `SaveBar with ID … not found` when no element carries that id — a page that passes an id it did not
+  render gets a working page and no bar, not an exception. That is the right trade for a bar, but it
+  means the only symptom of a wrong id is nothing appearing.
+- **A shown bar outlives the page that asked for it.** Neither function is tied to a component's
+  lifetime, and nothing hides the bar on navigation, so the caller must hide it when the form stops
+  being dirty and when the screen goes away.
 - **Every export is resolved by name from C#** (`module.InvokeAsync("…")`), so renaming one here
   produces no build error — only a runtime `JSException` on the first call, on a page that otherwise
   renders.

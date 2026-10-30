@@ -9,7 +9,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 
 `python3 tools/check-summaries.py` reports a summary that is missing or older than its source.
 
-182 sources, 25 directories.
+183 sources, 25 directories.
 
 ## src/Polaris.Blazor
 
@@ -296,6 +296,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 |---|---|
 | [`ShopifyApp.cs.md`](../src/Shopify.Blazor/Components/ShopifyApp.cs.md) | Cascades App Bridge to a subtree and reports whether the page is actually inside the Shopify Admin. |
 | [`ShopifyAppBridgeHead.cs.md`](../src/Shopify.Blazor/Components/ShopifyAppBridgeHead.cs.md) | Renders the three head elements an embedded Shopify app requires: the shopify-api-key meta tag and the App Bridge and Polaris script tags, in that order. |
+| [`ShopifySaveBar.cs.md`](../src/Shopify.Blazor/Components/ShopifySaveBar.cs.md) | Shopify's contextual save bar as a Blazor component: while a form has unsaved changes it draws "Unsaved changes" with Discard and Save across the admin's top toolbar — the same bar the admin's own… |
 
 ## src/Shopify.Blazor/Diagnostics
 

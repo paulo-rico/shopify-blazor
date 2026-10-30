@@ -1,11 +1,11 @@
 <!-- summary-of: AppBridgeInterop.cs -->
-<!-- source-sha256: a48886c659f3 -->
+<!-- source-sha256: a2d53e5326fd -->
 
 # AppBridgeInterop.cs
 
 Every App Bridge 4 feature the toolkit uses, reached from C# over `IJSRuntime`. That covers session
 tokens, authenticated calls to the app's own endpoints, the Admin's progress bar and toasts,
-navigation, the merchant's identity and granted scopes, and Shopify's product picker; every method
+navigation, the merchant's identity and granted scopes, Shopify's product picker and the admin's contextual save bar; every method
 degrades to `false`, `null` or a failed result instead of throwing, so a page that runs outside the
 Admin — where `window.shopify` does not exist — still renders and can say why.
 
@@ -25,6 +25,8 @@ Admin — where `window.shopify` does not exist — still renders and can say wh
 | `GetCurrentUserAsync` | `ValueTask<ShopifyAppUser?>` | The merchant using the app, or null outside the Admin. |
 | `GetGrantedScopesAsync` | `ValueTask<IReadOnlyList<string>?>` | The scopes currently granted, or null when unavailable. |
 | `PickProductsAsync` | `ValueTask<IReadOnlyList<ShopifyPickedProduct>?>(int? multipleLimit = null, CancellationToken cancellationToken = default)` | Opens Shopify's product picker. Returns the picked products, an empty list when the merchant chose none, or **null** when the picker is cancelled or unavailable. |
+| `ShowSaveBarAsync` | `ValueTask<bool>(string id)` | Asks the Admin to show the contextual save bar belonging to the `<ui-save-bar>` with this id. False outside the Admin, for a blank id, or when App Bridge cannot find the element. |
+| `HideSaveBarAsync` | `ValueTask<bool>(string id)` | Hides it again. The caller hides when the form stops being dirty and on teardown, because the bar outlives the component that asked for it. |
 | `DisposeAsync` | `ValueTask` | Idempotent. Disposes the imported JS module (swallowing a dead circuit) and the import semaphore; after it every call returns null/false. |
 
 ## Supporting types
@@ -61,6 +63,12 @@ Admin — where `window.shopify` does not exist — still renders and can say wh
 - `PickProductsAsync` maps the JS DTOs with defensive fallbacks: a missing variant array becomes empty,
   a missing options map becomes an empty dictionary. The `CancellationToken` is passed into
   `InvokeAsync`, so cancelling cancels the JS promise.
+- `ShowSaveBarAsync` and `HideSaveBarAsync` refuse a blank id before touching JS and otherwise return
+  whatever the module reports. The module answers **false** outside the Admin rather than throwing, so
+  these two are not how a page learns whether it is embedded — `IsAvailableAsync` is.
+- The save bar pair is a bare ask, not state: the element it names is rendered by
+  `Shopify.Blazor.Components.ShopifySaveBar`, which owns the id, the two buttons and the rule that a
+  show and a hide are sent only when the bar's visibility actually changes.
 
 ## Gotchas
 

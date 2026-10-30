@@ -75,6 +75,30 @@ public interface IAppBridgeInterop
     /// <summary>Shows a toast. Outside the Admin the call is a no-op.</summary>
     ValueTask ShowToastAsync(string message, bool isError = false, int? durationMs = null);
 
+    /// <summary>
+    /// Shows the Admin's contextual save bar — "Unsaved changes", Discard, Save — for a
+    /// <c>&lt;ui-save-bar&gt;</c> element on the page.
+    /// </summary>
+    /// <param name="id">The <c>id</c> of a <c>&lt;ui-save-bar&gt;</c> rendered by the page.</param>
+    /// <returns>True when App Bridge was asked to show it; false outside the Admin, where there is no bar to show.</returns>
+    /// <remarks>
+    /// The bar is App Bridge's, not Polaris's: it draws in the admin's top toolbar, not in the app's
+    /// own page, so it cannot be rendered as markup here. The element stays in this document and App
+    /// Bridge clicks its button children in place, which is why a caller keeps its own handlers.
+    /// Prefer <see cref="Components.ShopifySaveBar"/>, which renders the element and drives this.
+    /// </remarks>
+    ValueTask<bool> ShowSaveBarAsync(string id);
+
+    /// <summary>Hides the contextual save bar shown by <see cref="ShowSaveBarAsync"/>.</summary>
+    /// <param name="id">The <c>id</c> of the <c>&lt;ui-save-bar&gt;</c> element.</param>
+    /// <returns>True when App Bridge was asked to hide it; false outside the Admin.</returns>
+    /// <remarks>
+    /// A bar left showing covers the admin's toolbar for the rest of the session and claims changes
+    /// that no longer exist, so a page hides it whenever its form stops being dirty — including when
+    /// it is torn down.
+    /// </remarks>
+    ValueTask<bool> HideSaveBarAsync(string id);
+
     /// <summary>Navigates within the Admin, or changes location outside it.</summary>
     ValueTask NavigateAsync(string url);
 
@@ -340,6 +364,54 @@ public sealed class AppBridgeInterop : IAppBridgeInterop, IAsyncDisposable
         }
         catch (Exception ex) when (ex is JSDisconnectedException or JSException)
         {
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> ShowSaveBarAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        var module = await ModuleAsync().ConfigureAwait(false);
+        if (module is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return await module.InvokeAsync<bool>("showSaveBar", id).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException)
+        {
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> HideSaveBarAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        var module = await ModuleAsync().ConfigureAwait(false);
+        if (module is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return await module.InvokeAsync<bool>("hideSaveBar", id).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException)
+        {
+            return false;
         }
     }
 

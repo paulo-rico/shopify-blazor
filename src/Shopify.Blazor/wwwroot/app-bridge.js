@@ -141,6 +141,52 @@ export function toast(message, options = {}) {
 }
 
 /**
+ * Shows the Admin's contextual save bar for the `<ui-save-bar>` element with this id.
+ *
+ * This is the bar Shopify's own product editor draws across the top toolbar when a form has unsaved
+ * changes: "Unsaved changes", Discard and Save. It belongs to the admin's chrome, so an app can only
+ * ask for it; the element itself stays in this document, and App Bridge clicks its `<button>` children
+ * here — which is why those buttons can carry the app's own handlers.
+ *
+ * @param {string} id the `id` of a `<ui-save-bar>` element in this document
+ * @returns {Promise<boolean>} true when App Bridge was asked, false outside the Admin or with no id
+ */
+export async function showSaveBar(id) {
+    const shopify = bridge();
+    if (!shopify?.saveBar || !id) return false;
+
+    try {
+        await shopify.saveBar.show(id);
+        return true;
+    } catch {
+        // App Bridge throws "SaveBar with ID … not found" when the element is not in the document
+        // yet. Treating that as false rather than as an exception lets a page keep rendering.
+        return false;
+    }
+}
+
+/**
+ * Hides the save bar shown by {@link showSaveBar}.
+ *
+ * Call this after saving or discarding. A bar left showing sits over the admin's toolbar for the rest
+ * of the session, claiming changes that no longer exist.
+ *
+ * @param {string} id the `id` of the `<ui-save-bar>` element
+ * @returns {Promise<boolean>} true when App Bridge was asked, false outside the Admin
+ */
+export async function hideSaveBar(id) {
+    const shopify = bridge();
+    if (!shopify?.saveBar || !id) return false;
+
+    try {
+        await shopify.saveBar.hide(id);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Navigates within the Admin. Outside the Admin it falls back to a normal location change, so a
  * standalone render still works.
  *

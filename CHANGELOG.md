@@ -13,6 +13,13 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Added
 
+- **`ShopifySaveBar`** — the admin's contextual save bar ("Unsaved changes", Discard, Save) across the
+  top toolbar, for a page whose form is dirty. It is App Bridge's component, not Polaris's, so it wraps
+  a `<ui-save-bar>` element and asks App Bridge to show it; `Visible` is the caller's dirty state and is
+  sent to App Bridge only when it changes, and the two buttons are native `<button>`s that raise
+  `OnSave` / `OnDiscard` as ordinary Blazor callbacks. `IAppBridgeInterop` gained `ShowSaveBarAsync` /
+  `HideSaveBarAsync` and the JS module exports behind them. Outside the Admin the bar cannot be drawn,
+  so a page keeps its own Save control as the fallback.
 - **`PolarisDataFilter.NarrowToResult`** — the panel's controls now narrow to the current result by
   default: a multi-select offers only the values the remaining rows hold, a range slider spans only what
   they cost, and a control with nothing left to offer is not drawn at all. It is computed from the rows

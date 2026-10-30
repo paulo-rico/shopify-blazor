@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
     <RootNamespace>Shopify.Blazor.Tests</RootNamespace>
@@ -11,6 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- bUnit renders the components; the Razor SDK is what Polaris.Blazor.Tests uses for the same
+         reason, and the toolkit's wrappers are plain C# classes so nothing here is a .razor file. -->
+    <PackageReference Include="bunit" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
