@@ -245,6 +245,81 @@ public sealed class AccordionRenderingTests
     }
 
     [Fact]
+    public void Header_status_renders_a_badge_beside_the_heading()
+    {
+        // The badge is what a collapsed section can say about itself before it is opened — that the work
+        // it offers has already been done — so it belongs in the header and not in the panel, and inside
+        // the heading group: three children of the space-between row would centre the heading between the
+        // badge and the chevron, which reads as a caption rather than as a list of sections.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Alloy weight by ring size")
+            .Add(p => p.HeaderDetails, "Weigh one variant.")
+            .Add(p => p.HeaderStatus, "Alloy weights on 2 of 6 variants")
+            .Add(p => p.HeaderStatusTone, PolarisTone.Critical)
+            .AddChildContent("Content"));
+
+        var row = component.Find("s-clickable").QuerySelector("s-stack")!;
+        var group = row.QuerySelector("s-stack")!;
+
+        Assert.NotNull(group);
+        Assert.Equal("center", group.GetAttribute("alignItems"));
+        Assert.Equal("s-section", group.Children[0].LocalName);
+
+        var badge = group.QuerySelector("s-badge");
+        Assert.NotNull(badge);
+        Assert.Equal("critical", badge!.GetAttribute("tone"));
+        Assert.Equal("Alloy weights on 2 of 6 variants", badge.TextContent.Trim());
+
+        // The chevron stays outside the group, so it remains the last thing on the surface.
+        Assert.NotNull(row.QuerySelector("s-icon"));
+        Assert.Null(group.QuerySelector("s-icon"));
+
+        // Nothing in the panel: a state read after opening the section is read too late to be useful.
+        Assert.Null(component.Find("[data-polaris-accordion-panel]").QuerySelector("s-badge"));
+    }
+
+    [Fact]
+    public void Header_status_joins_the_accessible_name()
+    {
+        // Everything drawn in this header is projected into Polaris's shadow root, and the surface's own
+        // text is empty apart from the chevron — so a status supplied as markup would be announced to
+        // nobody. Being a string is what puts it into the label, which is the only name this surface has.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Alloy weight by ring size")
+            .Add(p => p.HeaderDetails, "Weigh one variant.")
+            .Add(p => p.HeaderStatus, "Alloy weights on every variant")
+            .AddChildContent("Content"));
+
+        // The supporting line's own full stop is dropped rather than doubled: the join supplies one, and
+        // "…one variant.. Alloy weights on…" is what a screen reader would otherwise read out.
+        Assert.Equal(
+            "Alloy weight by ring size. Weigh one variant. Alloy weights on every variant",
+            component.Find("s-clickable").GetAttribute("accessibilityLabel"));
+    }
+
+    [Fact]
+    public void A_blank_header_status_draws_no_badge_and_no_extra_row()
+    {
+        // A page passes an expression that is blank most of the time. An empty badge would be a small grey
+        // pill on every section with nothing to say, and an empty label segment would make every header
+        // announce a trailing full stop.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Standalone")
+            .Add(p => p.HeaderStatus, "   ")
+            .AddChildContent("Content"));
+
+        Assert.Empty(component.FindAll("s-badge"));
+        Assert.Null(component.Find("s-stack").QuerySelector("s-stack"));
+        Assert.Equal("Standalone", component.Find("s-clickable").GetAttribute("accessibilityLabel"));
+    }
+
+    [Fact]
     public void A_section_renders_a_divider_a_clickable_header_and_a_chevron_on_the_right()
     {
         // The header is a clickable surface holding an s-section: a heading and a supporting line do not

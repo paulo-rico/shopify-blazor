@@ -14,7 +14,8 @@ namespace Polaris.Blazor.Components;
 /// renders a real <c>&lt;button&gt;</c> inside Polaris's shadow root, so it is focusable, announced,
 /// and opened with Enter or Space. Inside it, an <see cref="PolarisSection"/> holds the heading on the
 /// left and the chevron sits at the far right; an optional <see cref="HeaderMedia"/> — a thumbnail, in
-/// practice — is laid to the left of that section and centred against both of its lines.
+/// practice — is laid to the left of that section and centred against both of its lines, and an
+/// optional <see cref="HeaderStatus"/> badge sits to its right, on the same centre.
 /// </para>
 /// <para>
 /// Three things about that header are not what the markup suggests, and each is forced by Polaris:
@@ -74,12 +75,40 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     /// <para>
     /// It is laid out in a row with the heading and the supporting line and centred against the pair,
     /// so it stands beside <em>both</em> lines rather than level with the heading alone. It carries no
-    /// accessible name of its own: the header's accessible name is built from the two text parameters,
-    /// and a picture that repeats them is noise — pass <c>alt=""</c> on a
+    /// accessible name of its own: the header's accessible name is built from the text parameters, and
+    /// a picture that repeats them is noise — pass <c>alt=""</c> on a
     /// <see cref="PolarisThumbnail"/> that only illustrates the title beside it.
     /// </para>
     /// </remarks>
     [Parameter] public RenderFragment? HeaderMedia { get; set; }
+
+    /// <summary>
+    /// A short state badge drawn beside the heading, before the chevron — visible while the section is
+    /// closed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For the one thing a collapsed section often has to say before it is opened: that the work it
+    /// offers has already been done, on some or all of what it acts on. <see cref="HeaderDetails"/>
+    /// cannot carry it, because an attribute is one plain string and Polaris styles the whole
+    /// subheading subdued — there is no way to give part of that line a tone.
+    /// </para>
+    /// <para>
+    /// It is a string plus a tone rather than a <see cref="RenderFragment"/>, so its text joins the
+    /// header's accessible name without the caller having to repeat it. Content drawn as markup would be
+    /// projected into Polaris's shadow root and absent from the name built for
+    /// <see cref="PolarisClickable.AccessibilityLabel"/>, leaving the state announced to nobody.
+    /// </para>
+    /// <para>
+    /// Setting it wraps the heading in a row of its own, the same way <see cref="HeaderMedia"/> does:
+    /// with three children the outer row's <c>space-between</c> would centre the heading between the
+    /// group and the chevron instead of starting it at the left edge.
+    /// </para>
+    /// </remarks>
+    [Parameter] public string? HeaderStatus { get; set; }
+
+    /// <summary>Semantic colour of <see cref="HeaderStatus"/>. Ignored when that is not set.</summary>
+    [Parameter] public PolarisTone HeaderStatusTone { get; set; } = PolarisTone.Auto;
 
     /// <summary>The content that opens and closes.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -259,11 +288,31 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     /// It has to be stated rather than derived. A heading and a subheading set as attributes live in
     /// Polaris's shadow root, so this surface's own text is empty apart from the chevron, and a button
     /// with no text has no name. Quoting the visible text here also means the supporting line is
-    /// announced with the heading instead of being skipped.
+    /// announced with the heading instead of being skipped — and the status badge is quoted for the
+    /// same reason: it is the one part of the header a merchant must hear without opening the section.
     /// </remarks>
-    private string? AccessibleName => HeaderDetails is null or ""
-        ? Header
-        : string.Concat(Header ?? string.Empty, ". ", HeaderDetails);
+    private string? AccessibleName
+    {
+        get
+        {
+            var parts = new List<string>(3);
+
+            foreach (var part in new[] { Header, HeaderDetails, HeaderStatus })
+            {
+                // A trailing full stop is a display habit, not part of the name: a supporting line written
+                // as a sentence would otherwise be announced as "…and alloy.. Alloy weights on 2 of 6
+                // variants", with the join's own stop after the sentence's.
+                var text = part?.Trim().TrimEnd('.');
+
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    parts.Add(text);
+                }
+            }
+
+            return parts.Count == 0 ? null : string.Join(". ", parts);
+        }
+    }
 
     private void BuildHeaderContent(RenderTreeBuilder builder)
     {
@@ -277,27 +326,34 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         builder.AddAttribute(4, nameof(PolarisStack.AlignItems), "center");
         builder.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
         {
-            if (HeaderMedia is null)
+            if (HeaderMedia is null && !HasStatus)
             {
                 BuildHeading(content);
             }
             else
             {
-                // The medium and the text are ONE child of the outer row, so that space-between still
-                // puts the chevron at the surface's far edge: with three children it would centre the
-                // heading between the picture and the chevron instead. Centring the pair's own items is
-                // what makes a 100px picture stand beside BOTH lines — the heading and the supporting
-                // line under it — rather than level with the heading alone.
+                // The medium, the text and the status are ONE child of the outer row, so that
+                // space-between still puts the chevron at the surface's far edge: with three children it
+                // would centre the heading between the picture and the chevron instead. Centring the
+                // group's own items is what makes a 100px picture stand beside BOTH lines — the heading
+                // and the supporting line under it — rather than level with the heading alone, and what
+                // keeps the badge on that same centre line.
                 content.OpenComponent<PolarisStack>(10);
                 content.AddAttribute(11, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
                 content.AddAttribute(12, nameof(PolarisStack.Gap), PolarisGap.Base);
                 content.AddAttribute(13, nameof(PolarisStack.AlignItems), "center");
-                content.AddAttribute(14, nameof(PolarisStack.ChildContent), (RenderFragment)(pair =>
+                content.AddAttribute(14, nameof(PolarisStack.ChildContent), (RenderFragment)(group =>
                 {
-                    // 10, then 20 upwards in BuildHeading: sequence numbers must not go backwards
-                    // inside one scope, or the renderer throws while removing the old frame.
-                    pair.AddContent(10, HeaderMedia);
-                    BuildHeading(pair);
+                    if (HeaderMedia is not null)
+                    {
+                        // 10, then 20 upwards in BuildHeading and 30 upwards in BuildHeaderStatus:
+                        // sequence numbers must not go backwards inside one scope, or the renderer
+                        // throws while removing the old frame.
+                        group.AddContent(10, HeaderMedia);
+                    }
+
+                    BuildHeading(group);
+                    BuildHeaderStatus(group);
                 }));
                 content.CloseComponent();
             }
@@ -318,6 +374,9 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         builder.CloseComponent();
     }
 
+    /// <summary>Whether a <see cref="HeaderStatus"/> badge is drawn at all.</summary>
+    private bool HasStatus => !string.IsNullOrWhiteSpace(HeaderStatus);
+
     /// <summary>The heading and its supporting line, with no padding of their own.</summary>
     private void BuildHeading(RenderTreeBuilder builder)
     {
@@ -328,6 +387,26 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         // None: the surface around it already pads, and two paddings make a header that is mostly
         // space.
         builder.AddAttribute(23, nameof(PolarisSection.Padding), PolarisSectionPadding.None);
+        builder.CloseComponent();
+    }
+
+    /// <summary>The state badge, when there is one.</summary>
+    /// <remarks>
+    /// A badge rather than a paragraph of our own: <c>s-badge</c> is Polaris's own treatment for a short
+    /// state, it takes a tone, and — unlike a styled subscript — it still reads as a badge if the page's
+    /// own stylesheet never loads.
+    /// </remarks>
+    private void BuildHeaderStatus(RenderTreeBuilder builder)
+    {
+        if (!HasStatus)
+        {
+            return;
+        }
+
+        builder.OpenComponent<PolarisBadge>(30);
+        builder.AddAttribute(31, nameof(PolarisBadge.Tone), HeaderStatusTone);
+        builder.AddAttribute(32, nameof(PolarisBadge.ChildContent),
+            (RenderFragment)(badge => badge.AddContent(0, HeaderStatus)));
         builder.CloseComponent();
     }
 
