@@ -339,6 +339,7 @@ public sealed class PolarisAutocomplete<TItem> : ComponentBase, IDisposable
         stack.AddAttribute(23, nameof(PolarisTextField.OnKeyDown), EventCallback.Factory.Create<PolarisEventArgs>(this, OnFieldKeyDownAsync));
         stack.AddAttribute(24, nameof(PolarisTextField.OnFocus), EventCallback.Factory.Create<PolarisEventArgs>(this, OnFocusAsync));
         stack.AddAttribute(25, nameof(PolarisTextField.OnBlur), EventCallback.Factory.Create<PolarisEventArgs>(this, OnBlurAsync));
+        stack.AddAttribute(26, nameof(PolarisTextField.Autocomplete), "Off");
         stack.CloseComponent();
 
         stack.CloseElement();

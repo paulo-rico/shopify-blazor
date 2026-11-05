@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisAutocomplete.cs -->
-<!-- source-sha256: 1b712c1dad67 -->
+<!-- source-sha256: de3e36700623 -->
 
 # PolarisAutocomplete.cs
 
@@ -115,6 +115,12 @@ item's text, so a selection-only screen can never show a name the caller was not
 
 **Enter in the field prefers an exact match, then the first match.** The `change` event that follows a
 selection is suppressed for one commit, so the value is reported once rather than twice.
+
+**The browser's own autofill is off on the field.** `PolarisTextField.Autocomplete` is set to `"Off"`
+because a native suggestion list over the field would offer the merchant's saved form values while the
+component draws its own rows underneath: two lists with different contents, and the arrow keys driving
+only one of them. It is a hint rather than a guarantee — Chrome honours it for ordinary text fields and
+may still offer saved addresses for some fields — so the component's own list must stay usable either way.
 
 **An asynchronous search is cancellable and its stale results are dropped.** Each keystroke cancels the
 previous call, the spinner is rendered *before* the first await (otherwise a handler's single render
