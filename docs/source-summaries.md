@@ -39,7 +39,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 | Summary | What it is |
 |---|---|
 | [`PolarisAccordion.cs.md`](../src/Polaris.Blazor/Components/PolarisAccordion.cs.md) | A set of collapsible sections that behaves as one accordion: opening a section collapses the one that was open, unless AllowMultiple says otherwise. |
-| [`PolarisAccordionItem.cs.md`](../src/Polaris.Blazor/Components/PolarisAccordionItem.cs.md) | One section of a PolarisAccordion: a clickable header with heading, details, thumbnail, an optional state badge and an optional action, above a content panel that clips itself shut. |
+| [`PolarisAccordionItem.cs.md`](../src/Polaris.Blazor/Components/PolarisAccordionItem.cs.md) | One section of a PolarisAccordion: a clickable header with heading, details, thumbnail and an optional state badge, above a content panel that clips itself shut. |
 | [`PolarisAddableSelect.cs.md`](../src/Polaris.Blazor/Components/PolarisAddableSelect.cs.md) | A dropdown of the saved values of a directory — a supplier, a warehouse, a courier — with an add button beside it that opens a dialog holding the values already saved and a field for a new one. |
 | [`PolarisAppNav.cs.md`](../src/Polaris.Blazor/Components/PolarisAppNav.cs.md) | The app's navigation menu inside the Shopify admin — an App Bridge element that configures the admin's own chrome rather than drawing a menu inside the app. |
 | [`PolarisAppWindow.cs.md`](../src/Polaris.Blazor/Components/PolarisAppWindow.cs.md) | A fullscreen window hosted by the Shopify admin that loads one of the app's own routes — an App Bridge element for a workflow that genuinely needs the whole screen. |

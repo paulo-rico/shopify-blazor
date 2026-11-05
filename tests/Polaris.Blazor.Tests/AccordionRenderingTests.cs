@@ -195,8 +195,9 @@ public sealed class AccordionRenderingTests
     {
         // A picture on the header is worth having only if it is to the LEFT of the text: a row that
         // wrapped would push the heading down and every header would grow by the image's height. The
-        // pair is centred against both lines, so a 100px thumbnail stands beside the heading AND its
-        // supporting line rather than level with the heading alone.
+        // pair is one child of the outer row, so the chevron still sits at the far edge — three
+        // children under space-between would centre the heading between the picture and the chevron,
+        // which reads as an image with a caption rather than as a list of variants.
         using var context = new PolarisTestContext();
 
         var component = context.Render<PolarisAccordionItem>(parameters => parameters
@@ -206,10 +207,14 @@ public sealed class AccordionRenderingTests
                 media.AddMarkupContent(0, "<s-thumbnail src=\"https://cdn.example/ring.png\" alt=\"\"></s-thumbnail>")))
             .AddChildContent("Content"));
 
-        var pair = component.Find("s-clickable").QuerySelector("s-stack")!;
+        var row = component.Find("s-clickable").QuerySelector("s-stack")!;
+        var pair = row.QuerySelector("s-stack")!;
 
         Assert.NotNull(pair);
         Assert.Equal("inline", pair.GetAttribute("direction"));
+
+        // Centred against the pair, so a 100px thumbnail stands beside both lines rather than level
+        // with the heading alone.
         Assert.Equal("center", pair.GetAttribute("alignItems"));
 
         // The medium is first and the heading second: to the left, not above.
@@ -217,25 +222,26 @@ public sealed class AccordionRenderingTests
         Assert.NotNull(pair.QuerySelector("s-section"));
         Assert.Equal("Q / 9ct Yellow Gold", pair.QuerySelector("s-section")!.GetAttribute("heading"));
 
-        // The chevron is outside the surface altogether, so it is not part of the pair.
+        // The chevron stays outside the pair, so it remains the last thing on the surface.
+        Assert.NotNull(row.QuerySelector("s-icon"));
         Assert.Null(pair.QuerySelector("s-icon"));
-        Assert.NotNull(component.Find("[data-polaris-accordion-trailing]").QuerySelector("s-icon"));
     }
 
     [Fact]
     public void A_section_without_header_media_renders_no_extra_row()
     {
         // The media row is only drawn for an item that asked for one: an empty pair would add a gap
-        // and a nested stack to every header in every app that never passes it. The section becomes
-        // the surface's only child.
+        // and a nested stack to every header in every app that never passes it.
         using var context = new PolarisTestContext();
 
         var component = context.Render<PolarisAccordionItem>(parameters => parameters
             .Add(p => p.Header, "Standalone")
             .AddChildContent("Content"));
 
-        Assert.Empty(component.FindAll("s-stack"));
-        Assert.Equal("s-section", component.Find("s-clickable").Children[0].LocalName);
+        var row = component.Find("s-stack");
+
+        Assert.Null(row.QuerySelector("s-stack"));
+        Assert.NotNull(row.QuerySelector("s-section"));
     }
 
     [Fact]
@@ -307,7 +313,7 @@ public sealed class AccordionRenderingTests
             .AddChildContent("Content"));
 
         Assert.Empty(component.FindAll("s-badge"));
-        Assert.Empty(component.FindAll("s-stack"));
+        Assert.Null(component.Find("s-stack").QuerySelector("s-stack"));
         Assert.Equal("Standalone", component.Find("s-clickable").GetAttribute("accessibilityLabel"));
     }
 
@@ -344,17 +350,16 @@ public sealed class AccordionRenderingTests
         Assert.Null(section.GetAttribute("subheading"));
         Assert.Equal("none", section.GetAttribute("padding")!);
 
-        // Everything the merchant acts on stands beside the surface rather than inside it: a button in
-        // here would be a button within the shadow button, and the button role makes its children
-        // presentational, so the action would be invisible to a screen reader. The chevron comes last.
-        var trailing = component.FindAll("[data-polaris-accordion-trailing]")[0];
-        Assert.NotNull(trailing.QuerySelector("s-icon"));
-        Assert.Same(trailing, clickable.NextElementSibling);
+        // The row is what puts the heading at the start and the chevron at the end, and the chevron
+        // stays inside the surface's padding so that the whole header — padding included — is one hover
+        // and one click.
+        var row = clickable.QuerySelector("s-stack")!;
+        Assert.Equal("inline", row.GetAttribute("direction"));
+        Assert.Equal("space-between", row.GetAttribute("justifyContent"));
 
-        var chevron = trailing.QuerySelector("s-icon")!;
+        var chevron = row.QuerySelector("s-icon")!;
         Assert.Equal("chevron-down", chevron.GetAttribute("type"));
         Assert.True(chevron.HasAttribute("data-polaris-accordion-chevron"));
-        Assert.Null(clickable.QuerySelector("s-icon"));
 
         // The supporting line becomes the section's subheading, and joins the accessible name, which has
         // to be stated because the heading lives in Polaris's shadow root rather than in this surface's
@@ -362,36 +367,6 @@ public sealed class AccordionRenderingTests
         var second = component.FindAll("s-clickable")[1];
         Assert.Equal("Sent by courier", second.QuerySelector("s-section")!.GetAttribute("subheading"));
         Assert.Equal("Shipping. Sent by courier", second.GetAttribute("accessibilityLabel"));
-    }
-
-    [Fact]
-    public void Header_actions_render_before_the_chevron_and_outside_the_surface()
-    {
-        // The actions belong to the header, not to the panel: "approve everything in here" is a decision a
-        // merchant should be able to take without opening the section first. They stand outside the
-        // clickable surface — see the structural test above for why a button cannot live inside it — and
-        // their wrapper stops the click, so pressing one does not also open the section it acts on.
-        using var context = new PolarisTestContext();
-
-        var component = context.Render<PolarisAccordionItem>(parameters => parameters
-            .Add(p => p.Header, "Variants")
-            .Add(p => p.HeaderActions, (RenderFragment)(actions =>
-                actions.AddMarkupContent(0, "<s-button variant=\"primary\">Approve all changes</s-button>")))
-            .AddChildContent("Content"));
-
-        var trailing = component.Find("[data-polaris-accordion-trailing]");
-
-        var action = trailing.QuerySelector("s-button")!;
-        Assert.Equal("Approve all changes", action.TextContent.Trim());
-
-        // Before the chevron, and both inside the one trailing column. The wrapper is what stops the
-        // click reaching the header's toggle — bUnit spell it as the framework's marker attribute.
-        Assert.Equal("span", trailing.Children[0].LocalName);
-        Assert.True(trailing.Children[0].HasAttribute("blazor:onclick:stoppropagation"));
-        Assert.Equal("s-icon", trailing.Children[1].LocalName);
-
-        // Not inside the clickable surface, whose shadow button would flatten it out of the a11y tree.
-        Assert.Null(component.Find("s-clickable").QuerySelector("s-button"));
     }
 
     [Fact]
