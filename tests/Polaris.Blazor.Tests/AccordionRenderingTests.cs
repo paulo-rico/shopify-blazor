@@ -195,9 +195,8 @@ public sealed class AccordionRenderingTests
     {
         // A picture on the header is worth having only if it is to the LEFT of the text: a row that
         // wrapped would push the heading down and every header would grow by the image's height. The
-        // pair is one child of the outer row, so the chevron still sits at the far edge — three
-        // children under space-between would centre the heading between the picture and the chevron,
-        // which reads as an image with a caption rather than as a list of variants.
+        // pair is centred against both lines, so a 100px thumbnail stands beside the heading AND its
+        // supporting line rather than level with the heading alone.
         using var context = new PolarisTestContext();
 
         var component = context.Render<PolarisAccordionItem>(parameters => parameters
@@ -207,14 +206,10 @@ public sealed class AccordionRenderingTests
                 media.AddMarkupContent(0, "<s-thumbnail src=\"https://cdn.example/ring.png\" alt=\"\"></s-thumbnail>")))
             .AddChildContent("Content"));
 
-        var row = component.Find("s-clickable").QuerySelector("s-stack")!;
-        var pair = row.QuerySelector("s-stack")!;
+        var pair = component.Find("s-clickable").QuerySelector("s-stack")!;
 
         Assert.NotNull(pair);
         Assert.Equal("inline", pair.GetAttribute("direction"));
-
-        // Centred against the pair, so a 100px thumbnail stands beside both lines rather than level
-        // with the heading alone.
         Assert.Equal("center", pair.GetAttribute("alignItems"));
 
         // The medium is first and the heading second: to the left, not above.
@@ -222,35 +217,35 @@ public sealed class AccordionRenderingTests
         Assert.NotNull(pair.QuerySelector("s-section"));
         Assert.Equal("Q / 9ct Yellow Gold", pair.QuerySelector("s-section")!.GetAttribute("heading"));
 
-        // The chevron stays outside the pair, so it remains the last thing on the surface.
-        Assert.NotNull(row.QuerySelector("s-icon"));
+        // The chevron is outside the surface altogether, so it is not part of the pair.
         Assert.Null(pair.QuerySelector("s-icon"));
+        Assert.NotNull(component.Find("[data-polaris-accordion-trailing]").QuerySelector("s-icon"));
     }
 
     [Fact]
     public void A_section_without_header_media_renders_no_extra_row()
     {
         // The media row is only drawn for an item that asked for one: an empty pair would add a gap
-        // and a nested stack to every header in every app that never passes it.
+        // and a nested stack to every header in every app that never passes it. The section becomes
+        // the surface's only child.
         using var context = new PolarisTestContext();
 
         var component = context.Render<PolarisAccordionItem>(parameters => parameters
             .Add(p => p.Header, "Standalone")
             .AddChildContent("Content"));
 
-        var row = component.Find("s-stack");
-
-        Assert.Null(row.QuerySelector("s-stack"));
-        Assert.NotNull(row.QuerySelector("s-section"));
+        Assert.Empty(component.FindAll("s-stack"));
+        Assert.Equal("s-section", component.Find("s-clickable").Children[0].LocalName);
     }
 
     [Fact]
     public void Header_status_renders_a_badge_beside_the_heading()
     {
         // The badge is what a collapsed section can say about itself before it is opened — that the work
-        // it offers has already been done — so it belongs in the header and not in the panel, and inside
-        // the heading group: three children of the space-between row would centre the heading between the
-        // badge and the chevron, which reads as a caption rather than as a list of sections.
+        // it offers has already been done — so it belongs in the header and not in the panel, and it
+        // goes in the section's accessory slot, which is the only place Polaris draws content inline
+        // after the heading text. As a sibling of the section it was pushed to the far edge of the
+        // surface, where it read as a second status competing with the title.
         using var context = new PolarisTestContext();
 
         var component = context.Render<PolarisAccordionItem>(parameters => parameters
@@ -260,23 +255,20 @@ public sealed class AccordionRenderingTests
             .Add(p => p.HeaderStatusTone, PolarisTone.Critical)
             .AddChildContent("Content"));
 
-        var row = component.Find("s-clickable").QuerySelector("s-stack")!;
-        var group = row.QuerySelector("s-stack")!;
+        var section = component.Find("s-clickable").QuerySelector("s-section")!;
 
-        Assert.NotNull(group);
-        Assert.Equal("center", group.GetAttribute("alignItems"));
-        Assert.Equal("s-section", group.Children[0].LocalName);
-
-        var badge = group.QuerySelector("s-badge");
+        var badge = section.QuerySelector("s-badge");
         Assert.NotNull(badge);
-        Assert.Equal("critical", badge!.GetAttribute("tone"));
+        Assert.Equal("accessory", badge!.GetAttribute("slot"));
+        Assert.Equal("critical", badge.GetAttribute("tone"));
         Assert.Equal("Alloy weights on 2 of 6 variants", badge.TextContent.Trim());
 
-        // The chevron stays outside the group, so it remains the last thing on the surface.
-        Assert.NotNull(row.QuerySelector("s-icon"));
-        Assert.Null(group.QuerySelector("s-icon"));
+        // Polaris warns about an accessory badge that is not base-sized and base-coloured; these are the
+        // badge's defaults, so the tone is free to carry the meaning.
+        Assert.Equal("base", badge.GetAttribute("color"));
+        Assert.Equal("base", badge.GetAttribute("size"));
 
-        // Nothing in the panel: a state read after opening the section is read too late to be useful.
+        // The badge never leaves the header: a state read after opening the section is read too late.
         Assert.Null(component.Find("[data-polaris-accordion-panel]").QuerySelector("s-badge"));
     }
 
@@ -315,7 +307,7 @@ public sealed class AccordionRenderingTests
             .AddChildContent("Content"));
 
         Assert.Empty(component.FindAll("s-badge"));
-        Assert.Null(component.Find("s-stack").QuerySelector("s-stack"));
+        Assert.Empty(component.FindAll("s-stack"));
         Assert.Equal("Standalone", component.Find("s-clickable").GetAttribute("accessibilityLabel"));
     }
 
@@ -352,15 +344,17 @@ public sealed class AccordionRenderingTests
         Assert.Null(section.GetAttribute("subheading"));
         Assert.Equal("none", section.GetAttribute("padding")!);
 
-        // The row is what puts the heading at the start and the chevron at the end: s-section's
-        // accessory slot sits beside the heading, not at the far edge of the surface.
-        var row = clickable.QuerySelector("s-stack")!;
-        Assert.Equal("inline", row.GetAttribute("direction"));
-        Assert.Equal("space-between", row.GetAttribute("justifyContent"));
+        // Everything the merchant acts on stands beside the surface rather than inside it: a button in
+        // here would be a button within the shadow button, and the button role makes its children
+        // presentational, so the action would be invisible to a screen reader. The chevron comes last.
+        var trailing = component.FindAll("[data-polaris-accordion-trailing]")[0];
+        Assert.NotNull(trailing.QuerySelector("s-icon"));
+        Assert.Same(trailing, clickable.NextElementSibling);
 
-        var chevron = row.QuerySelector("s-icon")!;
+        var chevron = trailing.QuerySelector("s-icon")!;
         Assert.Equal("chevron-down", chevron.GetAttribute("type"));
         Assert.True(chevron.HasAttribute("data-polaris-accordion-chevron"));
+        Assert.Null(clickable.QuerySelector("s-icon"));
 
         // The supporting line becomes the section's subheading, and joins the accessible name, which has
         // to be stated because the heading lives in Polaris's shadow root rather than in this surface's
@@ -368,6 +362,36 @@ public sealed class AccordionRenderingTests
         var second = component.FindAll("s-clickable")[1];
         Assert.Equal("Sent by courier", second.QuerySelector("s-section")!.GetAttribute("subheading"));
         Assert.Equal("Shipping. Sent by courier", second.GetAttribute("accessibilityLabel"));
+    }
+
+    [Fact]
+    public void Header_actions_render_before_the_chevron_and_outside_the_surface()
+    {
+        // The actions belong to the header, not to the panel: "approve everything in here" is a decision a
+        // merchant should be able to take without opening the section first. They stand outside the
+        // clickable surface — see the structural test above for why a button cannot live inside it — and
+        // their wrapper stops the click, so pressing one does not also open the section it acts on.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Variants")
+            .Add(p => p.HeaderActions, (RenderFragment)(actions =>
+                actions.AddMarkupContent(0, "<s-button variant=\"primary\">Approve all changes</s-button>")))
+            .AddChildContent("Content"));
+
+        var trailing = component.Find("[data-polaris-accordion-trailing]");
+
+        var action = trailing.QuerySelector("s-button")!;
+        Assert.Equal("Approve all changes", action.TextContent.Trim());
+
+        // Before the chevron, and both inside the one trailing column. The wrapper is what stops the
+        // click reaching the header's toggle — bUnit spell it as the framework's marker attribute.
+        Assert.Equal("span", trailing.Children[0].LocalName);
+        Assert.True(trailing.Children[0].HasAttribute("blazor:onclick:stoppropagation"));
+        Assert.Equal("s-icon", trailing.Children[1].LocalName);
+
+        // Not inside the clickable surface, whose shadow button would flatten it out of the a11y tree.
+        Assert.Null(component.Find("s-clickable").QuerySelector("s-button"));
     }
 
     [Fact]

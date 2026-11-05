@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
+// AddEventStopPropagationAttribute lives on WebRenderTreeBuilderExtensions in this namespace, not on
+// RenderTreeBuilder itself — which is why the call below needs the using and not a different type.
+using Microsoft.AspNetCore.Components.Web;
+
 namespace Polaris.Blazor.Components;
 
 /// <summary>
@@ -9,20 +13,23 @@ namespace Polaris.Blazor.Components;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The header is a <see cref="PolarisClickable"/> — an interactive surface, because a heading with a
-/// line of supporting text under it does not fit in a button's single truncating line. It still
-/// renders a real <c>&lt;button&gt;</c> inside Polaris's shadow root, so it is focusable, announced,
-/// and opened with Enter or Space. Inside it, an <see cref="PolarisSection"/> holds the heading on the
-/// left and the chevron sits at the far right; an optional <see cref="HeaderMedia"/> — a thumbnail, in
-/// practice — is laid to the left of that section and centred against both of its lines, and an
-/// optional <see cref="HeaderStatus"/> badge sits to its right, on the same centre.
+/// The header is a row of two things: a <see cref="PolarisClickable"/> — an interactive surface, because
+/// a heading with a line of supporting text under it does not fit in a button's single truncating line —
+/// and, at its inline end, the chevron, preceded by <see cref="HeaderActions"/> when there are any. The
+/// surface still renders a real <c>&lt;button&gt;</c> inside Polaris's shadow root, so it is focusable,
+/// announced, and opened with Enter or Space. Inside it, a <see cref="PolarisSection"/> holds the
+/// heading, with an optional <see cref="HeaderStatus"/> badge in the section's accessory slot — beside
+/// the title rather than out at the edge — and an optional <see cref="HeaderMedia"/> laid to the left of
+/// it and centred against both of its lines.
 /// </para>
 /// <para>
-/// Three things about that header are not what the markup suggests, and each is forced by Polaris:
-/// the border and background are on the surface, because <c>s-section</c> takes no styling
-/// properties; the accessible name is set explicitly, because a heading given as an attribute lives in
-/// Polaris's shadow root and leaves the surface with no text; and <c>aria-expanded</c> is written onto
-/// the shadow button, because <c>s-clickable</c> has no property for the state.
+/// Four things about that header are not what the markup suggests, and each is forced by Polaris:
+/// the border and background are on the surface, because <c>s-section</c> takes no styling properties;
+/// the accessible name is set explicitly, because a heading given as an attribute lives in Polaris's
+/// shadow root and leaves the surface with no text; <c>aria-expanded</c> is written onto the shadow
+/// button, because <c>s-clickable</c> has no property for the state; and the actions stand outside the
+/// surface, because its shadow button's children are presentational and an action inside it would be
+/// invisible to assistive technology.
 /// </para>
 /// <para>
 /// The content is clipped by a plain <c>&lt;div&gt;</c> pair around it, because Polaris elements live
@@ -41,6 +48,21 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
 {
     private const string PanelStyle = "display:grid;overflow:hidden;grid-template-rows:";
     private const string PanelInnerStyle = "min-height:0;overflow:hidden";
+
+    // The header is a row: the clickable surface, then the actions and the chevron beside it.
+    private const string HeaderStyle = "display:flex;align-items:stretch";
+
+    // flex-basis 0, not auto: s-clickable sizes its own inner button to 100%, and a percentage basis
+    // would claim the whole row and leave the trailing column nothing to occupy.
+    private const string SurfaceStyle = "flex:1 1 0;min-width:0";
+
+    // The surface the clickable paints, continued to the end of the row, and the same 1rem inset the
+    // surface pads by — so the chevron sits where it did when it lived inside the surface. The token
+    // carries Polaris's build stamp; the fallback is the colour it resolves to, so a release that
+    // renames the token changes nothing visible.
+    private const string TrailingStyle =
+        "display:flex;align-items:center;gap:0.5rem;padding-inline:1rem;" +
+        "background-color:var(--p-color-bg-surface-secondary-6e076,#f7f7f7)";
 
     private bool _isOpen;
     private bool _disposed;
@@ -83,8 +105,8 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     [Parameter] public RenderFragment? HeaderMedia { get; set; }
 
     /// <summary>
-    /// A short state badge drawn beside the heading, before the chevron — visible while the section is
-    /// closed.
+    /// A short state badge drawn beside the heading, on the heading's own line — visible while the
+    /// section is closed.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -100,15 +122,35 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     /// <see cref="PolarisClickable.AccessibilityLabel"/>, leaving the state announced to nobody.
     /// </para>
     /// <para>
-    /// Setting it wraps the heading in a row of its own, the same way <see cref="HeaderMedia"/> does:
-    /// with three children the outer row's <c>space-between</c> would centre the heading between the
-    /// group and the chevron instead of starting it at the left edge.
+    /// It goes into the section's <c>accessory</c> slot, which is where Polaris renders content inline
+    /// after the heading text. As a sibling of the section it would be pushed to the far edge of the
+    /// surface instead, reading as a second status competing with the title rather than qualifying it.
     /// </para>
     /// </remarks>
     [Parameter] public string? HeaderStatus { get; set; }
 
     /// <summary>Semantic colour of <see cref="HeaderStatus"/>. Ignored when that is not set.</summary>
     [Parameter] public PolarisTone HeaderStatusTone { get; set; } = PolarisTone.Auto;
+
+    /// <summary>
+    /// An action drawn at the inline end of the header, immediately before the chevron — in practice a
+    /// button that decides what the section is about, without opening it first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It cannot live inside the <see cref="PolarisClickable"/>, which is why the header is a row rather
+    /// than one surface: Polaris renders that surface as a <c>&lt;button&gt;</c> whose children are the
+    /// slotted content, so a button placed inside it would be a button within a button. The
+    /// <c>button</c> role's children are presentational, so the action would not merely be invalid
+    /// markup — it would leave the accessibility tree entirely, and a screen reader would never reach it.
+    /// </para>
+    /// <para>
+    /// A click inside it does not open or close the section: propagation is stopped on a wrapper of
+    /// this component's own, so a caller passes the button and nothing else. The click still reaches the
+    /// button because the button is the event's target, and only the bubble beyond it is stopped.
+    /// </para>
+    /// </remarks>
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
 
     /// <summary>The content that opens and closes.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -237,6 +279,7 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         builder.OpenElement(4, "div");
         builder.AddAttribute(5, "data-polaris-accordion-header", true);
         builder.AddAttribute(6, "onclick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs>(this, ToggleFromHeaderAsync));
+        builder.AddAttribute(7, "style", HeaderStyle);
 
         // The section's border and background are on the SURFACE, not on the s-section: measured from
         // the docs, s-section takes only heading, subheading, padding and accessibilityLabel, and it is
@@ -252,29 +295,40 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         builder.AddAttribute(13, nameof(PolarisClickable.Background), "subdued");
         builder.AddAttribute(14, nameof(PolarisClickable.Padding), "base");
         builder.AddAttribute(15, nameof(PolarisClickable.ChildContent), (RenderFragment)BuildHeaderContent);
+        builder.AddAttribute(16, nameof(PolarisClickable.AdditionalAttributes),
+            new Dictionary<string, object>(StringComparer.Ordinal) { ["style"] = SurfaceStyle });
         builder.CloseComponent();
+
+        // Everything the merchant can act on sits here rather than in the surface — see
+        // HeaderActions for why a button cannot be nested in it — and the surface's own background
+        // continues behind it so the row still reads as one band.
+        builder.OpenElement(20, "div");
+        builder.AddAttribute(21, "data-polaris-accordion-trailing", true);
+        builder.AddAttribute(22, "style", TrailingStyle);
+        builder.AddContent(23, (RenderFragment)BuildTrailingContent);
+        builder.CloseElement();
 
         builder.CloseElement();
 
-        builder.OpenElement(20, "div");
-        builder.AddAttribute(21, "data-polaris-accordion-panel", true);
+        builder.OpenElement(60, "div");
+        builder.AddAttribute(61, "data-polaris-accordion-panel", true);
 
         // Inline, not in the stylesheet: a panel that lost its stylesheet must still be collapsed,
         // never visible-with-no-way-to-close-it.
-        builder.AddAttribute(22, "style", string.Concat(PanelStyle, _isOpen ? "1fr" : "0fr"));
-        builder.OpenElement(23, "div");
-        builder.AddAttribute(24, "data-polaris-accordion-panel-inner", true);
-        builder.AddAttribute(25, "style", PanelInnerStyle);
+        builder.AddAttribute(62, "style", string.Concat(PanelStyle, _isOpen ? "1fr" : "0fr"));
+        builder.OpenElement(63, "div");
+        builder.AddAttribute(64, "data-polaris-accordion-panel-inner", true);
+        builder.AddAttribute(65, "style", PanelInnerStyle);
 
         if (!_isOpen)
         {
             // Clipping hides the content but leaves it in the tab order and the accessibility tree.
-            builder.AddAttribute(26, "inert", true);
+            builder.AddAttribute(66, "inert", true);
         }
 
-        builder.OpenComponent<PolarisBox>(27);
-        builder.AddAttribute(28, nameof(PolarisBox.Padding), ContentPadding);
-        builder.AddAttribute(29, nameof(PolarisBox.ChildContent), ChildContent);
+        builder.OpenComponent<PolarisBox>(67);
+        builder.AddAttribute(68, nameof(PolarisBox.Padding), ContentPadding);
+        builder.AddAttribute(69, nameof(PolarisBox.ChildContent), ChildContent);
         builder.CloseComponent();
         builder.CloseElement();
         builder.CloseElement();
@@ -316,68 +370,64 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
 
     private void BuildHeaderContent(RenderTreeBuilder builder)
     {
-        // A row, so the text sits at the start and the chevron at the end. The section is a block
-        // element sized to its content, and space-between puts the two at opposite edges of a surface
-        // that is already full width.
-        builder.OpenComponent<PolarisStack>(0);
-        builder.AddAttribute(1, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
-        builder.AddAttribute(2, nameof(PolarisStack.Gap), PolarisGap.Base);
-        builder.AddAttribute(3, nameof(PolarisStack.JustifyContent), "space-between");
-        builder.AddAttribute(4, nameof(PolarisStack.AlignItems), "center");
-        builder.AddAttribute(5, nameof(PolarisStack.ChildContent), (RenderFragment)(content =>
+        if (HeaderMedia is null)
         {
-            if (HeaderMedia is null && !HasStatus)
-            {
-                BuildHeading(content);
-            }
-            else
-            {
-                // The medium, the text and the status are ONE child of the outer row, so that
-                // space-between still puts the chevron at the surface's far edge: with three children it
-                // would centre the heading between the picture and the chevron instead. Centring the
-                // group's own items is what makes a 100px picture stand beside BOTH lines — the heading
-                // and the supporting line under it — rather than level with the heading alone, and what
-                // keeps the badge on that same centre line.
-                content.OpenComponent<PolarisStack>(10);
-                content.AddAttribute(11, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
-                content.AddAttribute(12, nameof(PolarisStack.Gap), PolarisGap.Base);
-                content.AddAttribute(13, nameof(PolarisStack.AlignItems), "center");
-                content.AddAttribute(14, nameof(PolarisStack.ChildContent), (RenderFragment)(group =>
-                {
-                    if (HeaderMedia is not null)
-                    {
-                        // 10, then 20 upwards in BuildHeading and 30 upwards in BuildHeaderStatus:
-                        // sequence numbers must not go backwards inside one scope, or the renderer
-                        // throws while removing the old frame.
-                        group.AddContent(10, HeaderMedia);
-                    }
+            BuildHeading(builder);
+            return;
+        }
 
-                    BuildHeading(group);
-                    BuildHeaderStatus(group);
-                }));
-                content.CloseComponent();
-            }
-
-            // The visible affordance for the state. It carries no meaning of its own — aria-expanded on
-            // the button is what announces it — and the stylesheet rotates it from the item's data-open.
-            content.OpenComponent<PolarisIcon>(40);
-            content.AddAttribute(41, nameof(PolarisIcon.Type), "chevron-down");
-            content.AddAttribute(42, nameof(PolarisIcon.Size), PolarisIconSize.Small);
-            content.AddAttribute(43, nameof(PolarisIcon.Color), PolarisColor.Subdued);
-            content.AddAttribute(44, nameof(PolarisIcon.AdditionalAttributes),
-                new Dictionary<string, object>(StringComparer.Ordinal)
-                {
-                    ["data-polaris-accordion-chevron"] = true,
-                });
-            content.CloseComponent();
+        // The picture and the text are one row, centred against BOTH lines — the heading and the
+        // supporting line under it — rather than level with the heading alone. Nothing else shares the
+        // surface now that the badge is inside the section and the chevron is outside it, so this row
+        // has no justify-content: the two children simply sit next to each other.
+        builder.OpenComponent<PolarisStack>(10);
+        builder.AddAttribute(11, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
+        builder.AddAttribute(12, nameof(PolarisStack.Gap), PolarisGap.Base);
+        builder.AddAttribute(13, nameof(PolarisStack.AlignItems), "center");
+        builder.AddAttribute(14, nameof(PolarisStack.ChildContent), (RenderFragment)(group =>
+        {
+            // 10, then 20 upwards in BuildHeading and 30 upwards in BuildHeaderStatus: sequence numbers
+            // must not go backwards inside one scope, or the renderer throws while removing the old frame.
+            group.AddContent(10, HeaderMedia);
+            BuildHeading(group);
         }));
+        builder.CloseComponent();
+    }
+
+    /// <summary>The actions and the chevron, at the inline end of the header.</summary>
+    private void BuildTrailingContent(RenderTreeBuilder builder)
+    {
+        if (HeaderActions is not null)
+        {
+            // A click that lands on the action must not also open or close the section, and the toggle
+            // is one handler on the whole header row. Blazor's stopPropagation is called on this
+            // wrapper before the handler above it is dispatched, so the button's own listener — which
+            // is on the event's target, and therefore runs first — is unaffected.
+            builder.OpenElement(10, "span");
+            builder.AddAttribute(11, "style", "display:inline-flex");
+            builder.AddEventStopPropagationAttribute(12, "onclick", true);
+            builder.AddContent(13, HeaderActions);
+            builder.CloseElement();
+        }
+
+        // The visible affordance for the state. It carries no meaning of its own — aria-expanded on the
+        // surface is what announces it — and the stylesheet rotates it from the item's data-open.
+        builder.OpenComponent<PolarisIcon>(20);
+        builder.AddAttribute(21, nameof(PolarisIcon.Type), "chevron-down");
+        builder.AddAttribute(22, nameof(PolarisIcon.Size), PolarisIconSize.Small);
+        builder.AddAttribute(23, nameof(PolarisIcon.Color), PolarisColor.Subdued);
+        builder.AddAttribute(24, nameof(PolarisIcon.AdditionalAttributes),
+            new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["data-polaris-accordion-chevron"] = true,
+            });
         builder.CloseComponent();
     }
 
     /// <summary>Whether a <see cref="HeaderStatus"/> badge is drawn at all.</summary>
     private bool HasStatus => !string.IsNullOrWhiteSpace(HeaderStatus);
 
-    /// <summary>The heading and its supporting line, with no padding of their own.</summary>
+    /// <summary>The heading, its supporting line, and its state badge.</summary>
     private void BuildHeading(RenderTreeBuilder builder)
     {
         builder.OpenComponent<PolarisSection>(20);
@@ -387,25 +437,39 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         // None: the surface around it already pads, and two paddings make a header that is mostly
         // space.
         builder.AddAttribute(23, nameof(PolarisSection.Padding), PolarisSectionPadding.None);
+
+        if (HasStatus)
+        {
+            builder.AddAttribute(24, nameof(PolarisSection.ChildContent),
+                (RenderFragment)BuildHeaderStatus);
+        }
+
         builder.CloseComponent();
     }
 
-    /// <summary>The state badge, when there is one.</summary>
+    /// <summary>The state badge, in the section's accessory slot.</summary>
     /// <remarks>
+    /// <para>
+    /// The accessory slot is the only place Polaris puts content "inline beside the heading text", and
+    /// that is the whole point of the badge: next to the title it qualifies, not out at the far end of
+    /// the header where it reads as a second, competing status. Rendering it as a sibling of the
+    /// section cannot do that — <c>s-section</c> is a block that fills the width it is given, so the
+    /// badge is pushed to the far edge of the surface instead of following the words.
+    /// </para>
+    /// <para>
     /// A badge rather than a paragraph of our own: <c>s-badge</c> is Polaris's own treatment for a short
     /// state, it takes a tone, and — unlike a styled subscript — it still reads as a badge if the page's
-    /// own stylesheet never loads.
+    /// own stylesheet never loads. Polaris warns if an accessory badge is not <c>size="base"</c> and
+    /// <c>color="base"</c>; both are <see cref="PolarisBadge"/>'s defaults, and the tone is what carries
+    /// the meaning.
+    /// </para>
     /// </remarks>
     private void BuildHeaderStatus(RenderTreeBuilder builder)
     {
-        if (!HasStatus)
-        {
-            return;
-        }
-
         builder.OpenComponent<PolarisBadge>(30);
-        builder.AddAttribute(31, nameof(PolarisBadge.Tone), HeaderStatusTone);
-        builder.AddAttribute(32, nameof(PolarisBadge.ChildContent),
+        builder.AddAttribute(31, nameof(PolarisBadge.Slot), "accessory");
+        builder.AddAttribute(32, nameof(PolarisBadge.Tone), HeaderStatusTone);
+        builder.AddAttribute(33, nameof(PolarisBadge.ChildContent),
             (RenderFragment)(badge => badge.AddContent(0, HeaderStatus)));
         builder.CloseComponent();
     }

@@ -14,9 +14,10 @@ namespace Polaris.Blazor.Components;
 /// has no such page. So this is the first component in the library that is <em>composed</em> rather
 /// than a wrapper: it is built from
 /// <see cref="PolarisAccordionItem"/>, which in turn is an <c>s-clickable</c> surface holding an
-/// <c>s-section</c> (heading and supporting line) and an <c>s-icon</c> chevron, with an <c>s-box</c>
-/// for the content. Nothing here reimplements a Polaris look; what it adds is the structure and the
-/// open/closed behaviour Polaris does not provide.
+/// <c>s-section</c> (heading, supporting line and an optional badge), a column beside it for the
+/// chevron and any header action, and an <c>s-box</c> for the content. Nothing here reimplements a
+/// Polaris look; what it adds is the structure and the open/closed behaviour Polaris does not
+/// provide.
 /// </para>
 /// <para>
 /// State belongs to the items, and this container only arbitrates between them: when an item opens,
