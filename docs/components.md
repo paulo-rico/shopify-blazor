@@ -186,6 +186,7 @@ One section of a `PolarisAccordion`: a header that opens and closes the content 
 |---|---|---|
 | `Header` | `string?` | The header's heading. |
 | `HeaderDetails` | `string?` | A line of supporting text under `Header`, for what the section is about. |
+| `HeaderMeta` | `RenderFragment?` | Extra markup on the supporting line, beside `HeaderDetails` — in practice a value that carries its own colour, such as a signed difference. |
 | `HeaderMedia` | `RenderFragment?` | Content shown to the left of `Header` and `HeaderDetails`, standing beside both of them. |
 | `HeaderStatus` | `string?` | A short state badge drawn beside the heading, on the heading's own line — visible while the section is closed. |
 | `HeaderStatusTone` | `PolarisTone` | Semantic colour of `HeaderStatus`. |

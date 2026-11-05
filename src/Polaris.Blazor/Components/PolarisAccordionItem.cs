@@ -83,6 +83,26 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     [Parameter] public string? HeaderDetails { get; set; }
 
     /// <summary>
+    /// Extra markup on the supporting line, beside <see cref="HeaderDetails"/> — in practice a value
+    /// that carries its own colour, such as a signed difference.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="HeaderDetails"/> is one plain sentence in one subdued colour, which is right for prose
+    /// and wrong for a figure whose direction matters: a price that has gone down and one that has gone
+    /// up are not the same fact, and a merchant reads the colour before the sign. This slot is the
+    /// caller's own markup, so it can carry that colour.
+    /// </para>
+    /// <para>
+    /// It is wrapped in an element of this component's own with an id, and that id joins
+    /// <c>aria-labelledby</c>, so whatever is passed is announced with the header rather than skipped —
+    /// the same rule as <see cref="HeaderDetails"/>, and the reason it is not left to the caller to
+    /// place.
+    /// </para>
+    /// </remarks>
+    [Parameter] public RenderFragment? HeaderMeta { get; set; }
+
+    /// <summary>
     /// Content shown to the left of <see cref="Header"/> and <see cref="HeaderDetails"/>, standing
     /// beside both of them.
     /// </summary>
@@ -291,6 +311,11 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
                 ids.Add($"{_idPrefix}-details");
             }
 
+            if (HeaderMeta is not null)
+            {
+                ids.Add($"{_idPrefix}-meta");
+            }
+
             if (HasStatus)
             {
                 ids.Add($"{_idPrefix}-status");
@@ -425,14 +450,39 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
             }));
             text.CloseComponent();
 
-            if (!string.IsNullOrWhiteSpace(HeaderDetails))
+            if (!string.IsNullOrWhiteSpace(HeaderDetails) || HeaderMeta is not null)
             {
-                text.OpenComponent<PolarisText>(20);
-                text.AddAttribute(21, nameof(PolarisText.Id), $"{_idPrefix}-details");
-                text.AddAttribute(22, nameof(PolarisText.FontSize), PolarisFontSize.Small);
-                text.AddAttribute(23, nameof(PolarisText.Color), PolarisColor.Subdued);
-                text.AddAttribute(24, nameof(PolarisText.ChildContent),
-                    (RenderFragment)(details => details.AddContent(0, HeaderDetails)));
+                // The supporting line: the plain sentence and the caller's own markup share one row, so
+                // a coloured figure sits beside the text it qualifies rather than under it.
+                text.OpenComponent<PolarisStack>(20);
+                text.AddAttribute(21, nameof(PolarisStack.Direction), PolarisStackDirection.Inline);
+                text.AddAttribute(22, nameof(PolarisStack.Gap), PolarisGap.Small);
+                text.AddAttribute(23, nameof(PolarisStack.AlignItems), "center");
+                text.AddAttribute(24, nameof(PolarisStack.ChildContent), (RenderFragment)(line =>
+                {
+                    if (!string.IsNullOrWhiteSpace(HeaderDetails))
+                    {
+                        line.OpenComponent<PolarisText>(0);
+                        line.AddAttribute(1, nameof(PolarisText.Id), $"{_idPrefix}-details");
+                        line.AddAttribute(2, nameof(PolarisText.FontSize), PolarisFontSize.Small);
+                        line.AddAttribute(3, nameof(PolarisText.Color), PolarisColor.Subdued);
+                        line.AddAttribute(4, nameof(PolarisText.ChildContent),
+                            (RenderFragment)(details => details.AddContent(0, HeaderDetails)));
+                        line.CloseComponent();
+                    }
+
+                    if (HeaderMeta is not null)
+                    {
+                        // A span rather than a Polaris element: it has to be a real box in the row (every
+                        // Polaris host computes to display: contents), and it carries the id the
+                        // header's name points at.
+                        line.OpenElement(10, "span");
+                        line.AddAttribute(11, "id", $"{_idPrefix}-meta");
+                        line.AddAttribute(12, "data-polaris-accordion-meta", true);
+                        line.AddContent(13, HeaderMeta);
+                        line.CloseElement();
+                    }
+                }));
                 text.CloseComponent();
             }
         }));

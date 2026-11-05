@@ -227,6 +227,34 @@ public sealed class AccordionRenderingTests
     }
 
     [Fact]
+    public void Header_meta_sits_on_the_supporting_line_and_joins_the_name()
+    {
+        // The one thing HeaderDetails cannot carry: markup of its own — in practice a figure whose
+        // colour says which way a price moved, which a plain subdued sentence would flatten. It is
+        // wrapped in an element with an id, so the figure is announced with the header rather than
+        // skipped, and it shares the row with the text instead of dropping under it.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Q / 9ct Yellow Gold")
+            .Add(p => p.HeaderDetails, "£312.35")
+            .Add(p => p.HeaderMeta, (RenderFragment)(meta =>
+                meta.AddMarkupContent(0, "<span style=\"color:red\">↓ £12.00</span>")))
+            .AddChildContent("Content"));
+
+        var summary = component.Find("summary");
+        var rendered = summary.QuerySelector("[data-polaris-accordion-meta]");
+
+        Assert.NotNull(rendered);
+        Assert.Contains("↓ £12.00", rendered!.TextContent);
+
+        // One row: the supporting text and the caller's markup share a parent.
+        Assert.Equal(summary.QuerySelector("s-text")!.ParentElement, rendered.ParentElement);
+
+        Assert.Contains(rendered.GetAttribute("id"), summary.GetAttribute("aria-labelledby")!.Split(' '));
+    }
+
+    [Fact]
     public void Header_status_renders_a_badge_beside_the_heading()
     {
         // The badge is what a collapsed section can say about itself before it is opened — that the work

@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisAccordionItem.cs -->
-<!-- source-sha256: 017f0bb8d94f -->
+<!-- source-sha256: b32ccc6ca641 -->
 
 # PolarisAccordionItem.cs
 
@@ -13,6 +13,7 @@ One section of a `PolarisAccordion`: a browser-native `<details>`/`<summary>` di
 |---|---|---|---|
 | `Header` | `string?` | `null` | The heading, drawn as a `PolarisHeading` in the summary's light DOM. It is the first id the summary's `aria-labelledby` points at. |
 | `HeaderDetails` | `string?` | `null` | A supporting line under the heading, drawn as subdued small `PolarisText`. Also referenced by `aria-labelledby`, so it is announced with the heading rather than skipped. |
+| `HeaderMeta` | `RenderFragment?` | `null` | Markup on the supporting line beside `HeaderDetails` — a figure whose colour carries meaning, typically a signed difference. Wrapped in a `span` with an id that joins `aria-labelledby`, so it is announced with the header. |
 | `HeaderMedia` | `RenderFragment?` | `null` | Content to the left of both text lines, in practice a thumbnail, centred against the pair. Stays visible while the section is closed. Carries no accessible name of its own. |
 | `HeaderStatus` | `string?` | `null` | A short state badge beside the heading, on the heading's own line, visible while closed. A string plus a tone rather than markup, so it needs no separate label and joins the referenced name. Blank or whitespace renders nothing. |
 | `HeaderStatusTone` | `PolarisTone` | `Auto` | Semantic colour of that badge. Ignored when `HeaderStatus` is not set. |
@@ -44,7 +45,7 @@ Inherited: none beyond `ComponentBase`; this component does not derive from `Pol
 - **The disclosure is the browser's.** `<details>` owns the open state, the disclosure semantics, the keyboard (Space and Enter), focus, and the fact that a closed panel is not rendered. Nothing here reimplements any of it: no `aria-expanded` interop, no `inert`, no grid-row clipping, no accessible name assembled by hand.
 - **The markup, outermost first.** A `div[data-polaris-accordion-item]` holds an optional `PolarisDivider`, then a `<details>` with an `open` attribute present only while open, a `<summary data-polaris-accordion-header>` with Blazor's own `@onclick`, an optional `aria-labelledby`, and the header's two groups; then the `s-box` panel.
 - **The summary is the row.** It is `display:flex; justify-content:space-between` from the stylesheet, with the text group first and the actions-plus-chevron group second. There is deliberately no stack wrapped around the two groups: a Polaris host computes to `display: contents`, so a wrapper would be one shrink-wrapped flex item, and measured, the chevron sat about 300px short of the header's edge while a click at the header's centre landed on the action.
-- **The accessible name is referenced, not restated.** `aria-labelledby` lists the heading, the supporting line and the status badge — whichever exist. Because it references the drawn elements, the name cannot drift from what is on screen, and the action's own label stays out of it (measured: without it the disclosure read "Variants … Clear all reviews").
+- **The accessible name is referenced, not restated.** `aria-labelledby` lists the heading, the supporting line, the `HeaderMeta` markup and the status badge — whichever exist. Because it references the drawn elements, the name cannot drift from what is on screen, and the action's own label stays out of it (measured: without it the disclosure read "Variants … Clear all reviews").
 - **The action wrapper carries `stopPropagation` and `preventDefault`.** The first keeps the component's own header handler from running; the second stops a browser that does not skip the disclosure activation for interactive content from opening a panel the component would never hear about — which would leave it open while the C# state said closed.
 - **State is `open`, and it is the only source of truth.** There is no `data-open` mirror. The click handler flips the same state the browser just flipped, so the re-render's attribute write is a no-op and the two can never disagree.
 - **Motion lives in `polaris-accordion.css`** (`::details-content` `block-size`, the chevron rotation), scoped so a library does not change height animation for the whole page. A browser without `::details-content` opens instantly, which is the intended degradation.

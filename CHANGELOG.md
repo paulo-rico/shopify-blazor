@@ -143,7 +143,10 @@ unreleased. The first planned release is `0.1.0-preview.1`.
   been added and then removed again. A `<summary>` is a disclosure control (measured in Chrome: role
   `DisclosureTriangle`, with a nested button exposed as its own node), so a button inside it is an
   ordinary button: `HeaderActions` is back, and its wrapper stops the click so pressing one does not
-  open the section. The browser now owns the state, the keyboard and the fact that a closed panel is not
+  open the section. `HeaderMeta` is new — markup on the supporting line beside `HeaderDetails`, wrapped
+  in an element whose id joins the header's name, for a figure whose colour is part of the fact (a
+  signed price difference, typically) and which one subdued sentence could not carry. The browser now
+  owns the state, the keyboard and the fact that a closed panel is not
   rendered at all; the accessible name is an `aria-labelledby` pointing at the heading, the supporting
   line and the badge, so it follows the visible text and keeps the action's own label out of it. The cost
   is that the header band and the panel's motion are the library's own (`polaris-accordion.css`) rather
