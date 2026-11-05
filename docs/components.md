@@ -193,6 +193,7 @@ One section of a `PolarisAccordion`: a header that opens and closes the content 
 | `HeaderStatusTone` | `PolarisTone` | Semantic colour of `HeaderStatus`. |
 | `HeaderActions` | `RenderFragment?` | Actions drawn at the inline end of the header, immediately before the chevron — in practice buttons that act on what the section shows, without opening it first. |
 | `ChildContent` | `RenderFragment?` | The content that opens and closes. |
+| `DeferContent` | `bool` | Leaves a closed section's content out of the render until the section is first opened. |
 | `Value` | `string?` | An identifier reported to the container's `PolarisAccordion.OpenItemChanged` so that code outside the accordion can tell which section is showing. |
 | `InitiallyOpen` | `bool` | Starts this section open. |
 | `ContentPadding` | `string?` | Padding inside the content area, in Polaris's spacing scale. |

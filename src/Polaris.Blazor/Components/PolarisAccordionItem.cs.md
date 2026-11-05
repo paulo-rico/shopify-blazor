@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisAccordionItem.cs -->
-<!-- source-sha256: b32ccc6ca641 -->
+<!-- source-sha256: 147c4a03435c -->
 
 # PolarisAccordionItem.cs
 
@@ -18,7 +18,8 @@ One section of a `PolarisAccordion`: a browser-native `<details>`/`<summary>` di
 | `HeaderStatus` | `string?` | `null` | A short state badge beside the heading, on the heading's own line, visible while closed. A string plus a tone rather than markup, so it needs no separate label and joins the referenced name. Blank or whitespace renders nothing. |
 | `HeaderStatusTone` | `PolarisTone` | `Auto` | Semantic colour of that badge. Ignored when `HeaderStatus` is not set. |
 | `HeaderActions` | `RenderFragment?` | `null` | Buttons at the inline end of the header, before the chevron — the capability the old `s-clickable` header could not offer. Wrapped in an element that stops the click and prevents its default, so pressing one runs it without opening the section. Buttons only: the wrapper's `preventDefault` would cancel a link's navigation. |
-| `ChildContent` | `RenderFragment?` | `null` | The panel content, wrapped in an `s-box` padded by `ContentPadding`. A closed `<details>` does not render it at all. |
+| `ChildContent` | `RenderFragment?` | `null` | The panel content, wrapped in an `s-box` padded by `ContentPadding`. Built on first open, not up front — see `DeferContent`. |
+| `DeferContent` | `bool` | `true` | Leaves a closed section's content out of the render until it is first opened, then keeps it. Measured on the jeweller app: 53 closed sections holding a full ingredient grid each put 462 KB of a 475 KB page — 1,500 table elements — behind panels nobody had opened, and the first load took 15–20 seconds to draw the headers. `false` renders the content up front for a panel something outside it reads. |
 | `Value` | `string?` | `null` | An identifier reported to the accordion's `OpenItemChanged`. Purely a token — it is not rendered. |
 | `InitiallyOpen` | `bool` | `false` | Starts open, read once during `OnInitialized`. In an exclusive accordion only the first item asking keeps it. |
 | `ContentPadding` | `string?` | `"base"` | Polaris spacing step for the panel's `s-box` padding, passed through verbatim. `None` (or `"none"`) for content that supplies its own, such as a table. |
@@ -48,11 +49,13 @@ Inherited: none beyond `ComponentBase`; this component does not derive from `Pol
 - **The accessible name is referenced, not restated.** `aria-labelledby` lists the heading, the supporting line, the `HeaderMeta` markup and the status badge — whichever exist. Because it references the drawn elements, the name cannot drift from what is on screen, and the action's own label stays out of it (measured: without it the disclosure read "Variants … Clear all reviews").
 - **The action wrapper carries `stopPropagation` and `preventDefault`.** The first keeps the component's own header handler from running; the second stops a browser that does not skip the disclosure activation for interactive content from opening a panel the component would never hear about — which would leave it open while the C# state said closed.
 - **State is `open`, and it is the only source of truth.** There is no `data-open` mirror. The click handler flips the same state the browser just flipped, so the re-render's attribute write is a no-op and the two can never disagree.
+- **The panel is built on first open, not up front.** `DeferContent` is true by default: a closed `<details>` draws nothing of its content, so building it early is work nobody can see. Measured on the jeweller app's product editor, 53 closed variant sections held a full ingredient grid each — 462 KB of a 475 KB response, 1,500 table elements — and the first render took 15–20 seconds to draw the headers, with the page arriving in pieces. Headers alone render in one batch, and a section's content is built in the same render that opens it, so it never appears open and empty. Content that has been rendered stays rendered.
 - **Motion lives in `polaris-accordion.css`** (`::details-content` `block-size`, the chevron rotation), scoped so a library does not change height animation for the whole page. A browser without `::details-content` opens instantly, which is the intended degradation.
 
 ## Gotchas
 
 - **`ChildContent` must be named once a section carries `HeaderActions` or `HeaderMedia`.** Razor cannot attribute unnamed content when a component has more than one `RenderFragment` parameter (`RZ9996`), so the panel becomes `<ChildContent>…</ChildContent>`. A section with neither keeps the bare form.
+- **A closed section's content is not in the DOM, so nothing outside may depend on it.** That is the default (`DeferContent`); a form submitting fields from a closed panel, or a script scraping the markup, needs `DeferContent="false"`. Nothing logs when a page assumes otherwise — the fields are simply absent until the section is opened.
 - **`HeaderActions` is for buttons.** The wrapper's `preventDefault` cancels the default action of whatever is inside it, so a link there would silently not navigate and a checkbox would not toggle. An action that navigates belongs at the top of the panel.
 - **`InitiallyOpen` is read once, in `OnInitialized`.** Setting it after the first render changes nothing.
 - **The only public way to change the state is `ToggleAsync()`.** `SetOpenAsync` is `internal`.

@@ -58,6 +58,11 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     private readonly string _idPrefix = $"polaris-accordion-{Guid.NewGuid():N}";
 
     private bool _isOpen;
+
+    // Whether the panel's content has ever been built. Kept after the first open, so the content is not
+    // thrown away and rebuilt every time the section is closed again.
+    private bool _contentRendered;
+
     private bool _disposed;
 
     /// <summary>The accordion this section belongs to, when it is inside one.</summary>
@@ -182,7 +187,33 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
     [Parameter] public RenderFragment? HeaderActions { get; set; }
 
     /// <summary>The content that opens and closes.</summary>
+    /// <remarks>
+    /// It is rendered on the first open, not up front, unless <see cref="DeferContent"/> is false. See
+    /// that parameter for why the default is what it is.
+    /// </remarks>
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Leaves a closed section's content out of the render until the section is first opened. True by
+    /// default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is a performance decision, and the default follows from what a disclosure is: a
+    /// <c>&lt;details&gt;</c> does not render a closed panel at all, so building its content eagerly is
+    /// work nobody can look at. Measured on the jeweller app's product editor, whose 53 variant sections
+    /// were every one closed: the page carried 1,500 <c>s-table</c>-family elements — a full ingredient
+    /// grid per variant — and the first render took 15–20 seconds to draw the sections, with the page
+    /// arriving in pieces. Headers alone are a fraction of that, and a section is built the moment it is
+    /// opened, in the same render that opens it.
+    /// </para>
+    /// <para>
+    /// Set it to <c>false</c> when the DOM has to exist before anyone opens the section: a form that
+    /// posts fields from a closed panel, or a page whose markup something else reads. Content is never
+    /// dropped again once it has been rendered.
+    /// </para>
+    /// </remarks>
+    [Parameter] public bool DeferContent { get; set; } = true;
 
     /// <summary>
     /// An identifier reported to the container's <see cref="PolarisAccordion.OpenItemChanged"/> so
@@ -218,6 +249,10 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         if (InitiallyOpen)
         {
             _isOpen = Accordion?.CanOpenInitially(this) ?? true;
+
+            // A section that starts open has its content built with the first render, so it is never
+            // seen open and empty.
+            _contentRendered = _isOpen;
         }
     }
 
@@ -263,6 +298,13 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
         }
 
         _isOpen = open;
+
+        // The content is built in this same render, so the panel opens full rather than opening empty
+        // and filling a round trip later.
+        if (open)
+        {
+            _contentRendered = true;
+        }
 
         if (IsOpenChanged.HasDelegate)
         {
@@ -368,10 +410,18 @@ public sealed class PolarisAccordionItem : ComponentBase, IDisposable
 
         // The panel needs no clipping of its own: a closed <details> does not render its content, so
         // there is no hidden-but-focusable subtree and nothing to mark inert.
-        builder.OpenComponent<PolarisBox>(40);
-        builder.AddAttribute(41, nameof(PolarisBox.Padding), ContentPadding);
-        builder.AddAttribute(42, nameof(PolarisBox.ChildContent), ChildContent);
-        builder.CloseComponent();
+        //
+        // It is also left out of the render entirely until the section is first opened. Building it
+        // eagerly is work on a panel the browser is not drawing: the jeweller app's product editor put a
+        // full ingredient grid — a table, its headers and its cells — in every one of 53 closed sections,
+        // and the first load took 15-20 seconds to draw the headers. See DeferContent.
+        if (!DeferContent || _contentRendered)
+        {
+            builder.OpenComponent<PolarisBox>(40);
+            builder.AddAttribute(41, nameof(PolarisBox.Padding), ContentPadding);
+            builder.AddAttribute(42, nameof(PolarisBox.ChildContent), ChildContent);
+            builder.CloseComponent();
+        }
 
         builder.CloseElement();
         builder.CloseElement();

@@ -310,6 +310,13 @@ Read these before changing anything in `src/`.
     - **`ChildContent` has to be named once a section carries an action or media.** Razor cannot
       attribute unnamed content across more than one `RenderFragment` parameter (`RZ9996`), which is a
       compile error, not a rendering fault.
+    - **A closed panel's content is not worth building.** A `<details>` draws nothing of a closed panel,
+      so `DeferContent` (true by default) leaves the content out until the section is first opened.
+      Measured on the jeweller app's product editor: 462 KB of a 475 KB response, and all 1,500
+      `s-table`-family elements, sat inside 53 closed sections; the first render took 15–20 seconds to
+      draw the headers and the page arrived one variant at a time. Headers alone render in one batch, and
+      the content is built in the same render that opens the section — never open and empty. `false` is
+      for a panel something outside it reads while closed.
 
     *Still true of the elements that remain, and worth knowing before wrapping one:*
     - **`s-button` has `accessibilityExpanded`, and it takes `"expanded"` / `"collapsed"` (strings),

@@ -280,8 +280,66 @@ public sealed class AccordionRenderingTests
         Assert.Equal("s-heading", row.Children[0].LocalName);
         Assert.Equal("s-badge", row.Children[1].LocalName);
 
-        // The badge never leaves the header: a state read after opening the section is read too late.
-        Assert.Empty(component.Find("s-box").QuerySelectorAll("s-badge"));
+        // The badge never leaves the header — and while the section is closed its content is not built at
+        // all, so there is nowhere else for a badge to be.
+        Assert.Empty(component.FindAll("s-box"));
+    }
+
+    [Fact]
+    public void A_closed_section_does_not_build_its_content()
+    {
+        // A <details> does not render a closed panel, so building the content is work on something nobody
+        // can look at. Measured on the jeweller app's product editor, 53 closed sections each holding a
+        // full ingredient grid made the first load take 15-20 seconds to draw the headers.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Details")
+            .AddChildContent("Panel content"));
+
+        Assert.Empty(component.FindAll("s-box"));
+        Assert.DoesNotContain("Panel content", component.Markup);
+    }
+
+    [Fact]
+    public async Task Opening_a_section_builds_its_content()
+    {
+        // Deferred, not dropped: the panel has to be there the moment it is opened, in the same render that
+        // opens it, or a merchant would watch an empty panel fill in a round trip later.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Details")
+            .AddChildContent("Panel content"));
+
+        await ClickHeaderAsync(component, index: 0);
+
+        Assert.True(component.Find("details").HasAttribute("open"));
+        Assert.Single(component.FindAll("s-box"));
+        Assert.Contains("Panel content", component.Find("s-box").TextContent);
+
+        // Closing again keeps it: re-rendering is free once the content exists.
+        await ClickHeaderAsync(component, index: 0);
+
+        Assert.False(component.Find("details").HasAttribute("open"));
+        Assert.Single(component.FindAll("s-box"));
+    }
+
+    [Fact]
+    public void DeferContent_false_renders_a_closed_sections_content_up_front()
+    {
+        // The escape hatch for a panel that something outside it reads while it is closed — a form posting
+        // hidden fields, or a page whose markup is scraped.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Details")
+            .Add(p => p.DeferContent, false)
+            .AddChildContent("Panel content"));
+
+        Assert.False(component.Find("details").HasAttribute("open"));
+        Assert.Single(component.FindAll("s-box"));
+        Assert.Contains("Panel content", component.Find("s-box").TextContent);
     }
 
     [Fact]
