@@ -1,5 +1,5 @@
 <!-- summary-of: polaris-interop.js -->
-<!-- source-sha256: c94e99b32431 -->
+<!-- source-sha256: f1fb73589587 -->
 
 # polaris-interop.js
 

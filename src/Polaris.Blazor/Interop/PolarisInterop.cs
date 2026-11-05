@@ -240,15 +240,14 @@ public sealed class PolarisInterop : IPolarisInterop
     /// to heuristic freshness and may reuse a module from before an update for the rest of its
     /// lifetime — the newer functions are simply absent while the page renders perfectly. Measured on a
     /// deployed app whose App Bridge module had grown new exports: the browser kept the old one, the
-    /// calls failed, and the feature degraded silently. The module version id changes on every build,
-    /// which is the lifetime wanted: one deploy keeps its cache, the next gets a new URL.
+    /// calls failed, and the feature degraded silently. The stamp is <see cref="PolarisStaticAssets.Version"/>,
+    /// the same one the stylesheets carry, so a module and its CSS can never come from two builds.
     /// </remarks>
     private static string VersionedModuleUrl(string path)
     {
-        var build = typeof(PolarisInterop).Assembly.ManifestModule.ModuleVersionId.ToString("N");
         var separator = path.Contains('?') ? '&' : '?';
 
-        return path + separator + "v=" + build;
+        return path + separator + "v=" + PolarisStaticAssets.Version;
     }
 
     /// <inheritdoc />

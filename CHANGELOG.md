@@ -13,6 +13,18 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Added
 
+- **`PolarisStylesheets`** — the three stylesheets this package ships, as `<link>` elements for a page's
+  head, each stamped with `PolarisStaticAssets.Version`. Rendering it makes the accordion's header band,
+  the grid's cell affordances and the slider's track part of the first paint; without it they exist only
+  once the Blazor circuit imports `polaris-interop.js`. Measured on the deployed jeweller app after the
+  accordion change: the page had rendered its 53 disclosures at 3.5 s with no accordion rules, the
+  circuit replaced that DOM at 4.5 s, and the stylesheet arrived at 6.8 s — 15–20 seconds over a slower
+  connection, which a merchant reads as the app having lost its styling. The interop module still injects
+  the same files for a page that renders no head links, and now skips a file already linked. A page adds
+  it in one line beside `<ShopifyAppBridgeHead />`.
+- **`PolarisStaticAssets`** — the one place the build stamp is read (`_content/Polaris.Blazor/<file>?v=…`).
+  The module import and the stylesheet links share it, so a stylesheet and the module that loads it can
+  never come from two different builds.
 - **`ShopifySaveBar`** — the admin's contextual save bar ("Unsaved changes", Discard, Save) across the
   top toolbar, for a page whose form is dirty. It is App Bridge's component, not Polaris's, so it wraps
   a `<ui-save-bar>` element and asks App Bridge to show it; `Visible` is the caller's dirty state and is

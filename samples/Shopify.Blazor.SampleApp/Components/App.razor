@@ -14,6 +14,13 @@
     *@
     <ShopifyAppBridgeHead />
 
+    @*
+        The toolkit's own stylesheets, in the head rather than injected by polaris-interop.js: that
+        module runs only once the Blazor circuit starts, and a full page load paints before it. In the
+        head they are part of the first paint, and polaris-interop.js skips a file already linked.
+    *@
+    <PolarisStylesheets />
+
     <title>Shopify Blazor Toolkit — sample app</title>
 
     @*

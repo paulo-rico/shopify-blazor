@@ -845,6 +845,9 @@ const probe = markedElementHelper
                 })(),
                 stylesheet: document.head
                     .querySelector('link[data-polaris-stylesheet*="polaris-accordion.css"]')?.href ?? null,
+                // Exactly one: the head renders the link and polaris-interop.js must skip a file it
+                // finds already linked. Two would be two requests for the same bytes.
+                stylesheetLinks: document.head.querySelectorAll('link[href*="polaris-accordion.css"]').length,
                 // Whether the page has a header action to drive, and whether this browser can animate
                 // ::details-content at all — the two things the Node side needs to know before it
                 // asserts anything about them.
@@ -1025,6 +1028,10 @@ function evaluateAssertions(result) {
             console.log("  note  this page's accordion has no header action, so the action checks do not apply");
         }
 
+        check(
+            accordion.stylesheetLinks === 1,
+            `the accordion's stylesheet is linked once, not injected again (${accordion.stylesheetLinks ?? "?"} link(s))`,
+        );
         check(
             // A browser without ::details-content opens instantly, which is the design; reduced motion
             // is a merchant's own choice and is not a failure either.

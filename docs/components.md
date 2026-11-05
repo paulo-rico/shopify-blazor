@@ -6,7 +6,7 @@
 element Shopify defined; none of them reimplements appearance, because Polaris components
 live in a shadow root and cannot be restyled.
 
-12 more are composed from those wrappers, for behaviour Polaris does not
+13 more are composed from those wrappers, for behaviour Polaris does not
 provide in an element of its own. They add structure and interaction; they do not add
 appearance either, because everything visible in them is still a Polaris element.
 
@@ -72,6 +72,7 @@ appearance either, because everything visible in them is still a Polaris element
 | `PolarisSelect` | `<s-select>` | `Change`, `Input` | yes |
 | `PolarisSpinner` | `<s-spinner>` | — | yes |
 | `PolarisStack` | `<s-stack>` | — | yes |
+| `PolarisStylesheets` | — composed | — | yes |
 | `PolarisSuggestField` | — composed | — | yes |
 | `PolarisSuggestFieldInline` | — composed | — | yes |
 | `PolarisSwitch` | `<s-switch>` | `Change`, `Input` | yes |
@@ -1142,6 +1143,12 @@ Wraps `<s-stack>`, the layout primitive for a single axis of spacing.
 | `JustifyContent` | `string?` | Main-axis alignment. |
 | `AlignItems` | `string?` | Cross-axis alignment. |
 | `AlignContent` | `string?` | Cross-axis alignment for wrapping content. |
+
+### `PolarisStylesheets` (composed)
+
+The three stylesheets this package ships, as <link> elements for the document's head.
+
+No parameters of its own; the element is a plain wrapper.
 
 ### `PolarisSuggestField` (composed)
 

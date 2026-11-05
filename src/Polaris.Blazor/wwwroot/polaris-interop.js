@@ -85,7 +85,12 @@ export function ensureStylesheets() {
         }
 
         const address = href.href;
-        if (document.head.querySelector(`link[data-polaris-stylesheet="${address}"]`)) continue;
+
+        // Guarded by the file name, not by the exact href: <PolarisStylesheets /> may already have
+        // linked the same file from the head, where its href is relative while this module's URLs are
+        // absolute and stamped. Two links to one file would be two requests for the same bytes.
+        const file = path.replace("./", "");
+        if (document.head.querySelector(`link[href*="${file}"]`)) continue;
 
         const link = document.createElement("link");
         link.rel = "stylesheet";

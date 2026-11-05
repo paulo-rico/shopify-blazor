@@ -9,7 +9,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 
 `python3 tools/check-summaries.py` reports a summary that is missing or older than its source.
 
-183 sources, 25 directories.
+185 sources, 25 directories.
 
 ## src/Polaris.Blazor
 
@@ -32,6 +32,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 | [`PolarisServiceCollectionExtensions.cs.md`](../src/Polaris.Blazor/PolarisServiceCollectionExtensions.cs.md) | The one registration an app needs to use the Polaris components: AddPolarisBlazor() puts the JavaScript interop service the wrappers inject into dependency injection. |
 | [`PolarisSlottedComponentBase.cs.md`](../src/Polaris.Blazor/PolarisSlottedComponentBase.cs.md) | Base class for a wrapper whose element accepts children in Shopify's named slots. |
 | [`PolarisSpinnerSize.cs.md`](../src/Polaris.Blazor/PolarisSpinnerSize.cs.md) | The three sizes an s-spinner accepts: the base size, large, and large at the 100 step of the scale. |
+| [`PolarisStaticAssets.cs.md`](../src/Polaris.Blazor/PolarisStaticAssets.cs.md) | The single source of the build stamp every URL this package hands out carries: the module import's and the stylesheet links'. |
 | [`PolarisTextDirection.cs.md`](../src/Polaris.Blazor/PolarisTextDirection.cs.md) | The three values of the HTML dir attribute — browser-detected, left-to-right and right-to-left — with "unset" deliberately absent, so call sites use a nullable. |
 
 ## src/Polaris.Blazor/Components
@@ -97,6 +98,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 | [`PolarisSelect.cs.md`](../src/Polaris.Blazor/Components/PolarisSelect.cs.md) | A single-select dropdown: the merchant picks one value from PolarisOption children, and OnChange reports it. |
 | [`PolarisSpinner.cs.md`](../src/Polaris.Blazor/Components/PolarisSpinner.cs.md) | An indeterminate spinner that spins until it is removed from the tree — there is no progress value and no way to stop it from inside. |
 | [`PolarisStack.cs.md`](../src/Polaris.Blazor/Components/PolarisStack.cs.md) | The layout primitive for a single axis of spacing: children are laid out in a block (vertical) or inline (horizontal) line with one gap between them. |
+| [`PolarisStylesheets.cs.md`](../src/Polaris.Blazor/Components/PolarisStylesheets.cs.md) | The three stylesheets this package ships, rendered as <link> elements so a page can put them in its document head. |
 | [`PolarisSuggestField.cs.md`](../src/Polaris.Blazor/Components/PolarisSuggestField.cs.md) | A free-text field with the values the shop already uses drawn beneath it as clickable, removable chips that narrow as the merchant types. |
 | [`PolarisSuggestFieldInline.cs.md`](../src/Polaris.Blazor/Components/PolarisSuggestFieldInline.cs.md) | A pick-a-known-value-or-type-a-new-one field: a search box over the values already known, a row for whatever was typed, and either the choice as a removable chip or the text kept in the field itself. |
 | [`PolarisSwitch.cs.md`](../src/Polaris.Blazor/Components/PolarisSwitch.cs.md) | A switch for a setting that applies immediately: an on/off control with a label, help text and a validation message, whose state is written as a DOM property rather than an attribute. |
