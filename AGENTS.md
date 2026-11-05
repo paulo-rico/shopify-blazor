@@ -279,12 +279,39 @@ Read these before changing anything in `src/`.
     `variant.price` arrives as a **string** (that is how Shopify states money), so the DTO carries it as one
     and the caller parses it — binding it to a decimal would fail at runtime rather than at compile time.
 
-25. **Polaris has no accordion, and the two ways to announce an expanded state both need care.**
-    `PolarisAccordion`/`PolarisAccordionItem` are the first components here that are *composed*
-    rather than wrappers, because there is no element to wrap: the shipped runtime defines 74 tag
-    names and none is an accordion, collapsible or details element (checked in `polaris-1.js` and
-    re-checked in `polaris-2.js`, and the App Home docs 404 for `details`). Wiring the disclosure
-    semantics produced four measured facts, and all four are silent failures:
+25. **Polaris has no accordion, so the header is a native `<summary>` — and the `s-clickable` it replaced
+    is not a button.**
+    `PolarisAccordion`/`PolarisAccordionItem` are the only components here that are *composed* rather
+    than wrappers, because there is no element to wrap: the shipped runtime defines 74 tag names and
+    none is an accordion, collapsible or details element (checked in `polaris-1.js`, re-checked in
+    `polaris-2.js`, and the App Home docs 404 for `details`). The item is a browser
+    `<details>`/`<summary>`; Polaris supplies the card around the list, the panel's box and the
+    header's type.
+    *What the summary buys, measured in Chrome through CDP's accessibility tree:*
+    - **It is not a button.** Its role is `DisclosureTriangle` (`DisclosureTriangleGrouped` when the
+      `name` attribute groups it), and a `<button>` inside it is its own node with `ignored: false`.
+      That is what makes a header action possible: in the `s-clickable` header an action was a button
+      within a shadow `<button>`, whose children the button role makes presentational.
+    - **A real click on interactive content does not toggle it in Blink.** Measured: a mouse click on a
+      button inside a summary left `details.open` false, while a click on the heading text toggled it.
+      The action wrapper's `stopPropagation`/`preventDefault` is therefore belt-and-braces there and
+      load-bearing in engines that do activate the disclosure.
+    - **`aria-labelledby` is not optional.** A summary's name is everything under it: with an action,
+      the disclosure read "Variants Each variant's price and recipe at a glance. Clear all reviews".
+      Referencing the heading, the supporting line and the badge gives "Uplift The piece's own
+      margin." and leaves the action its own node with its own name.
+    - **`name=` on the details does group them exclusively** (measured: opening the second closed the
+      first), but it closes siblings without this component hearing about it, so exclusivity stays in
+      C# and `open` remains the one source of truth.
+    - **The summary must be the row.** Every Polaris host computes to `display: contents`, so a stack
+      wrapped around the header's two groups became a single shrink-wrapped flex item: measured, the
+      chevron sat about 300px short of the header's edge and a click at the header's centre landed on
+      the action instead of opening the section.
+    - **`ChildContent` has to be named once a section carries an action or media.** Razor cannot
+      attribute unnamed content across more than one `RenderFragment` parameter (`RZ9996`), which is a
+      compile error, not a rendering fault.
+
+    *Still true of the elements that remain, and worth knowing before wrapping one:*
     - **`s-button` has `accessibilityExpanded`, and it takes `"expanded"` / `"collapsed"` (strings),
       not a boolean.** Polaris derives `aria-expanded` from `"expanded" === value`, so `true` renders
       `aria-expanded="false"` — the *opposite* of the intent, with nothing to see. That is why
@@ -294,14 +321,14 @@ Read these before changing anything in `src/`.
       element's own `queueRender()` after writing a name from `RENDER_ONLY_PROPERTIES`, defensively:
       if Polaris renames it, the value is applied late rather than wrongly.
     - **`s-clickable` has no equivalent property at all.** It is a real `<button>` inside a shadow
-      root with only its accessibility label and command props, so the accordion header's state is
-      written onto that button by `IPolarisInterop.SetAriaExpandedAsync`. The attribute is re-applied
-      on every render, because Polaris re-creates the button when it renders.
+      root with only its accessibility label and command props, so a stated expanded state has to be
+      written onto that button by `IPolarisInterop.SetAriaExpandedAsync`, re-applied on every render
+      because Polaris re-creates the button when it renders. The accordion no longer needs it.
     - **`s-section` takes no styling properties.** Its documented set is `heading`, `subheading`,
       `padding` and `accessibilityLabel`, and it is *not* one of the elements that inherit the box
       styling set (`s-clickable`, `s-grid`, `s-grid-item`, `s-stack` are). `border="base"` and
-      `background="subdued"` on a section are dropped without a word — the accordion puts them on the
-      `s-clickable` that wraps it instead.
+      `background="subdued"` on a section are dropped without a word — and a heading given as an
+      attribute lives in the shadow root, so a surface around it has no text of its own to be named by.
     - **`s-clickable` and `s-box` compute to `display: contents`.** Their host has **no box at all**:
       the border, the radius and the padding are painted by an element inside the shadow root, and the
       host's own `getBoundingClientRect()` is `0×0` at the page origin. Two things follow, and both
@@ -310,18 +337,20 @@ Read these before changing anything in `src/`.
       instead. And a **layout assertion** written against the host — a radius, a height, an overflow —
       reads the wrong number: ask the element that paints, `shadowRoot.querySelector(".box")` for a
       box and `shadowRoot.querySelector("button")` for a clickable.
-    The click handler is Blazor's own `@onclick` on a wrapper `<div>`, **not** an interop listener on
-    the Polaris element. That is deliberate: the base class re-attaches listeners after every render,
-    and every toggle re-renders the page that binds `OpenItemChanged`, so a listener on the element was
-    the one thing whose presence depended on render history — "the click is hit and miss" with no
-    pattern was reported against exactly that. A click is a composed event, so one anywhere in the
-    surface — heading, chevron, padding, or the click a keyboard Enter produces on the shadow button —
-    reaches a single delegated handler that Blazor installs once.
-    The browser check asserts all of it — clipped height, `inert`, `aria-expanded` read out of the
-    shadow root, the chevron's position and rotation — because a component test cannot see any of it.
-    When composing the next component, the same rule applies: put the *state* in the markup (inline
-    `grid-template-rows`, `inert`) and only the *motion* in CSS, so a stylesheet that never arrives
-    degrades to a snap rather than to a panel that can never be collapsed.
+    The click handler is Blazor's own `@onclick` on the `<summary>`, **not** an interop listener on a
+    Polaris element. That is deliberate: the base class re-attaches listeners after every render, and
+    every toggle re-renders the page that binds `OpenItemChanged`, so a listener on the element was the
+    one thing whose presence depended on render history — "the click is hit and miss" with no pattern
+    was reported against exactly that. A click is a composed event, so one anywhere in the header —
+    heading, chevron, padding, or the click a keyboard Space produces — reaches a single delegated
+    handler Blazor installs once.
+    The browser check asserts all of it — a real click flipping `details.open`, a closed panel adding
+    no height, the chevron's position and rotation, the disclosure's role and name from the
+    accessibility tree, and a header action that reaches C# without opening the section — because a
+    component test cannot see any of it. When composing the next component, the same rule applies: let
+    the element own the state (`open`, and the fact that a closed panel is not rendered), and put only
+    the look and the motion in CSS, so a stylesheet that never arrives degrades to a plain disclosure
+    rather than to a panel that can never be collapsed.
 
 26. **The data grid is composed, and four of the things that make it work were found in a browser, not
     read in a document.** `s-table` has no sorting, filtering, paging, selection or editing, so
@@ -517,10 +546,12 @@ Read these before changing anything in `src/`.
     **The behaviour was re-verified, and it holds.** `tools/verify-in-browser.mjs --assert` was run
     against both the gallery (`/components`, 60 listed elements) and the dashboard's data grid (`/`)
     with `polaris-2.js` loaded: 0 undefined, 0 unupgraded, every element with a shadow root, and all
-    39 assertions passing on each page — the accordion's `aria-expanded` written into `s-clickable`'s
-    shadow button, the popover opened by declarative `commandFor`, the slider re-querying on `change`
-    rather than on `input`, and cell editing with Enter/Tab/Escape and a server-refused save. So the
-    1.x property semantics this file documents survive the major version. What did **not** change with
+    39 assertions passing on each page — the popover opened by declarative `commandFor`, the slider
+    re-querying on `change` rather than on `input`, and cell editing with Enter/Tab/Escape and a
+    server-refused save. So the 1.x property semantics this file documents survive the major version.
+    (The accordion's header has since moved from `s-clickable` to a native summary — see item 25 — and
+    its assertions now read `details.open`, the disclosure's role and name from the accessibility
+    tree, and a header action that runs without opening its section.) What did **not** change with
     it: the toolkit's own stylesheets, the 74-name element set, and `minPolarisVersion`'s floor.
     `App Bridge Next: missing required configuration fields: shop` on the console is expected and is
     not a regression — App Bridge only completes configuration inside a real Admin.

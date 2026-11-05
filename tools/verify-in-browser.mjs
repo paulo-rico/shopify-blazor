@@ -202,26 +202,31 @@ class DevTools {
     }
 
     /**
-     * The viewport point at the centre of the `<button>` inside the nth accordion header.
+     * The viewport point at the centre of the nth accordion header.
      *
-     * Not the centre of the `s-clickable` host: that element computes to `display: contents`, so it
-     * has a 0×0 box and its centre is the top-left corner of the page. The button in its shadow root
-     * is the box a merchant actually clicks, which is also why this measures instead of assuming.
-     * Re-measured on every call, because opening a section moves every header below it.
+     * The header is a native `<summary>` now, so it is its own painted box. The `s-clickable` it
+     * replaced computed to `display: contents` and left nothing to measure but the button inside its
+     * shadow root, which is why this helper existed at all. Re-measured on every call, because opening
+     * a section moves every header below it.
      */
     async headerButtonCentre(index) {
-        return this.evaluate(`(() => {
-            const item = document.querySelectorAll("[data-polaris-accordion-item]")[${index}];
-            const button = item?.querySelector("s-clickable")?.shadowRoot?.querySelector("button");
-            if (!button) return null;
+        return this.evaluate(`(async () => {
+            const summary = document.querySelectorAll("[data-polaris-accordion-item]")[${index}]?.querySelector("summary");
+            if (!summary) return null;
 
-            button.scrollIntoView({ block: "center" });
-            const box = button.getBoundingClientRect();
+            const behaviour = document.documentElement.style.scrollBehavior;
+            document.documentElement.style.scrollBehavior = "auto";
+            summary.scrollIntoView({ block: "center", inline: "center" });
+            document.documentElement.style.scrollBehavior = behaviour;
+
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+            const box = summary.getBoundingClientRect();
             return {
                 x: Math.round(box.x + box.width / 2),
                 y: Math.round(box.y + box.height / 2),
-                width: box.width,
-                height: box.height,
+                width: Math.round(box.width),
+                height: Math.round(box.height),
             };
         })()`);
     }
@@ -408,37 +413,50 @@ const markedElementHelper = `
  * thing and the second one cannot drift from the first.
  */
 const accordionStateExpression = `Array.from(document.querySelectorAll("[data-polaris-accordion-item]")).map((item) => {
-        const panel = item.querySelector("[data-polaris-accordion-panel]");
-        const header = item.querySelector("s-clickable");
+        const details = item.querySelector("details");
+        const summary = item.querySelector("summary");
         const chevron = item.querySelector("[data-polaris-accordion-chevron]");
-        const heading = item.querySelector("s-section");
+        const heading = item.querySelector("s-heading");
+        const summaryBox = summary?.getBoundingClientRect();
+        const detailsBox = details?.getBoundingClientRect();
         const chevronBox = chevron?.getBoundingClientRect();
-        const headerBox = header?.getBoundingClientRect();
         return {
-            open: item.getAttribute("data-open"),
-            height: panel ? panel.getBoundingClientRect().height : -1,
-            inert: item.querySelector("[data-polaris-accordion-panel-inner]")?.hasAttribute("inert") ?? null,
-            // The corners belong to the accordion and not to the sections. Read from the element each
-            // one paints with: both hosts compute to display:contents and paint inside their shadow
-            // roots, so a host's own border-radius is 0px whatever it was asked for.
-            itemRadius: header?.shadowRoot?.querySelector("button")
-                ? getComputedStyle(header.shadowRoot.querySelector("button")).borderTopLeftRadius
-                : null,
-            // Read from the shadow root on purpose: an attribute on the <s-clickable> host is not what
-            // assistive technology sees.
-            expanded: header?.shadowRoot?.querySelector("button")?.getAttribute("aria-expanded") ?? null,
-            // The heading on the left and the chevron on the right is a layout claim only a rendered
-            // page can confirm.
-            chevronOnTheRight: Boolean(chevronBox && headerBox && heading) &&
-                chevronBox.left >= heading.getBoundingClientRect().right - 1 &&
-                chevronBox.left > headerBox.left + headerBox.width / 2,
-            // The heading is an attribute in Polaris's shadow root, so the surface's own text is empty;
-            // the name has to be stated or the control has none.
-            name: header?.getAttribute("accessibilityLabel") ?? null,
+            open: details ? details.open : null,
+            // A closed <details> does not render its content at all, so the panel's height is what the
+            // element adds beyond its header.
+            height: summaryBox && detailsBox ? Math.round(detailsBox.height - summaryBox.height) : -1,
+            // The disclosure's name, assembled from the ids it points at. The browser's own name
+            // computation is the accessibility tree's, which only CDP can read — that half is asserted
+            // on the Node side.
+            labelledBy: summary?.getAttribute("aria-labelledby") ?? null,
+            nameText: (summary?.getAttribute("aria-labelledby") ?? "")
+                .split(" ")
+                .filter(Boolean)
+                .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
+                .join(" | "),
+            headingText: heading?.textContent?.trim() ?? null,
+            // The corners belong to the accordion and not to the sections: read from the summary, which
+            // is what would paint its own if the stylesheet were lost.
+            itemRadius: summary ? getComputedStyle(summary).borderTopLeftRadius : null,
+            // The heading on the left and the chevron at the header's right-hand edge is a layout claim
+            // only a rendered page can confirm. It is measured against the summary rather than the
+            // heading's box: an s-heading host computes to display: contents and has no box at all.
+            chevronOnTheRight: Boolean(chevronBox && summaryBox) &&
+                chevronBox.left > summaryBox.left + summaryBox.width / 2 &&
+                chevronBox.right >= summaryBox.right - 24,
             // The chevron rotating is the only sighted affordance for the state, and the transition
             // duration is the stylesheet actually applying rather than merely loading.
             chevron: chevron ? getComputedStyle(chevron).transform : null,
-            transition: panel ? getComputedStyle(panel).transitionDuration : null,
+            // The panel's motion lives on ::details-content, which is the only way to animate a native
+            // disclosure. A browser without the pseudo-element reports nothing, and the check allows it.
+            transition: (() => {
+                try {
+                    return details ? (getComputedStyle(details, "::details-content").transitionDuration || "") : "";
+                } catch {
+                    return "";
+                }
+            })(),
+            actions: item.querySelectorAll("[data-polaris-accordion-actions]").length,
         };
 })`;
 /**
@@ -793,38 +811,32 @@ const probe = markedElementHelper
         counter = { before, after, roundTripped: after !== before };
     }
 
-    // The accordion is the toolkit's only composed component, so its open state is the library's
-    // rather than Shopify's. Four things are invisible to a unit test: that the panel really grows,
-    // that aria-expanded reaches the <button> inside s-clickable's shadow root (it is written there
-    // through the interop layer — the element has no property for the state, and no light-DOM
-    // attribute can reach the shadow button), that the chevron really sits at the right-hand end of
-    // the header, and that opening one section collapses the open one in the same frame.
+    // The accordion is the toolkit's only composed component, and its disclosure is a native
+    // details/summary — so what a browser adds here is that a real click flips it, that the content
+    // really appears and disappears, that the header's action runs without opening the section, and
+    // that the action is a node in the accessibility tree at all. That last one is the reason the
+    // header stopped being an s-clickable: a button inside its shadow <button> was a button within a
+    // button, and the action left the tree.
     let accordion = null;
     {
         const items = Array.from(document.querySelectorAll("[data-polaris-accordion-item]"));
+        const closedItem = items.find((item) => item.querySelector("details")?.open === false);
 
-        if (items.length >= 2) {
-            const closed = items.find((item) => item.getAttribute("data-open") === "false");
-            const closedIndex = closed ? items.indexOf(closed) : -1;
+        if (items.length >= 2 && closedItem) {
+            const closedIndex = items.indexOf(closedItem);
+            const headerBox = closedItem.querySelector("summary").getBoundingClientRect();
 
             // The click itself happens on the Node side, with a real mouse event: element.click() is
-            // the untrusted path Polaris special-cases, and the merchant's click lands on the button
-            // inside a shadow root instead. Only the coordinates are computed here.
-            let headerPoint = null;
-            if (closed) {
-                const box = closed.querySelector("s-clickable").getBoundingClientRect();
-                headerPoint = {
-                    x: Math.round(box.x + box.width / 2),
-                    y: Math.round(box.y + box.height / 2),
-                };
-            }
-
+            // not the path a merchant takes. Only the coordinates are computed here.
             accordion = {
                 count: items.length,
                 closedIndex,
                 before: ${accordionStateExpression},
                 after: null,
-                headerPoint,
+                headerPoint: {
+                    x: Math.round(headerBox.x + headerBox.width / 2),
+                    y: Math.round(headerBox.y + headerBox.height / 2),
+                },
                 // The accordion's own box, which is where the corners are. s-box paints inside its
                 // shadow root, so the radius is read from the element that actually draws it.
                 containerRadius: (() => {
@@ -833,6 +845,11 @@ const probe = markedElementHelper
                 })(),
                 stylesheet: document.head
                     .querySelector('link[data-polaris-stylesheet*="polaris-accordion.css"]')?.href ?? null,
+                // Whether the page has a header action to drive, and whether this browser can animate
+                // ::details-content at all — the two things the Node side needs to know before it
+                // asserts anything about them.
+                hasAction: items.some((item) => item.querySelector("[data-polaris-accordion-actions]")),
+                supportsDetailsContent: CSS.supports("selector(::details-content)"),
                 reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
             };
         }
@@ -933,49 +950,33 @@ function evaluateAssertions(result) {
     check(reconnect.stylesheet !== null, "the reconnection stylesheet is linked");
     check(reconnect.script !== null, "the reconnection script is loaded");
 
-    // The accordion. Its open state is the library's own, and every part of it is invisible to a
-    // component test: the clipped panel, the aria-expanded that has to reach a shadow button, and the
-    // sibling that has to collapse with it.
+    // The accordion. Its disclosure is native, so what is checked here is the part no component test
+    // can see: the content really disappears and reappears, a real click drives it, a header action
+    // runs without opening the section, and both are separate nodes in the accessibility tree.
     const accordion = result.accordion;
     check(accordion !== null, "the composed accordion is on the page with at least two sections");
 
     if (accordion) {
         const opened = accordion.after?.[accordion.closedIndex];
         const closed = accordion.before?.[accordion.closedIndex];
-        const wasOpenIndex = accordion.before.findIndex((item) => item.open === "true");
+        const wasOpenIndex = accordion.before.findIndex((item) => item.open === true);
         const nowCollapsed = wasOpenIndex >= 0 ? accordion.after?.[wasOpenIndex] : null;
 
-        check(accordion.stylesheet !== null, "the accordion's own stylesheet is linked (it is what animates the panel)");
+        check(accordion.stylesheet !== null, "the accordion's stylesheet is linked (it draws the header band and the motion)");
         check(
             accordion.realClickFlipped === true,
             "a real mouse click on the header — not element.click() — opens the section",
         );
         check(
-            closed?.open === "false" && closed?.height < 1,
-            "a closed section takes no height at all, so its content is really clipped",
+            closed?.open === false && closed?.height < 1,
+            "a closed section renders no content, so it takes no height beyond its header",
         );
         check(
-            closed?.inert === true,
-            "a closed section is inert, so clipped content leaves the tab order and the accessibility tree",
+            opened?.open === true && opened?.height > (closed?.height ?? 0),
+            `opening a section renders its content (${closed?.height ?? "?"}px -> ${opened?.height ?? "?"}px)`,
         );
         check(
-            closed?.expanded === "false",
-            "a closed section announces aria-expanded=false on the button inside s-clickable's shadow root",
-        );
-        check(
-            opened?.open === "true" && opened?.height > (closed?.height ?? 0),
-            `opening a section gives the panel height (${closed?.height ?? "?"}px -> ${opened?.height ?? "?"}px)`,
-        );
-        check(
-            opened?.expanded === "true",
-            "opening a section sets aria-expanded=true on that shadow button, which is the only place it can go",
-        );
-        check(
-            opened?.inert === false,
-            "an open section's content is no longer inert",
-        );
-        check(
-            nowCollapsed?.open === "false",
+            nowCollapsed?.open === false,
             "the section that was open collapses when another one opens",
         );
         check(
@@ -987,13 +988,41 @@ function evaluateAssertions(result) {
             "the heading is on the left of the header and the chevron at its right-hand end",
         );
         check(
-            !closed?.name ? false : opened?.name === closed?.name,
-            `the header has a stated accessible name (${opened?.name ?? "none"})`,
+            typeof opened?.nameText === "string" && opened.nameText.includes(opened.headingText ?? "\u0000"),
+            `the header's name is the text that is drawn (${opened?.nameText ?? "none"})`,
         );
         check(
-            // A browser with reduced motion on reports 0s on purpose, so that is not a failure.
-            accordion.reducedMotion || (opened?.transition ?? "0s") !== "0s",
-            `the panel's transition is applied, not merely linked (duration ${opened?.transition ?? "none"})`,
+            !(opened?.nameText ?? "").includes("Accept changes"),
+            "the header action's label is not folded into the disclosure's name",
+        );
+        // The three below only make sense on a page whose header carries an action; a page without one
+        // is not failing them, it just has nothing to check. Same rule as the grid's own checks.
+        if (accordion.hasAction) {
+            check(
+                accordion.action?.clicked === true && accordion.action?.reachedCSharp === true,
+                `pressing the header action reaches C# (${accordion.action?.ranBefore ?? "?"} -> ${accordion.action?.ranAfter ?? "?"})`,
+            );
+            check(
+                accordion.action?.wasOpen === false && accordion.action?.openedTheSection === false,
+                "pressing the header action leaves a closed section closed",
+            );
+            check(
+                (accordion.a11y?.disclosureRole ?? "").includes("DisclosureTriangle"),
+                `the header is a disclosure control, not a button (role ${accordion.a11y?.disclosureRole ?? "unknown"})`,
+            );
+            check(
+                accordion.a11y?.actionName === "Accept changes" && accordion.a11y?.actionIgnored === false,
+                "a button in the header is its own node in the accessibility tree",
+            );
+        } else {
+            console.log("  note  this page's accordion has no header action, so the action checks do not apply");
+        }
+
+        check(
+            // A browser without ::details-content opens instantly, which is the design; reduced motion
+            // is a merchant's own choice and is not a failure either.
+            accordion.reducedMotion || !accordion.supportsDetailsContent || (opened?.transition ?? "") !== "",
+            `the panel's motion comes from the stylesheet (duration ${opened?.transition || "none"})`,
         );
         check(
             accordion.containerRadius !== "0px" && accordion.containerRadius !== null,
@@ -1004,8 +1033,8 @@ function evaluateAssertions(result) {
             `no section rounds its own corners (${[...new Set(accordion.before.map((i) => i.itemRadius))].join(", ")})`,
         );
 
-        if (accordion.reducedMotion) {
-            console.log("  note  reduced motion is on in this browser, so the transition was skipped");
+        if (!accordion.supportsDetailsContent) {
+            console.log("  note  this browser cannot animate ::details-content, so the panel snaps");
         }
     }
 
@@ -1315,13 +1344,64 @@ try {
 
     const result = await devtools.evaluate(probe);
 
+    // The header action comes FIRST, while the section it sits in is still closed: a real click on the
+    // button beside the title must reach C# and must NOT open that section. Both halves matter — a
+    // click that does nothing looks like a broken action, and a click that also opens the panel is the
+    // failure the component's stop/prevent wrapper exists to prevent, and one the component could
+    // never hear about. Driven before the header click so "did it open?" is a real question.
+    if (result.accordion?.hasAction) {
+        const actionExpression =
+            `document.querySelector("[data-polaris-accordion-actions] s-button, [data-polaris-accordion-actions] button")`;
+
+        const stateOfActionSection = `(() => {
+            const item = document.querySelector("[data-polaris-accordion-actions]")?.closest("[data-polaris-accordion-item]");
+            return { open: item?.querySelector("details")?.open === true, runs: document.querySelector("[data-accordion-action-runs]")?.textContent?.trim() ?? null };
+        })()`;
+
+        const before = await devtools.evaluate(stateOfActionSection);
+        const actionPoint = await devtools.shadowButtonCentre(actionExpression);
+
+        if (actionPoint) {
+            await devtools.clickAt(actionPoint.x, actionPoint.y);
+            await devtools.waitFor(async () => (await devtools.evaluate(stateOfActionSection)).runs !== before.runs, 5000);
+        }
+
+        const after = await devtools.evaluate(stateOfActionSection);
+
+        result.accordion.action = {
+            clicked: actionPoint !== null,
+            reachedCSharp: after.runs !== before.runs,
+            openedTheSection: after.open,
+            wasOpen: before.open,
+            ranBefore: before.runs,
+            ranAfter: after.runs,
+        };
+
+        // The accessibility tree, which is the whole reason the header stopped being an s-clickable.
+        // Read through CDP rather than the page: only the browser knows what was announced.
+        await devtools.send("Accessibility.enable");
+        const { nodes } = await devtools.send("Accessibility.getFullAXTree");
+
+        const disclosure = nodes.find((node) =>
+            /DisclosureTriangle/.test(node.role?.value ?? "") &&
+            (node.name?.value ?? "").includes("A closed section"));
+        const action = nodes.find((node) =>
+            node.role?.value === "button" && (node.name?.value ?? "") === "Accept changes");
+
+        result.accordion.a11y = {
+            disclosureRole: disclosure?.role?.value ?? null,
+            disclosureName: disclosure?.name?.value ?? null,
+            actionName: action?.name?.value ?? null,
+            actionIgnored: action ? action.ignored : null,
+        };
+    }
+
     // The accordion's click is driven from here with a REAL mouse event, and the state read back
     // afterwards. Two things about that are deliberate:
     //
-    //   - element.click() produces an untrusted event, which Polaris re-dispatches for its own tests.
-    //     A merchant's click lands on the <button> inside s-clickable's shadow root instead, and the
-    //     toolkit has to survive that path — which is why "the click is hit and miss" was reported
-    //     against a check that had only ever exercised the easy one.
+    //   - element.click() dispatches an untrusted event, and a merchant's click has to survive the
+    //     path the browser actually takes — including deciding whether the summary's own activation
+    //     runs. That is the path a header action has to suppress.
     //   - Input.dispatchMouseEvent works in viewport coordinates, so the header is scrolled into view
     //     and the point re-measured first. A click below the fold silently hits nothing.
     if (result.accordion?.headerPoint) {
@@ -1329,18 +1409,16 @@ try {
 
         await devtools.clickAt(point.x, point.y);
 
+        const openExpression =
+            `document.querySelectorAll("[data-polaris-accordion-item]")[${result.accordion.closedIndex}]?.querySelector("details")?.open === true`;
+
         const flippedBy = Date.now() + 10000;
         while (Date.now() < flippedBy) {
-            const open = await devtools.evaluate(
-                `document.querySelectorAll("[data-polaris-accordion-item]")[${result.accordion.closedIndex}]?.getAttribute("data-open")`);
-
-            if (open === "true") break;
+            if (await devtools.evaluate(openExpression)) break;
             await sleep(100);
         }
 
-        result.accordion.realClickFlipped =
-            (await devtools.evaluate(
-                `document.querySelectorAll("[data-polaris-accordion-item]")[${result.accordion.closedIndex}]?.getAttribute("data-open")`)) === "true";
+        result.accordion.realClickFlipped = (await devtools.evaluate(openExpression)) === true;
 
         // Let the 200ms transition settle, so the heights read are the settled ones.
         await sleep(500);

@@ -134,6 +134,24 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Changed
 
+- **The accordion's header is a native `<details>`/`<summary>` now, and it can carry actions.**
+  `PolarisAccordionItem` no longer wraps an `s-clickable` surface. That surface was a `<button>` inside a
+  shadow root, and everything about the old item followed from it: the header's accessible name was
+  assembled by hand because the heading lived in the shadow root, `aria-expanded` was written onto that
+  shadow button through interop, a closed panel was clipped and marked `inert`, and a header action was
+  impossible — a button inside a button leaves the accessibility tree, which is why `HeaderActions` had
+  been added and then removed again. A `<summary>` is a disclosure control (measured in Chrome: role
+  `DisclosureTriangle`, with a nested button exposed as its own node), so a button inside it is an
+  ordinary button: `HeaderActions` is back, and its wrapper stops the click so pressing one does not
+  open the section. The browser now owns the state, the keyboard and the fact that a closed panel is not
+  rendered at all; the accessible name is an `aria-labelledby` pointing at the heading, the supporting
+  line and the badge, so it follows the visible text and keeps the action's own label out of it. The cost
+  is that the header band and the panel's motion are the library's own (`polaris-accordion.css`) rather
+  than Polaris's — and a page whose stylesheet never arrives now degrades to a plain, working disclosure.
+  `data-polaris-accordion-panel`, `data-polaris-accordion-panel-inner` and `data-open` are gone;
+  `details[open]` is the state, so there is one source of truth for it. A section that carries
+  `HeaderActions` or `HeaderMedia` must name its body `<ChildContent>`, which is Razor's rule once a
+  component takes more than one `RenderFragment`.
 - **The filter chip for a range filter writes both bounds to two decimals**, the same way the two
   fields in the panel do. The chip is the only other place a bound is shown, and a filter's bounds are
   the cheapest and dearest row rather than a number anybody typed — so a chip reading `4.1666667`

@@ -40,6 +40,21 @@
                 <PolarisButton Loading="true">Loading</PolarisButton>
             </PolarisStack>
 
+            @*
+                The whole-surface click target, and the surface the accordion header used to be. It
+                renders a real <button> inside a shadow root and slots its content into that button —
+                which is why a button placed inside it leaves the accessibility tree, and why the
+                accordion's header is now a native <summary> that can carry an action.
+            *@
+            <PolarisClickable AccessibilityLabel="Open the gallery popover"
+                              AccessibilityRole="button"
+                              Background="subdued"
+                              Padding="base"
+                              CommandFor="gallery-popover"
+                              Command="PolarisCommand.Show">
+                <PolarisText>A whole-row click surface — <code>s-clickable</code>.</PolarisText>
+            </PolarisClickable>
+
             <PolarisStack Direction="PolarisStackDirection.Inline" Gap="PolarisGap.Base">
                 <PolarisBadge Tone="PolarisTone.Success">Success</PolarisBadge>
                 <PolarisBadge Tone="PolarisTone.Warning">Warning</PolarisBadge>
@@ -140,16 +155,17 @@
     <PolarisSection Heading="Composed: the accordion">
         <PolarisStack Gap="PolarisGap.Base">
             @*
-                The one component on this page that is not a wrapper: Polaris 1 defines no accordion,
-                so Polaris.Blazor composes one from an s-button, an s-box and an s-icon. It lives here
-                because tools/verify-in-browser.mjs drives it — the open and closed state, the
-                aria-expanded that has to reach the button inside a shadow root, and the sibling
-                collapsing with it are all things no unit test can see.
+                The one component on this page that is not a wrapper: Polaris defines no accordion, so
+                Polaris.Blazor composes one over the browser's own details/summary. It lives here
+                because tools/verify-in-browser.mjs drives it — a real mouse click on the header, the
+                sibling collapsing, and the action in the second header running without opening the
+                section it sits in. None of that is visible to a unit test.
             *@
             <PolarisParagraph>
-                Polaris has no accordion element, so this one is composed from components that do
-                exist. The header is a real button; open the second section and the first closes in
-                the same frame.
+                Polaris has no accordion element, so this one is a native disclosure drawn in Polaris's
+                type and colour. Open the second section and the first closes in the same frame; the
+                action in its header runs without opening it, which a button-shaped header could not
+                offer.
             </PolarisParagraph>
 
             <PolarisAccordion OpenItemChanged="AccordionSectionChangedAsync">
@@ -161,15 +177,32 @@
                 </PolarisAccordionItem>
                 <PolarisAccordionItem Value="second"
                                       Header="A closed section"
-                                      HeaderDetails="Closed on arrival: clipped, inert, and openable by clicking.">
-                    <PolarisText>
-                        Its content is clipped and inert until the header is clicked.
-                    </PolarisText>
+                                      HeaderDetails="Closed on arrival: the browser does not render its content at all."
+                                      HeaderStatus="2 changes"
+                                      HeaderStatusTone="PolarisTone.Warning">
+                    @*
+                        ChildContent has to be named once a section carries anything else: Razor cannot
+                        tell which unnamed content belongs to which RenderFragment, so a header action
+                        makes the panel explicit. Same rule for HeaderMedia.
+                    *@
+                    <HeaderActions>
+                        <PolarisButton Variant="PolarisButtonVariant.Secondary"
+                                       OnClick="@(() => _accordionActionRuns++)">
+                            Accept changes
+                        </PolarisButton>
+                    </HeaderActions>
+                    <ChildContent>
+                        <PolarisText>
+                            Its content is not rendered until the header is clicked, and the action beside
+                            the title runs without opening it.
+                        </PolarisText>
+                    </ChildContent>
                 </PolarisAccordionItem>
             </PolarisAccordion>
 
             <PolarisText Color="PolarisColor.Subdued">
-                C# was last told this section is open: @(_openAccordionSection ?? "none")
+                C# was last told this section is open: @(_openAccordionSection ?? "none").
+                The header action has run <span data-accordion-action-runs>@_accordionActionRuns</span> time(s).
             </PolarisText>
         </PolarisStack>
     </PolarisSection>
@@ -595,6 +628,9 @@
     private string _selectedStatus = "draft";
     private string? _lastChange;
     private string? _openAccordionSection;
+
+    /// <summary>How often the accordion header's action has run — the probe's proof it reached C#.</summary>
+    private int _accordionActionRuns;
 
     /// <summary>The suggest field's own value, and the list it draws its chips from.</summary>
     /// <remarks>

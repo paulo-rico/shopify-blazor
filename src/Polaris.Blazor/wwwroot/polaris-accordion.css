@@ -1,21 +1,40 @@
 /*
- * Polaris.Blazor — the accordion's motion, and nothing else.
+ * Polaris.Blazor — the accordion's header and its motion.
  *
- * Polaris web components live in a shadow root, so nothing here touches one. The two rules below
- * only describe how long a change of state takes; the state itself is written inline by
- * PolarisAccordionItem, which is what makes this file optional. Without it the accordion still
- * opens and closes correctly and simply stops animating.
+ * The disclosure itself is a native <details>/<summary>, so none of the behaviour is here: the browser
+ * opens and closes it, announces it, focuses it, and does not render a closed panel at all. What this
+ * file supplies is the two things a native summary has no opinion about — the header band, which used
+ * to be painted for us by an s-clickable, and the animation.
  *
- * Loaded automatically by polaris-interop.js, so a consuming app has nothing to wire up. It can
- * also be linked by hand, which is what the static web asset is for:
+ * That split is deliberate. A page that never loads this file still has a working accordion: it shows
+ * the default marker beside our chevron and the panel snaps instead of sliding. The failure direction
+ * is cosmetic, which is the only acceptable one for a stylesheet.
+ *
+ * Loaded automatically by polaris-interop.js, so a consuming app has nothing to wire up. It can also
+ * be linked by hand, which is what the static web asset is for:
  *
  *     <link rel="stylesheet" href="_content/Polaris.Blazor/polaris-accordion.css" />
  */
 
-/* The panel is a grid whose single row goes from 0fr to 1fr. That interpolates to the content's
-   real height with no measurement and no JavaScript, which is why the height is never hard-coded. */
-[data-polaris-accordion-panel] {
-    transition: grid-template-rows 200ms cubic-bezier(0.2, 0.8, 0, 1);
+/* ONE flat surface. The whole point of the summary over the s-clickable surface it replaced: a button
+   and the title share one background, so an action in the header does not tint half the row. There is
+   no hover rule on purpose — a row that changes colour when an action is under the pointer reads as
+   two controls pretending to be one. */
+[data-polaris-accordion-item] > details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    cursor: pointer;
+    list-style: none;
+    background: var(--p-color-bg-surface-secondary, #f7f7f7);
+}
+
+/* The default marker, which would otherwise sit beside our own chevron. Both spellings: the
+   pseudo-element for WebKit, `list-style` for the rest. */
+[data-polaris-accordion-item] > details > summary::-webkit-details-marker {
+    display: none;
 }
 
 /* Each section draws a rule above itself, which reads as a divider between sections. Above the FIRST
@@ -32,14 +51,38 @@
     transition: transform 200ms cubic-bezier(0.2, 0.8, 0, 1);
 }
 
-[data-polaris-accordion-item][data-open="true"] [data-polaris-accordion-chevron] {
+/* The state is read from the element the browser owns, so there is one source of truth for it. */
+[data-polaris-accordion-item] > details[open] [data-polaris-accordion-chevron] {
     transform: rotate(180deg);
+}
+
+/* The panel's motion, where the browser can interpolate to `auto`. ::details-content is the only way
+   to animate a native disclosure, and `interpolate-size` is what makes `block-size: auto` a value a
+   transition can reach — it is set on the item rather than on :root so a library does not change
+   height animation for the whole page. A browser without either simply opens instantly, which is what
+   the product editor does deliberately. */
+@supports selector(::details-content) {
+    [data-polaris-accordion-item] {
+        interpolate-size: allow-keywords;
+    }
+
+    [data-polaris-accordion-item] > details::details-content {
+        block-size: 0;
+        overflow: clip;
+        transition:
+            block-size 200ms cubic-bezier(0.2, 0.8, 0, 1),
+            content-visibility 200ms allow-discrete;
+    }
+
+    [data-polaris-accordion-item] > details[open]::details-content {
+        block-size: auto;
+    }
 }
 
 /* A merchant who asked for less motion gets the same states immediately. The accordion is still
    usable: opening and closing is a state change first and an animation second. */
 @media (prefers-reduced-motion: reduce) {
-    [data-polaris-accordion-panel],
+    [data-polaris-accordion-item] > details::details-content,
     [data-polaris-accordion-chevron] {
         transition: none;
     }

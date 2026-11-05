@@ -203,10 +203,10 @@
     <PolarisSection Heading="Accordion (composed)">
         <PolarisStack Gap="PolarisGap.Base">
             <PolarisParagraph>
-                Polaris has no accordion element. This one is composed from components that do
-                exist — an <code>s-button</code> header, an <code>s-box</code> for the content, an
-                <code>s-icon</code> chevron and a <code>div</code> that clips and animates. Open a
-                section and the open one closes in the same frame, so both transitions run together.
+                Polaris has no accordion element. This one is the browser's own disclosure — a
+                <code>details</code>/<code>summary</code> pair — drawn in Polaris's type and colour, so
+                the state, the keyboard and the panel are the browser's and the look is the toolkit's.
+                Open a section and the open one closes in the same frame.
             </PolarisParagraph>
 
             <PolarisAccordion OpenItemChanged="SectionChangedAsync">
@@ -234,8 +234,8 @@
                                       HeaderDetails="Anything the bench needs to know.">
                     <PolarisStack Gap="PolarisGap.Base">
                         <PolarisText>
-                            This section is closed when you arrive, so its fields are clipped and
-                            inert — unreachable by Tab and unannounced by a screen reader.
+                            This section is closed when you arrive, so the browser does not render its
+                            fields at all — unreachable by Tab and unannounced by a screen reader.
                         </PolarisText>
                         <PolarisButton OnClick="ShowToastAsync">A button inside a panel</PolarisButton>
                     </PolarisStack>
@@ -299,9 +299,10 @@
         // The shell, from the layout.
         "s-page", "s-stack", "s-divider", "s-button",
 
-        // The accordion's own composition, plus the fields inside it.
+        // The accordion's own composition, plus the fields inside it. No s-clickable any more: the
+        // header is a native summary, and the gallery is where that surface is still exercised.
         "s-section", "s-paragraph", "s-badge", "s-banner", "s-text", "s-text-field", "s-money-field",
-        "s-switch", "s-text-area", "s-clickable", "s-box", "s-icon",
+        "s-switch", "s-text-area", "s-box", "s-icon",
 
         // The data grid, its filter and its pager. The filter's controls are in the DOM whether the
         // panel is open or not, which is what lets them be verified here.

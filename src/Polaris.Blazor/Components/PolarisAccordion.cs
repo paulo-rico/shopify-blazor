@@ -13,11 +13,11 @@ namespace Polaris.Blazor.Components;
 /// bundle) contains no accordion, collapsible or details component, and the App Home documentation
 /// has no such page. So this is the first component in the library that is <em>composed</em> rather
 /// than a wrapper: it is built from
-/// <see cref="PolarisAccordionItem"/>, which in turn is an <c>s-clickable</c> surface holding an
-/// <c>s-section</c> (heading, supporting line and an optional badge), a column beside it for the
-/// chevron and any header action, and an <c>s-box</c> for the content. Nothing here reimplements a
-/// Polaris look; what it adds is the structure and the open/closed behaviour Polaris does not
-/// provide.
+/// <see cref="PolarisAccordionItem"/>, whose disclosure is the browser's own
+/// <c>&lt;details&gt;</c>/<c>&lt;summary&gt;</c> inside an <c>s-box</c>. The browser supplies the
+/// open state, the announcement, the keyboard and the fact that a closed panel is not rendered; what
+/// this container and its item add is the exclusivity between sections, the section's look, and the
+/// header's actions.
 /// </para>
 /// <para>
 /// State belongs to the items, and this container only arbitrates between them: when an item opens,

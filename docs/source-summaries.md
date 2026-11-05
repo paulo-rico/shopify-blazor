@@ -39,7 +39,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 | Summary | What it is |
 |---|---|
 | [`PolarisAccordion.cs.md`](../src/Polaris.Blazor/Components/PolarisAccordion.cs.md) | A set of collapsible sections that behaves as one accordion: opening a section collapses the one that was open, unless AllowMultiple says otherwise. |
-| [`PolarisAccordionItem.cs.md`](../src/Polaris.Blazor/Components/PolarisAccordionItem.cs.md) | One section of a PolarisAccordion: a clickable header with heading, details, thumbnail and an optional state badge, above a content panel that clips itself shut. |
+| [`PolarisAccordionItem.cs.md`](../src/Polaris.Blazor/Components/PolarisAccordionItem.cs.md) | One section of a PolarisAccordion: a browser-native <details>/<summary> disclosure — the summary is the header, carrying a heading, a supporting line, a state badge and optional actions, and the… |
 | [`PolarisAddableSelect.cs.md`](../src/Polaris.Blazor/Components/PolarisAddableSelect.cs.md) | A dropdown of the saved values of a directory — a supplier, a warehouse, a courier — with an add button beside it that opens a dialog holding the values already saved and a field for a new one. |
 | [`PolarisAppNav.cs.md`](../src/Polaris.Blazor/Components/PolarisAppNav.cs.md) | The app's navigation menu inside the Shopify admin — an App Bridge element that configures the admin's own chrome rather than drawing a menu inside the app. |
 | [`PolarisAppWindow.cs.md`](../src/Polaris.Blazor/Components/PolarisAppWindow.cs.md) | A fullscreen window hosted by the Shopify admin that loads one of the app's own routes — an App Bridge element for a workflow that genuinely needs the whole screen. |
@@ -154,7 +154,7 @@ summary is stale are in [`AGENTS.md`](../AGENTS.md#source-summaries-read-these-i
 
 | Summary | What it is |
 |---|---|
-| [`polaris-accordion.css.md`](../src/Polaris.Blazor/wwwroot/polaris-accordion.css.md) | The accordion's motion and nothing else: a 200 ms transition on the panel's row height, a 200 ms rotation on the chevron, and one divider suppression. |
+| [`polaris-accordion.css.md`](../src/Polaris.Blazor/wwwroot/polaris-accordion.css.md) | The accordion's look and motion: the header band a native <summary> would otherwise not have, the chevron's rotation, one divider suppression, and a 200 ms height transition on the panel where the… |
 | [`polaris-grid.css.md`](../src/Polaris.Blazor/wwwroot/polaris-grid.css.md) | The editable data grid's own affordances — a pointer cursor, a focus ring, the dirty mark on an unsaved draft, and a minimum width for an open editor — none of which Polaris draws. |
 | [`polaris-interop.js.md`](../src/Polaris.Blazor/wwwroot/polaris-interop.js.md) | The browser half of IPolarisInterop: it waits for elements to upgrade, sets DOM properties, forwards DOM events to .NET and loads the package's stylesheets. |
 | [`polaris-range-slider.css.md`](../src/Polaris.Blazor/wwwroot/polaris-range-slider.css.md) | The range slider's appearance, and only its appearance: two native range inputs over one painted track, a filled interval between the handles and a 16 px thumb on each. |

@@ -1,5 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.AspNetCore.Components.Web;
 using Polaris.Blazor.Components;
 using Xunit;
 
@@ -11,59 +13,56 @@ namespace Polaris.Blazor.Tests;
 /// </summary>
 /// <remarks>
 /// <para>
-/// What is asserted here is the part that can be got wrong without looking wrong: which panel is
-/// clipped, whether clipped content is still reachable, whether Polaris is told the expanded state
-/// through a DOM property rather than an attribute, and whether opening one section really collapses
-/// the other in the same render.
+/// The disclosure is a native <c>&lt;details&gt;</c>/<c>&lt;summary&gt;</c> now, so everything the
+/// browser owns is deliberately not asserted here: the keyboard, focus, whether a closed panel is
+/// rendered, and the announced expanded state all come from the element. What is asserted is what this
+/// component still has to get right — the <c>open</c> attribute is present or absent and never
+/// <c>"false"</c>; one section collapses another in the same render; the header's accessible name is
+/// its visible text and not the action's label; and a click on an action does not toggle the section it
+/// acts on.
 /// </para>
 /// <para>
-/// Clicks arrive through the interop module, not through a Blazor <c>@onclick</c> handler, so they
-/// are raised through the recording double. What that cannot prove is the animation itself — a test
-/// sees the state change, not the frames — which is why the browser check exercises it.
+/// The last of those is also driven in a real browser, because whether a click reaches the summary is a
+/// DOM question this file cannot answer on its own: bUnit fires the event at the element it is given,
+/// while Chrome decides whether the disclosure activates. The attributes that stop the click are
+/// asserted here; the click itself is asserted in <c>tools/verify-in-browser.mjs</c>.
 /// </para>
 /// </remarks>
 public sealed class AccordionRenderingTests
 {
     [Fact]
-    public void A_closed_section_renders_a_collapsed_panel_and_hides_its_content_from_keyboards()
+    public void A_closed_section_renders_a_details_without_the_open_attribute()
     {
-        // Clipping alone would hide the content visually while leaving every field in it reachable
-        // with Tab and readable by a screen reader, which is the classic broken disclosure. The panel
-        // is collapsed with grid rows and the content is inert.
+        // `open` is a boolean attribute: present means open, whatever its value says. A component that
+        // wrote open="false" would draw an open panel while believing it closed, the registry would
+        // disagree with the screen, and nothing would report it. Asserting the attribute's absence —
+        // not just a value — is what catches that.
         using var context = new PolarisTestContext();
 
         var component = RenderAccordion(context, ("Details", "details", false, null));
 
-        var panel = component.Find("[data-polaris-accordion-panel]");
-        Assert.Contains("grid-template-rows:0fr", panel.GetAttribute("style"));
-
-        var inner = panel.QuerySelector("[data-polaris-accordion-panel-inner]");
-        Assert.NotNull(inner);
-        Assert.True(inner!.HasAttribute("inert"));
+        var details = component.Find("details");
+        Assert.False(details.HasAttribute("open"));
+        Assert.Null(details.GetAttribute("open"));
     }
 
     [Fact]
-    public void An_initially_open_section_renders_an_expanded_panel()
+    public void An_initially_open_section_renders_the_open_attribute()
     {
-        // 1fr is the open end state: the row resolves to the content's height, so nothing is
-        // hard-coded and content of any size fits.
+        // The panel is not clipped, sized or marked inert by this component any more: the attribute is
+        // the whole state, and the browser does the rest.
         using var context = new PolarisTestContext();
 
         var component = RenderAccordion(context, ("Details", "details", initiallyOpen: true, null));
 
-        var panel = component.Find("[data-polaris-accordion-panel]");
-        Assert.Contains("grid-template-rows:1fr", panel.GetAttribute("style"));
-        Assert.False(panel.QuerySelector("[data-polaris-accordion-panel-inner]")!.HasAttribute("inert"));
-
-        Assert.Equal("true", component.Find("[data-polaris-accordion-item]").GetAttribute("data-open"));
+        Assert.True(component.Find("details").HasAttribute("open"));
     }
 
     [Fact]
     public async Task Clicking_a_header_opens_its_section_and_collapses_the_open_one()
     {
-        // This is the whole point of an accordion, and it is the interaction a browser would hide:
-        // both sections must reach their new state in the same render, so the opening and closing
-        // transitions run together instead of one after the other.
+        // This is the whole point of an accordion: both sections must reach their new state in the same
+        // render, so the merchant does not watch one close and only then the other open.
         using var context = new PolarisTestContext();
 
         var component = RenderAccordion(
@@ -71,15 +70,12 @@ public sealed class AccordionRenderingTests
             ("Details", "details", initiallyOpen: true, null),
             ("Shipping", "shipping", false, null));
 
-        Assert.Equal("true", Item(component, 0).GetAttribute("data-open"));
+        Assert.True(Details(component, 0).HasAttribute("open"));
 
-        await ClickHeaderAsync(component, context, index: 1);
+        await ClickHeaderAsync(component, index: 1);
 
-        Assert.Equal("false", Item(component, 0).GetAttribute("data-open"));
-        Assert.Equal("true", Item(component, 1).GetAttribute("data-open"));
-
-        Assert.Contains("grid-template-rows:0fr", Panel(component, 0).GetAttribute("style"));
-        Assert.Contains("grid-template-rows:1fr", Panel(component, 1).GetAttribute("style"));
+        Assert.False(Details(component, 0).HasAttribute("open"));
+        Assert.True(Details(component, 1).HasAttribute("open"));
     }
 
     [Fact]
@@ -94,29 +90,10 @@ public sealed class AccordionRenderingTests
             .Add(p => p.OpenItemChanged, value => reported = value)
             .AddChildContent(builder => AddItem(builder, 0, "Details", "details", initiallyOpen: true)));
 
-        await ClickHeaderAsync(component, context, index: 0);
+        await ClickHeaderAsync(component, index: 0);
 
-        Assert.Equal("false", Item(component, 0).GetAttribute("data-open"));
+        Assert.False(Details(component, 0).HasAttribute("open"));
         Assert.Null(reported);
-    }
-
-    [Fact]
-    public void A_button_announces_the_expanded_state_as_a_dom_property()
-    {
-        // The accordion's header is a surface rather than a button now, but PolarisButton keeps the
-        // capability, and it is the documented path for any button that opens something. aria-expanded
-        // has to reach the <button> Polaris renders inside its shadow root, and an attribute on the
-        // <s-button> host lands on an element with no role. A stale attribute would also pin the
-        // announced state at first paint. The value is Polaris's own spelling rather than a boolean:
-        // a bool is read as collapsed, which a browser check caught the hard way.
-        using var context = new PolarisTestContext();
-
-        var button = context.Render<PolarisButton>(parameters => parameters
-            .Add(p => p.AccessibilityExpanded, PolarisAccessibilityExpanded.Expanded)
-            .AddChildContent("Toggle"));
-
-        Assert.False(button.Find("s-button").HasAttribute("accessibilityExpanded"));
-        Assert.Equal("expanded", context.Interop.SetProperties["s-button"][^1]["accessibilityExpanded"]);
     }
 
     [Fact]
@@ -131,8 +108,8 @@ public sealed class AccordionRenderingTests
             ("Details", "details", initiallyOpen: true, null),
             ("Shipping", "shipping", initiallyOpen: true, null));
 
-        Assert.Equal("true", Item(component, 0).GetAttribute("data-open"));
-        Assert.Equal("false", Item(component, 1).GetAttribute("data-open"));
+        Assert.True(Details(component, 0).HasAttribute("open"));
+        Assert.False(Details(component, 1).HasAttribute("open"));
     }
 
     [Fact]
@@ -149,10 +126,10 @@ public sealed class AccordionRenderingTests
                 AddItem(builder, 100, "Shipping", "shipping");
             }));
 
-        await ClickHeaderAsync(component, context, index: 1);
+        await ClickHeaderAsync(component, index: 1);
 
-        Assert.Equal("true", Item(component, 0).GetAttribute("data-open"));
-        Assert.Equal("true", Item(component, 1).GetAttribute("data-open"));
+        Assert.True(Details(component, 0).HasAttribute("open"));
+        Assert.True(Details(component, 1).HasAttribute("open"));
     }
 
     [Fact]
@@ -167,7 +144,7 @@ public sealed class AccordionRenderingTests
             .Add(p => p.OpenItemChanged, value => reported = value)
             .AddChildContent(builder => AddItem(builder, 0, "Details", "details")));
 
-        await ClickHeaderAsync(component, context, index: 0);
+        await ClickHeaderAsync(component, index: 0);
 
         Assert.Equal("details", reported);
     }
@@ -183,11 +160,100 @@ public sealed class AccordionRenderingTests
             .Add(p => p.Header, "Standalone")
             .AddChildContent("Content"));
 
-        Assert.Equal("false", component.Find("[data-polaris-accordion-item]").GetAttribute("data-open"));
+        Assert.False(component.Find("details").HasAttribute("open"));
 
-        await ClickHeaderAsync(component, context, index: 0);
+        await ClickHeaderAsync(component, index: 0);
 
-        Assert.Equal("true", component.Find("[data-polaris-accordion-item]").GetAttribute("data-open"));
+        Assert.True(component.Find("details").HasAttribute("open"));
+    }
+
+    [Fact]
+    public void The_header_is_a_summary_holding_light_dom_text()
+    {
+        // The heading used to be an s-section heading *attribute*, which Polaris draws inside its shadow
+        // root — so the surface had no text of its own and its name had to be restated. It is ordinary
+        // content in the summary now, which is what lets aria-labelledby point at what is drawn.
+        using var context = new PolarisTestContext();
+
+        var component = RenderAccordion(context, ("Details", "details", false, null));
+
+        var summary = component.Find("summary");
+        var heading = summary.QuerySelector("s-heading")!;
+
+        Assert.NotNull(heading);
+        Assert.Equal("Details", heading.TextContent.Trim());
+        Assert.Null(summary.QuerySelector("s-clickable"));
+        Assert.Null(summary.QuerySelector("s-section"));
+    }
+
+    [Fact]
+    public void The_header_is_named_by_its_visible_text()
+    {
+        // A <summary>'s name is everything under it — measured in Chrome, adding an action to the header
+        // made the disclosure read "Variants … Clear all reviews", announcing the button as part of the
+        // title. aria-labelledby narrows the name to the three text elements, and because it references
+        // them rather than restating them, the name cannot drift from what is on screen.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Alloy weight by ring size")
+            .Add(p => p.HeaderDetails, "Weigh one variant.")
+            .Add(p => p.HeaderStatus, "Alloy weights on every variant")
+            .AddChildContent("Content"));
+
+        var ids = component.Find("summary").GetAttribute("aria-labelledby")!.Split(' ');
+
+        Assert.Equal(3, ids.Length);
+        Assert.Equal("Alloy weight by ring size", component.Find($"#{ids[0]}").TextContent.Trim());
+        Assert.Equal("Weigh one variant.", component.Find($"#{ids[1]}").TextContent.Trim());
+        Assert.Equal("Alloy weights on every variant", component.Find($"#{ids[2]}").TextContent.Trim());
+    }
+
+    [Fact]
+    public void A_blank_header_status_draws_no_badge_and_no_name_segment()
+    {
+        // A page passes an expression that is blank most of the time. An empty badge would be a small
+        // grey pill on every section with nothing to say, and an empty referenced element would make
+        // the name end on a gap.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Standalone")
+            .Add(p => p.HeaderStatus, "   ")
+            .AddChildContent("Content"));
+
+        Assert.Empty(component.FindAll("s-badge"));
+        Assert.Single(component.Find("summary").GetAttribute("aria-labelledby")!.Split(' '));
+    }
+
+    [Fact]
+    public void Header_status_renders_a_badge_beside_the_heading()
+    {
+        // The badge is what a collapsed section can say about itself before it is opened — that the work
+        // it offers has already been done — so it belongs in the header and not in the panel, on the
+        // heading's own line: it qualifies the title rather than competing with it from the far edge.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Alloy weight by ring size")
+            .Add(p => p.HeaderDetails, "Weigh one variant.")
+            .Add(p => p.HeaderStatus, "Alloy weights on 2 of 6 variants")
+            .Add(p => p.HeaderStatusTone, PolarisTone.Critical)
+            .AddChildContent("Content"));
+
+        var badge = component.Find("summary").QuerySelector("s-badge")!;
+
+        Assert.NotNull(badge);
+        Assert.Equal("critical", badge.GetAttribute("tone"));
+        Assert.Equal("Alloy weights on 2 of 6 variants", badge.TextContent.Trim());
+
+        // On the heading's line, not out at the edge: the heading and the badge share one row.
+        var row = badge.ParentElement!;
+        Assert.Equal("s-heading", row.Children[0].LocalName);
+        Assert.Equal("s-badge", row.Children[1].LocalName);
+
+        // The badge never leaves the header: a state read after opening the section is read too late.
+        Assert.Empty(component.Find("s-box").QuerySelectorAll("s-badge"));
     }
 
     [Fact]
@@ -207,8 +273,8 @@ public sealed class AccordionRenderingTests
                 media.AddMarkupContent(0, "<s-thumbnail src=\"https://cdn.example/ring.png\" alt=\"\"></s-thumbnail>")))
             .AddChildContent("Content"));
 
-        var row = component.Find("s-clickable").QuerySelector("s-stack")!;
-        var pair = row.QuerySelector("s-stack")!;
+        var summary = component.Find("summary");
+        var pair = summary.QuerySelector("s-stack")!;
 
         Assert.NotNull(pair);
         Assert.Equal("inline", pair.GetAttribute("direction"));
@@ -219,18 +285,17 @@ public sealed class AccordionRenderingTests
 
         // The medium is first and the heading second: to the left, not above.
         Assert.Equal("s-thumbnail", pair.Children[0].LocalName);
-        Assert.NotNull(pair.QuerySelector("s-section"));
-        Assert.Equal("Q / 9ct Yellow Gold", pair.QuerySelector("s-section")!.GetAttribute("heading"));
+        Assert.NotNull(pair.QuerySelector("s-heading"));
 
-        // The chevron stays outside the pair, so it remains the last thing on the surface.
-        Assert.NotNull(row.QuerySelector("s-icon"));
+        // The chevron stays outside the pair, so it remains the last thing in the header.
+        Assert.NotNull(summary.QuerySelector("s-icon"));
         Assert.Null(pair.QuerySelector("s-icon"));
     }
 
     [Fact]
-    public void A_section_without_header_media_renders_no_extra_row()
+    public void A_section_without_header_media_renders_no_thumbnail()
     {
-        // The media row is only drawn for an item that asked for one: an empty pair would add a gap
+        // The media pair is only drawn for an item that asked for one: an empty pair would add a gap
         // and a nested stack to every header in every app that never passes it.
         using var context = new PolarisTestContext();
 
@@ -238,149 +303,97 @@ public sealed class AccordionRenderingTests
             .Add(p => p.Header, "Standalone")
             .AddChildContent("Content"));
 
-        var row = component.Find("s-stack");
-
-        Assert.Null(row.QuerySelector("s-stack"));
-        Assert.NotNull(row.QuerySelector("s-section"));
+        Assert.Empty(component.FindAll("s-thumbnail"));
+        Assert.NotNull(component.Find("summary").QuerySelector("s-heading"));
     }
 
     [Fact]
-    public void Header_status_renders_a_badge_beside_the_heading()
+    public void A_section_renders_a_divider_a_summary_and_a_chevron_on_the_right()
     {
-        // The badge is what a collapsed section can say about itself before it is opened — that the work
-        // it offers has already been done — so it belongs in the header and not in the panel, and it
-        // goes in the section's accessory slot, which is the only place Polaris draws content inline
-        // after the heading text. As a sibling of the section it was pushed to the far edge of the
-        // surface, where it read as a second status competing with the title.
+        // The rules that structure the list are unchanged: a divider above each section, clipped by one
+        // rounded box owned by the container, so the sections read as a list rather than a stack of
+        // cards. What changed underneath is that the header is now a summary.
         using var context = new PolarisTestContext();
 
-        var component = context.Render<PolarisAccordionItem>(parameters => parameters
-            .Add(p => p.Header, "Alloy weight by ring size")
-            .Add(p => p.HeaderDetails, "Weigh one variant.")
-            .Add(p => p.HeaderStatus, "Alloy weights on 2 of 6 variants")
-            .Add(p => p.HeaderStatusTone, PolarisTone.Critical)
-            .AddChildContent("Content"));
-
-        var section = component.Find("s-clickable").QuerySelector("s-section")!;
-
-        var badge = section.QuerySelector("s-badge");
-        Assert.NotNull(badge);
-        Assert.Equal("accessory", badge!.GetAttribute("slot"));
-        Assert.Equal("critical", badge.GetAttribute("tone"));
-        Assert.Equal("Alloy weights on 2 of 6 variants", badge.TextContent.Trim());
-
-        // Polaris warns about an accessory badge that is not base-sized and base-coloured; these are the
-        // badge's defaults, so the tone is free to carry the meaning.
-        Assert.Equal("base", badge.GetAttribute("color"));
-        Assert.Equal("base", badge.GetAttribute("size"));
-
-        // The badge never leaves the header: a state read after opening the section is read too late.
-        Assert.Null(component.Find("[data-polaris-accordion-panel]").QuerySelector("s-badge"));
-    }
-
-    [Fact]
-    public void Header_status_joins_the_accessible_name()
-    {
-        // Everything drawn in this header is projected into Polaris's shadow root, and the surface's own
-        // text is empty apart from the chevron — so a status supplied as markup would be announced to
-        // nobody. Being a string is what puts it into the label, which is the only name this surface has.
-        using var context = new PolarisTestContext();
-
-        var component = context.Render<PolarisAccordionItem>(parameters => parameters
-            .Add(p => p.Header, "Alloy weight by ring size")
-            .Add(p => p.HeaderDetails, "Weigh one variant.")
-            .Add(p => p.HeaderStatus, "Alloy weights on every variant")
-            .AddChildContent("Content"));
-
-        // The supporting line's own full stop is dropped rather than doubled: the join supplies one, and
-        // "…one variant.. Alloy weights on…" is what a screen reader would otherwise read out.
-        Assert.Equal(
-            "Alloy weight by ring size. Weigh one variant. Alloy weights on every variant",
-            component.Find("s-clickable").GetAttribute("accessibilityLabel"));
-    }
-
-    [Fact]
-    public void A_blank_header_status_draws_no_badge_and_no_extra_row()
-    {
-        // A page passes an expression that is blank most of the time. An empty badge would be a small grey
-        // pill on every section with nothing to say, and an empty label segment would make every header
-        // announce a trailing full stop.
-        using var context = new PolarisTestContext();
-
-        var component = context.Render<PolarisAccordionItem>(parameters => parameters
-            .Add(p => p.Header, "Standalone")
-            .Add(p => p.HeaderStatus, "   ")
-            .AddChildContent("Content"));
-
-        Assert.Empty(component.FindAll("s-badge"));
-        Assert.Null(component.Find("s-stack").QuerySelector("s-stack"));
-        Assert.Equal("Standalone", component.Find("s-clickable").GetAttribute("accessibilityLabel"));
-    }
-
-    [Fact]
-    public void A_section_renders_a_divider_a_clickable_header_and_a_chevron_on_the_right()
-    {
-        // The header is a clickable surface holding an s-section: a heading and a supporting line do not
-        // fit in a button's single truncating line. The border and background belong on the surface,
-        // because s-section takes no styling properties and would drop them without a word.
-        using var context = new PolarisTestContext();
-
-        var component = RenderAccordion(context, ("Details", "details", false, null),
+        var component = RenderAccordion(
+            context,
+            ("Details", "details", false, null),
             ("Shipping", "shipping", false, "Sent by courier"));
 
-        // One rule per section: they read as rules between the sections. The first one is dropped by the
-        // stylesheet, because above it sits the accordion's own border.
         Assert.Equal(2, component.FindAll("s-divider").Count);
 
-        // The corners belong to the accordion, not to the sections: one rounded, clipped box around the
-        // lot reads as a list, whereas a radius on each header reads as a stack of separate cards.
         var container = component.Find("s-box");
         Assert.Equal("base", container.GetAttribute("border"));
         Assert.Equal("base", container.GetAttribute("borderRadius"));
         Assert.Equal("hidden", container.GetAttribute("overflow"));
 
-        var clickable = component.FindAll("s-clickable")[0];
-        Assert.Null(clickable.GetAttribute("border"));
-        Assert.Null(clickable.GetAttribute("borderRadius"));
-        Assert.Equal("subdued", clickable.GetAttribute("background"));
-        Assert.Equal("Details", clickable.GetAttribute("accessibilityLabel"));
+        // The header is a summary inside a wrapper that also holds the divider, because a <details> is
+        // "an optional summary followed by flow content" — the rule cannot sit inside it.
+        var item = component.FindAll("[data-polaris-accordion-item]")[0];
+        Assert.Equal("s-divider", item.Children[0].LocalName);
+        Assert.Equal("details", item.Children[1].LocalName);
 
-        var section = clickable.QuerySelector("s-section")!;
-        Assert.Equal("Details", section.GetAttribute("heading"));
-        Assert.Null(section.GetAttribute("subheading"));
-        Assert.Equal("none", section.GetAttribute("padding")!);
+        // The summary is the row: the two groups are its children, and the chevron is last in the
+        // second one. A stack wrapped around both of them would be a single shrink-wrapped flex item —
+        // a Polaris host computes to display: contents — which measured as a chevron 300px short of
+        // the header's edge and an action sitting over the header's centre.
+        var summary = item.QuerySelector("summary")!;
+        Assert.Equal(2, summary.Children.Length);
 
-        // The row is what puts the heading at the start and the chevron at the end, and the chevron
-        // stays inside the surface's padding so that the whole header — padding included — is one hover
-        // and one click.
-        var row = clickable.QuerySelector("s-stack")!;
-        Assert.Equal("inline", row.GetAttribute("direction"));
-        Assert.Equal("space-between", row.GetAttribute("justifyContent"));
-
-        var chevron = row.QuerySelector("s-icon")!;
+        var end = summary.Children[1];
+        var chevron = end.QuerySelector("s-icon")!;
         Assert.Equal("chevron-down", chevron.GetAttribute("type"));
         Assert.True(chevron.HasAttribute("data-polaris-accordion-chevron"));
 
-        // The supporting line becomes the section's subheading, and joins the accessible name, which has
-        // to be stated because the heading lives in Polaris's shadow root rather than in this surface's
-        // text.
-        var second = component.FindAll("s-clickable")[1];
-        Assert.Equal("Sent by courier", second.QuerySelector("s-section")!.GetAttribute("subheading"));
-        Assert.Equal("Shipping. Sent by courier", second.GetAttribute("accessibilityLabel"));
+        // The supporting line is body text under the heading, in the same labelled name.
+        Assert.Equal("Sent by courier", component.FindAll("summary")[1].QuerySelector("s-text")!.TextContent.Trim());
     }
 
     [Fact]
-    public void The_clickable_header_announces_its_expanded_state_on_the_shadow_button()
+    public async Task An_action_in_the_header_is_wrapped_so_it_cannot_toggle_the_section()
     {
-        // s-clickable has no property for the state — measured from its render function, which reads
-        // only the accessibility label and the command props — so the state is written onto the button
-        // Polaris renders. Without it a screen reader user gets no expanded state at all, while the
-        // chevron rotates for everyone else.
+        // The capability the s-clickable header could not offer. A button inside that surface was a
+        // button within a button, and the button role makes its children presentational, so the action
+        // left the accessibility tree. In a summary it is an ordinary button, measured in Chrome — and
+        // the wrapper is what stops the same click from also opening the section.
+        using var context = new PolarisTestContext();
+
+        var component = context.Render<PolarisAccordionItem>(parameters => parameters
+            .Add(p => p.Header, "Variants")
+            .Add(p => p.HeaderActions, (RenderFragment)(actions =>
+                actions.AddMarkupContent(0, "<button type=\"button\">Approve all changes</button>")))
+            .AddChildContent("Content"));
+
+        var summary = component.Find("summary");
+        var wrapper = component.Find("[data-polaris-accordion-actions]");
+
+        Assert.NotNull(summary.QuerySelector("button"));
+
+        // Both markers, not just the handler: stopPropagation keeps the component's own header click
+        // from running, and preventDefault is what stops a browser that does not skip the disclosure
+        // activation for interactive content from toggling a panel this component would never hear
+        // about. bUnit spells Blazor's internal markers "blazor:<event>:<marker>"; the real click is
+        // driven in tools/verify-in-browser.mjs, where the browser decides whether the panel toggles.
+        Assert.True(wrapper.HasAttribute("blazor:onclick:stoppropagation"));
+        Assert.True(wrapper.HasAttribute("blazor:onclick:preventdefault"));
+
+        await component.InvokeAsync(() => component.Find("button").Click());
+
+        Assert.False(component.Find("details").HasAttribute("open"));
+    }
+
+    [Fact]
+    public void The_accordion_no_longer_writes_aria_expanded_into_a_shadow_root()
+    {
+        // The old header was an s-clickable, whose state had to be written onto the shadow <button> by
+        // interop because the element has no property for it. The summary announces its own state, so
+        // the call must be gone: leaving it would write to a button that no longer exists, and the
+        // regression would be invisible apart from a state that never updates.
         using var context = new PolarisTestContext();
 
         RenderAccordion(context, ("Details", "details", false, null));
 
-        Assert.Equal([false], context.Interop.AriaExpanded);
+        Assert.Empty(context.Interop.AriaExpanded);
     }
 
     private static IRenderedComponent<PolarisAccordion> RenderAccordion(
@@ -398,7 +411,7 @@ public sealed class AccordionRenderingTests
         }));
 
     private static void AddItem(
-        Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder,
+        RenderTreeBuilder builder,
         int sequence,
         string header,
         string value,
@@ -419,24 +432,19 @@ public sealed class AccordionRenderingTests
 #pragma warning restore ASP0006
     }
 
-    private static AngleSharp.Dom.IElement Item(IRenderedComponent<PolarisAccordion> component, int index)
-        => component.FindAll("[data-polaris-accordion-item]")[index];
-
-    private static AngleSharp.Dom.IElement Panel(IRenderedComponent<PolarisAccordion> component, int index)
-        => component.FindAll("[data-polaris-accordion-panel]")[index];
+    private static AngleSharp.Dom.IElement Details(IRenderedComponent<PolarisAccordion> component, int index)
+        => component.FindAll("details")[index];
 
     private static Task ClickHeaderAsync(
         IRenderedComponent<PolarisAccordion> component,
-        PolarisTestContext context,
         int index)
-        => ClickHeaderAsync<PolarisAccordion>(component, context, index);
+        => ClickHeaderAsync<PolarisAccordion>(component, index);
 
     private static Task ClickHeaderAsync<TComponent>(
         IRenderedComponent<TComponent> component,
-        PolarisTestContext context,
         int index)
-        where TComponent : Microsoft.AspNetCore.Components.IComponent
+        where TComponent : IComponent
         => component.InvokeAsync(() => component
             .FindAll("[data-polaris-accordion-header]")[index]
-            .TriggerEventAsync("onclick", new Microsoft.AspNetCore.Components.Web.MouseEventArgs()));
+            .TriggerEventAsync("onclick", new MouseEventArgs()));
 }

@@ -1,74 +1,73 @@
 <!-- summary-of: PolarisAccordionItem.cs -->
-<!-- source-sha256: 60320da900a0 -->
+<!-- source-sha256: 017f0bb8d94f -->
 
 # PolarisAccordionItem.cs
 
-One section of a `PolarisAccordion`: a clickable header with heading, details, thumbnail and an optional state badge, above a content panel that clips itself shut. It is composed from Polaris elements because no Polaris accordion element exists.
+One section of a `PolarisAccordion`: a browser-native `<details>`/`<summary>` disclosure — the summary is the header, carrying a heading, a supporting line, a state badge and optional actions, and the content beneath it is Polaris-boxed. It is composed rather than wrapped because Polaris has no accordion element.
 
-`Polaris.Blazor.Components` · composed section, no Polaris element of its own · base `ComponentBase`, `IDisposable`
+`Polaris.Blazor.Components` · renders `<details>`/`<summary>` · base `ComponentBase`, `IDisposable`
 
 ## Parameters
 
 | Parameter | Type | Default | What it does |
 |---|---|---|---|
-| `Header` | `string?` | `null` | The heading text. Rendered as the `s-section` heading inside the header and used to build the header's accessible name. |
-| `HeaderDetails` | `string?` | `null` | A supporting line under the heading, rendered as the section's `subheading` — Polaris styles it between the heading and the panel. Also appended to the accessible name. |
-| `HeaderMedia` | `RenderFragment?` | `null` | Content to the left of both text lines, in practice a thumbnail. It is centred against the heading and supporting line together, and stays visible while the section is closed. Carries no accessible name of its own. |
-| `HeaderStatus` | `string?` | `null` | A short state badge drawn beside the heading, on the heading's own line, and visible while the section is closed. It goes into the section's `accessory` slot. Its text is appended to the accessible name, so the state is announced. Blank or whitespace renders nothing. |
+| `Header` | `string?` | `null` | The heading, drawn as a `PolarisHeading` in the summary's light DOM. It is the first id the summary's `aria-labelledby` points at. |
+| `HeaderDetails` | `string?` | `null` | A supporting line under the heading, drawn as subdued small `PolarisText`. Also referenced by `aria-labelledby`, so it is announced with the heading rather than skipped. |
+| `HeaderMedia` | `RenderFragment?` | `null` | Content to the left of both text lines, in practice a thumbnail, centred against the pair. Stays visible while the section is closed. Carries no accessible name of its own. |
+| `HeaderStatus` | `string?` | `null` | A short state badge beside the heading, on the heading's own line, visible while closed. A string plus a tone rather than markup, so it needs no separate label and joins the referenced name. Blank or whitespace renders nothing. |
 | `HeaderStatusTone` | `PolarisTone` | `Auto` | Semantic colour of that badge. Ignored when `HeaderStatus` is not set. |
-| `ChildContent` | `RenderFragment?` | `null` | The panel content. Wrapped in an `s-box` whose padding is `ContentPadding`; clipped and `inert` while closed. |
-| `Value` | `string?` | `null` | An identifier reported to the accordion's `OpenItemChanged`, so code outside can tell which section is showing. Purely a token — it is not rendered. |
-| `InitiallyOpen` | `bool` | `false` | Starts open. Read once during `OnInitialized`; in an exclusive accordion only the first item asking for it keeps it. |
+| `HeaderActions` | `RenderFragment?` | `null` | Buttons at the inline end of the header, before the chevron — the capability the old `s-clickable` header could not offer. Wrapped in an element that stops the click and prevents its default, so pressing one runs it without opening the section. Buttons only: the wrapper's `preventDefault` would cancel a link's navigation. |
+| `ChildContent` | `RenderFragment?` | `null` | The panel content, wrapped in an `s-box` padded by `ContentPadding`. A closed `<details>` does not render it at all. |
+| `Value` | `string?` | `null` | An identifier reported to the accordion's `OpenItemChanged`. Purely a token — it is not rendered. |
+| `InitiallyOpen` | `bool` | `false` | Starts open, read once during `OnInitialized`. In an exclusive accordion only the first item asking keeps it. |
 | `ContentPadding` | `string?` | `"base"` | Polaris spacing step for the panel's `s-box` padding, passed through verbatim. `None` (or `"none"`) for content that supplies its own, such as a table. |
-| `ShowDivider` | `bool` | `true` | Draws an `s-divider` above the section. With the default every section has one, which reads as rules between sections — and one above the first, which the stylesheet removes. |
+| `ShowDivider` | `bool` | `true` | Draws an `s-divider` above the section, outside the `<details>` (a `<details>` is "an optional summary followed by flow content"). The stylesheet hides the first one. |
 
-Inherited: none beyond `ComponentBase`; this component does not derive from `PolarisElementComponentBase`, so there is no `Id`, `AccessibilityLabel`, `Slot` or `AdditionalAttributes` here. The accordion arrives through a private `[CascadingParameter]`.
+Inherited: none beyond `ComponentBase`; this component does not derive from `PolarisElementComponentBase`, so there is no `Id`, `AccessibilityLabel`, `Slot` or `AdditionalAttributes`. The accordion arrives through a private `[CascadingParameter]`.
 
 ## Events
 
 | Callback | Args | Raised when |
 |---|---|---|
-| `IsOpenChanged` | `EventCallback<bool>` | The open state actually changes — by the merchant's click, by `ToggleAsync()`, or by a sibling opening and collapsing this one. The args carry the new state. Not raised for the initial `InitiallyOpen` value, and not raised when a set is a no-op. |
+| `IsOpenChanged` | `EventCallback<bool>` | The open state actually changes — by the merchant's click, by `ToggleAsync()`, or by a sibling opening and collapsing this one. Not raised for the initial `InitiallyOpen` value, and not raised when a set is a no-op. |
 
 ## Members
 
 | Signature | What it does |
 |---|---|
-| `bool IsOpen { get; }` | The current open state. Read-only: there is no public setter and no `Open` parameter, so a parent cannot force a section open or closed. |
-| `Task ToggleAsync()` | Opens a closed section or closes an open one. When it opens inside an accordion it first collapses the siblings, then reports through the container's `OpenItemChanged`. |
-| `void Dispose()` | Unregisters from the accordion so a disposed item cannot be collapsed by a sibling; idempotent because it guards on a `_disposed` flag. |
+| `bool IsOpen { get; }` | The current open state. Read-only: no setter, and no `Open` parameter, so a parent cannot force a section open or closed. |
+| `Task ToggleAsync()` | Opens a closed section or closes an open one. Inside an accordion it first collapses the siblings, then reports through `OpenItemChanged`. |
+| `void Dispose()` | Unregisters from the accordion so a disposed item cannot be collapsed by a sibling; idempotent behind a `_disposed` flag. |
 
 ## Behaviour
 
-- **The markup, outermost first.** A `div[data-polaris-accordion-item][data-open="true|false"]` holds an optional `PolarisDivider`; a `div[data-polaris-accordion-header]` carrying Blazor's own `@onclick`; then the panel, a `div[data-polaris-accordion-panel]` with the inline style `display:grid;overflow:hidden;grid-template-rows:1fr|0fr`, an inner `div[data-polaris-accordion-panel-inner]` with `min-height:0;overflow:hidden`, and an `s-box` for the content.
-- **Inside the header**, a `PolarisClickable` (`AccessibilityExpanded` expanded/collapsed, `Background="subdued"`, `Padding="base"`) contains an inline `PolarisStack` with `JustifyContent="space-between"` and `AlignItems="center"`. Its first child is the `PolarisSection` heading — or, when `HeaderMedia` is set, a nested inline stack holding media and heading as **one** child, so the chevron still sits at the far edge and the picture is centred against both text lines. The last child is a small, subdued `chevron-down` `PolarisIcon` carrying `data-polaris-accordion-chevron`. The chevron is deliberately inside the surface and its padding, so the whole header is one hover and one click.
-- **The state badge goes into the section's `accessory` slot.** That slot is the only place Polaris renders content inline after the heading text, which is where a badge that qualifies the heading belongs. As a sibling of the section it was pushed to the far edge of the surface instead, because `s-section` is a block that fills the width it is given — it read as a second status competing with the title. Polaris warns if an accessory badge is not `size="base"`/`color="base"`; both are `PolarisBadge`'s defaults, so the tone is what carries the meaning.
-- **Why the handler is Blazor's, not an interop listener.** A listener on the Polaris element is detached and re-attached after every render, and every toggle re-renders the page that binds `OpenItemChanged`; whether a click landed while the listener was attached therefore depended on render history, which produced intermittent "the click does nothing". A click is a composed event, so one `@onclick` on the wrapper handles the heading, the chevron, the padding, and the click a keyboard Enter or Space produces on the real `<button>` inside Polaris's shadow root.
-- **State is in the markup, motion is in the stylesheet.** `grid-template-rows` is written inline, so a page that never loads `polaris-accordion.css` still opens and closes — it only stops animating. The stylesheet supplies the 200 ms transition, rotates the chevron from `[data-open="true"]`, hides the first item's divider, and disables transitions under `prefers-reduced-motion: reduce`.
-- **A closed panel is `inert` as well as clipped**, so content hidden by `overflow:hidden` leaves the tab order and the accessibility tree instead of being reachable off-screen.
-- **The header's accessible name is stated, not derived.** A heading set as an attribute lives in Polaris's shadow root, leaving the clickable surface with no text; the name joins `Header`, `HeaderDetails` and `HeaderStatus` with `". "` — skipping the blank ones, and dropping each part's trailing full stop so a sentence-style supporting line is not announced as "…and alloy.. Alloy weights on 2 of 6 variants" — and is passed as `AccessibilityLabel`. The status is in it because it is the one part of the header a merchant must hear without opening the section: a badge drawn as a `RenderFragment` would be projected into the shadow root and never announced.
-- **Opening inside an accordion batches the changes.** `ToggleAsync` awaits `CollapseOthersAsync` before setting its own state open, so both row changes are part of one render batch and the two transitions run together.
-- Nothing in `ToggleAsync` uses `ConfigureAwait(false)` on purpose: it ends in `StateHasChanged`, which must run on the renderer's dispatcher. A continuation resumed on the thread pool throws "The current thread is not associated with the Dispatcher" — and only once a handler genuinely awaits.
+- **The disclosure is the browser's.** `<details>` owns the open state, the disclosure semantics, the keyboard (Space and Enter), focus, and the fact that a closed panel is not rendered. Nothing here reimplements any of it: no `aria-expanded` interop, no `inert`, no grid-row clipping, no accessible name assembled by hand.
+- **The markup, outermost first.** A `div[data-polaris-accordion-item]` holds an optional `PolarisDivider`, then a `<details>` with an `open` attribute present only while open, a `<summary data-polaris-accordion-header>` with Blazor's own `@onclick`, an optional `aria-labelledby`, and the header's two groups; then the `s-box` panel.
+- **The summary is the row.** It is `display:flex; justify-content:space-between` from the stylesheet, with the text group first and the actions-plus-chevron group second. There is deliberately no stack wrapped around the two groups: a Polaris host computes to `display: contents`, so a wrapper would be one shrink-wrapped flex item, and measured, the chevron sat about 300px short of the header's edge while a click at the header's centre landed on the action.
+- **The accessible name is referenced, not restated.** `aria-labelledby` lists the heading, the supporting line and the status badge — whichever exist. Because it references the drawn elements, the name cannot drift from what is on screen, and the action's own label stays out of it (measured: without it the disclosure read "Variants … Clear all reviews").
+- **The action wrapper carries `stopPropagation` and `preventDefault`.** The first keeps the component's own header handler from running; the second stops a browser that does not skip the disclosure activation for interactive content from opening a panel the component would never hear about — which would leave it open while the C# state said closed.
+- **State is `open`, and it is the only source of truth.** There is no `data-open` mirror. The click handler flips the same state the browser just flipped, so the re-render's attribute write is a no-op and the two can never disagree.
+- **Motion lives in `polaris-accordion.css`** (`::details-content` `block-size`, the chevron rotation), scoped so a library does not change height animation for the whole page. A browser without `::details-content` opens instantly, which is the intended degradation.
 
 ## Gotchas
 
-- **`InitiallyOpen` is read once, in `OnInitialized`.** Setting it after the first render changes nothing, and there is no open/closed parameter to bind.
-- **The only public way to change the state is `ToggleAsync()`.** There is no `OpenAsync`/`CloseAsync`, and `SetOpenAsync` is `internal`; a parent that wants a specific section open must know whether it is currently closed before toggling.
-- **Two initially-open items in an exclusive accordion: the later one silently starts collapsed.** The container arbitrates by document order and nothing raises an event about the dropped request.
-- **A missing `Header` and `HeaderDetails` leaves the header with no accessible name.** The visible text lives in the shadow root, so without the parameters the surface is announced as an unlabelled button containing only an icon.
-- **`HeaderMedia` is invisible to assistive technology by design** — the name is built from the text parameters. Give a thumbnail that merely illustrates the title `alt=""`; a meaningful image needs its own description, and duplicating the heading in it is noise. `HeaderStatus` is the opposite: it is a string precisely so it joins that name.
-- **`HeaderStatus` is for a short state, not a sentence.** It renders as an `s-badge`, which truncates to one line; a long status is clipped rather than wrapped, and the fix is to shorten the text, not to widen the badge. Whitespace-only counts as unset, so a page can pass an expression that is sometimes blank without drawing an empty pill.
-- **The badge holds the heading's line, so it sits within the heading's max-content width.** A long `Header` still wraps as it did; the badge follows the last line rather than floating away from it, which is the accessory slot's own layout and not something this component controls.
-- **There is no header action slot, and that is a real limit.** The surface is a shadow `<button>` whose children are the slotted content, so an `s-button` placed inside it would be a button within a button — and the `button` role's children are presentational, leaving the action invisible to assistive technology. An action that belongs to a section goes at the top of its panel, where the caller owns the markup.
-- **`ContentPadding` is a raw string, not an enum.** A misspelled step is ignored by Polaris, which applies no padding at all, with nothing logged and nothing in the markup to show it.
-- **`ShowDivider` defaults to `true`, including on the first item.** The rule above the first section would double the accordion's own outer border; the stylesheet hides `[data-polaris-accordion-item]:first-child > s-divider`. Without that stylesheet the first section has two rules.
-- **The `inert` attribute does the accessibility work, not the clipping.** A browser that ignores `inert` still hides the content visually but leaves it focusable and announced.
+- **`ChildContent` must be named once a section carries `HeaderActions` or `HeaderMedia`.** Razor cannot attribute unnamed content when a component has more than one `RenderFragment` parameter (`RZ9996`), so the panel becomes `<ChildContent>…</ChildContent>`. A section with neither keeps the bare form.
+- **`HeaderActions` is for buttons.** The wrapper's `preventDefault` cancels the default action of whatever is inside it, so a link there would silently not navigate and a checkbox would not toggle. An action that navigates belongs at the top of the panel.
+- **`InitiallyOpen` is read once, in `OnInitialized`.** Setting it after the first render changes nothing.
+- **The only public way to change the state is `ToggleAsync()`.** `SetOpenAsync` is `internal`.
+- **Two initially-open items in an exclusive accordion: the later one silently starts collapsed.** The container arbitrates by document order and nothing raises an event.
+- **A missing `Header` and `HeaderDetails` leaves the header with no accessible name** — no ids means no `aria-labelledby`, and the summary's content is only the chevron and any action.
+- **The header's look is this library's, not Polaris's.** The band, padding and radius come from `polaris-accordion.css`; without it the header still works and shows the browser's default marker beside the chevron. That is the deliberate cost of a summary that can carry an action.
+- **`HeaderStatus` is for a short state, not a sentence.** It renders as an `s-badge`, which truncates to one line. Whitespace-only counts as unset.
+- **`HeaderMedia` is invisible to assistive technology by design** — the name is built from the text parameters. Give a thumbnail that merely illustrates the title `alt=""`.
+- **`ContentPadding` is a raw string, not an enum.** A misspelled step is ignored by Polaris, applying no padding at all.
 - **Disposing an open section unregisters it without raising `OpenItemChanged(null)`**, so a page mirroring the open `Value` keeps the stale value until something else toggles.
 
 ## See also
 
 - [PolarisAccordion.cs.md](PolarisAccordion.cs.md) — the container, exclusivity and `OpenItemChanged`.
 - [PolarisDivider.cs.md](PolarisDivider.cs.md) — the rule drawn above each section.
-- [PolarisIcon.cs.md](PolarisIcon.cs.md) — the chevron and its icon-name constraints.
-- [PolarisClickable.cs.md](PolarisClickable.cs.md) — the surface, and why it is a button in a shadow root.
-- [PolarisBadge.cs.md](PolarisBadge.cs.md) — the status badge's defaults, which the accessory slot requires.
+- [PolarisHeading.cs.md](PolarisHeading.cs.md), [PolarisText.cs.md](PolarisText.cs.md) — the header's two text elements, which are light DOM and therefore nameable.
+- [PolarisBadge.cs.md](PolarisBadge.cs.md) — the status badge.
+- [PolarisIcon.cs.md](PolarisIcon.cs.md) — the chevron.
+- [PolarisBox.cs.md](PolarisBox.cs.md) — the panel's padding.

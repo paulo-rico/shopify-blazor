@@ -1,5 +1,5 @@
 <!-- summary-of: PolarisAccordion.cs -->
-<!-- source-sha256: 92b8bd566867 -->
+<!-- source-sha256: 16693efa9a3f -->
 
 # PolarisAccordion.cs
 
@@ -23,11 +23,12 @@ A set of collapsible sections that behaves as one accordion: opening a section c
 ## Behaviour
 
 - **It is composed, not a wrapper.** Polaris has no accordion, collapsible or details element, so the container renders a `PolarisBox` (`Border="base"`, `BorderRadius="base"`, `Overflow="hidden"`) around a `PolarisStack` (`Gap=None`), and cascades itself to the items. The single rounded box is what makes the sections read as one card; no section draws a radius or an outer border of its own.
-- The `s-box` earns its place because it inherits Polaris's box styling set, while `s-section` inside each item does not — border and radius there would be dropped without a word.
-- **State belongs to the items; this container only arbitrates.** Each item owns its `_isOpen`; the accordion collapses the others when one opens, so both row changes land in the same render batch and the two transitions run together instead of one after the other.
+- **Each item's disclosure is the browser's own `<details>`/`<summary>`.** The container is what Polaris and the library supply: the card around the list, the exclusivity between sections, and the header's own look in `polaris-accordion.css`. The open state, the announcement, the keyboard and the non-rendering of a closed panel are the element's.
+- **State belongs to the items; this container only arbitrates.** Each item owns its `_isOpen`; the accordion collapses the others when one opens, so both attribute changes land in the same render batch and the browser applies them together.
 - In exclusive mode `CanOpenInitially` gives the open slot to the **first** item that asks, during `OnInitialized` — in practice document order. An item that is unregistered while holding the slot clears it.
 - `CascadingValue.IsFixed` is `true`, so re-rendering the container does not re-render every section: each item is the only thing that needs to know its own state changed.
 - Registration happens in each item's `OnInitialized` and is undone in `Dispose`; an accordion with no container still opens and closes, it just cannot enforce exclusivity.
+- The container does not use the `name` attribute that makes native `<details>` groups exclusive. It works in current browsers, but it would close siblings without telling this component, so `OpenItemChanged` would report a transition nobody made.
 
 ## Gotchas
 
@@ -37,6 +38,7 @@ A set of collapsible sections that behaves as one accordion: opening a section c
 - `AllowMultiple` is read when a toggle happens, so changing it at runtime takes effect on the next click. Turning it on does not retroactively allow a second open section; turning it off does not collapse anything until the next open.
 - Children are not type-checked: a plain element inside `ChildContent` renders in the stack and simply never responds to the accordion, because it never registered.
 - The accordion draws no separators itself — every item has a divider on top by default, and the stylesheet hides the first one so it does not double the container's border.
+- **A header action does not toggle the section, and `OpenItemChanged` is the only signal.** Pressing a button in a header runs it and leaves the section's state alone; if a page needs to know about that press, the button's own `OnClick` is the callback.
 
 ## See also
 
