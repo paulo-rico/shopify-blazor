@@ -66,14 +66,31 @@ export function ensureStylesheets() {
         return;
     }
 
+    // The module URL carries the build's stamp (`?v=…`, added by PolarisInterop.VersionedModuleUrl),
+    // and each stylesheet has to carry it too.
+    //
+    // A relative URL does not inherit its base's query — RFC 3986 replaces the last path segment AND
+    // its query — so `new URL("./x.css", import.meta.url)` comes out unversioned even though the module
+    // is cached-busted. Measured after a deploy that changed the accordion's header: the browser kept
+    // the previous deploy's stylesheet, which has no rule for a `<summary>`, and every header rendered
+    // with no band, no padding and the default marker while the markup was correct. A stylesheet is a
+    // static file with no Cache-Control here, so a returning visitor really does reuse it.
+    const moduleUrl = new URL(import.meta.url);
+    const version = moduleUrl.searchParams.get("v");
+
     for (const path of stylesheets) {
-        const href = new URL(path, import.meta.url).href;
-        if (document.head.querySelector(`link[data-polaris-stylesheet="${href}"]`)) continue;
+        const href = new URL(path, moduleUrl);
+        if (version) {
+            href.searchParams.set("v", version);
+        }
+
+        const address = href.href;
+        if (document.head.querySelector(`link[data-polaris-stylesheet="${address}"]`)) continue;
 
         const link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = href;
-        link.dataset.polarisStylesheet = href;
+        link.href = address;
+        link.dataset.polarisStylesheet = address;
         document.head.append(link);
     }
 }

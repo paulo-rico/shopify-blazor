@@ -270,6 +270,16 @@ unreleased. The first planned release is `0.1.0-preview.1`.
 
 ### Fixed
 
+- **The stylesheets `polaris-interop.js` injects were requested without the build stamp**, so a deploy that
+  changed `polaris-accordion.css` — or the grid's or the slider's — reached the browser only if it had no
+  cached copy. The module itself is imported as `?v=<build>`, but a relative URL does not inherit its
+  base's query: `new URL("./x.css", import.meta.url)` replaces the last path segment *and its query*, so
+  the three links came out unversioned against a static file served with an ETag and no `Cache-Control`.
+  Measured on a real deploy that changed the accordion's header: the browser reused the previous
+  stylesheet, which has no rule for a `<summary>`, and every header rendered with no band, no padding and
+  the default marker while the markup was perfectly correct — the page read as having lost its styling.
+  `ensureStylesheets` now copies the module's `v` onto each href, and the browser check asserts the stamp
+  is present.
 - **A deployed app could keep an old interop module for ever, and the newest functions simply did not
   exist.** Both libraries imported their JavaScript from `_content/…` without a version, and a static
   web asset is served with an ETag and no `Cache-Control`, so the browser's heuristic freshness rule

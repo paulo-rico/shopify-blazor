@@ -964,6 +964,13 @@ function evaluateAssertions(result) {
 
         check(accordion.stylesheet !== null, "the accordion's stylesheet is linked (it draws the header band and the motion)");
         check(
+            // The element is a static file with no Cache-Control, so an unstamped URL means a returning
+            // browser applies the previous deploy's rules to the new markup — measured: headers with no
+            // band, no padding and the default marker while the markup was correct.
+            /\?v=/.test(accordion.stylesheet ?? ""),
+            `the accordion's stylesheet URL carries the build stamp (${accordion.stylesheet ?? "none"})`,
+        );
+        check(
             accordion.realClickFlipped === true,
             "a real mouse click on the header — not element.click() — opens the section",
         );

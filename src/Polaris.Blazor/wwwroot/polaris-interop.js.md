@@ -1,5 +1,5 @@
 <!-- summary-of: polaris-interop.js -->
-<!-- source-sha256: f33cacdf2fa4 -->
+<!-- source-sha256: c94e99b32431 -->
 
 # polaris-interop.js
 
@@ -14,7 +14,7 @@ this file ever decides what a click means, the decision belongs in C#.
 
 | Function | Signature | What it does |
 |---|---|---|
-| `ensureStylesheets` | `(): void` | Injects a `<link>` for each of the three stylesheets, skipping any already present (matched on `link[data-polaris-stylesheet="<href>"]`). If `document.head` does not exist yet, defers to `DOMContentLoaded` once. Also called once at module scope, so importing the module is enough. |
+| `ensureStylesheets` | `(): void` | Injects a `<link>` for each of the three stylesheets, skipping any already present (matched on `link[data-polaris-stylesheet="<href>"]`). Each href carries the module URL's `?v=` build stamp, copied by hand because a relative URL does not inherit its base's query. If `document.head` does not exist yet, defers to `DOMContentLoaded` once. Also called once at module scope, so importing the module is enough. |
 | `whenDefined` | `(tagName: string, timeoutMs = 10000): Promise<boolean>` | Resolves `true` once the element is defined, `false` on timeout. An empty tag name resolves `true` immediately; an already-defined element resolves without waiting. |
 | `ensureId` | `(element: HTMLElement): string` | Returns the element's id, assigning `polaris-blazor-<n>` from a module counter when it has none. Throws when handed no element. |
 | `setProperties` | `(element, tagName, values: Record<string, unknown>): Promise<void>` | Awaits upgrade, then assigns each non-`null`/non-`undefined` value as a DOM **property**. A boolean is written in both forms — property plus attribute presence (`setAttribute(name, "")` / `removeAttribute(name)`) — because Polaris reflects booleans from attribute presence. If any name is in `RENDER_ONLY_PROPERTIES`, calls the element's `queueRender()` once at the end. |
@@ -89,6 +89,13 @@ this file ever decides what a click means, the decision belongs in C#.
 - **`ensureStylesheets` is guarded by the href, not by a flag**, because the module can be loaded more
   than once (a second circuit, a hot reload) and a duplicate `<link>` would be a second request for the
   same file.
+- **A stylesheet's URL must carry the build stamp, and a relative URL does not inherit it.** The module is
+  imported as `?v=<build>`, but `new URL("./x.css", import.meta.url)` replaces the last path segment *and
+  its query*, so the three stylesheets were requested unversioned. Measured on a real deploy that changed
+  the accordion's header: the browser reused the previous deploy's stylesheet, which has no rule for a
+  `<summary>`, and every header rendered with no band, no padding and the default marker while the markup
+  was perfectly correct — the page looked like it had lost its CSS. `ensureStylesheets` copies the
+  module's `v` onto each href, and the browser check asserts the stamp is there.
 - **`invokeElementMethod` throws on a missing method**, and there is no capability probe; if Polaris
   removes `showOverlay`, the call site fails at runtime rather than at build time.
 
